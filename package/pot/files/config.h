@@ -7,6 +7,8 @@
 #define POT_MAX_VALUE	4320		/* 4320 minutes */
 #define POT_RESOLUTION	1		/* minute */
 #define POT_PORT	3333		/* potval listen this port */
+#define NTPTIME_POSTION 2048
 #define STAMAC_POSTION (2048 + 4)
+#define NTPTIME_POSTION_BYINT (2048/4)
 
 #endif
