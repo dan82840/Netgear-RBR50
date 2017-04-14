@@ -13,15 +13,18 @@ Note:
 
 1. uncompress source code file _gpl_src.zip.
 
-	unzip Orbi-V1.1.0.16_gpl_src.tar.bz2.zip
-	tar -jxvf Orbi-V1.1.0.16_gpl_src.tar.bz2
+	unzip Orbi-V1.2.0.6_gpl_src.tar.bz2.zip
+	tar -jxvf Orbi-V1.2.0.6_gpl_src.tar.bz2
+	
+	tar -jxvf toolchain.tar.bz2
+	cp toolchain/* Orbi-V1.2.0.6_gpl_src/	
 
 2. run following commands to build.
 
-	cd Orbi-V1.1.0.16_gpl_src
+	cd Orbi-V1.2.0.6_gpl_src
 	cp configs/defconfig-orbi .config
 	make V=99
 
-3. the final image is "bin/ipq806x/RBR50-V1.1.0.16.img and RBS50-V1.1.0.16.img".
+3. the final image is "bin/ipq806x/RBR50-V1.2.0.6.img and RBS50-V1.2.0.6.img".
 
 User may upgrade to this image using the Orbi GUI "Router Upgrade" page.
