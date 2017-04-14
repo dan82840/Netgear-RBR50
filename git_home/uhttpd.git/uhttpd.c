@@ -769,7 +769,7 @@ void fw_checking()
         if(fw_fp!= NULL )
         {
             fprintf(stderr, "AUTO FW CHECK: power cycle\n");
-            system("net-cgi -c");
+            system("net-cgi -p");
             fclose(fw_fp);
             unlink("/tmp/fwcheck_status");
             break;
@@ -855,7 +855,6 @@ void fw_checking()
 		{
 			//fprintf(stderr, "tm_wday == week_day\n");
 			current_time = (long)tm->tm_hour*60*60+(long)tm->tm_min*60+(long)tm->tm_sec;
-			expect_time = 1*60*60+ (rand()%180)*60;
 
 			diff_time = expect_time - current_time;
 			fprintf(stderr, "expect_time == %ld seconds, current_time == %ld seconds\n", expect_time, current_time);

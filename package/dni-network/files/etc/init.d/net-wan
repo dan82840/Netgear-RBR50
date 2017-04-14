@@ -182,7 +182,7 @@ set_dns()
 
 restart_ipv6() {
 	if [ "$($CONFIG get wan_proto)" != "dhcp" ] || [ "$($CONFIG get ipv6_type)" != "6to4" ]; then
-		[ "$1" = "boot" ] && sleep 10 #Fix net6conf start too early, radvd can not up.
+		[ "$1" = "boot" ] && sleep 20 #Fix net6conf start too early, radvd can not up.
 		killall net6conf
 		/etc/init.d/init6 start 
 	fi

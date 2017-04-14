@@ -167,10 +167,16 @@ int br_acl_should_pass(struct net_bridge *br, struct sk_buff *skb, int type)
 
 	/* For the connection between RBR50 and RBS50 */
 	if(strcmp(skb->dev->name, "ath01") == 0 || strcmp(skb->dev->name, "ath2") == 0){
-		if (br->acl_debug) {
-			printk("interface  is %s\n", skb->dev->name);
+		if (ip_h != NULL && tcpudp_h != NULL && eth_h->h_proto == __constant_htons(ETH_P_IP) && ip_h->protocol == IPPROTO_UDP && tcpudp_h->dst == __constant_htons(53) && dnsnl) {
+			if (br->acl_debug) 
+				printk("dns packets interface  is %s\n", skb->dev->name);
 		}
-		return 1;
+		else
+		{
+			if (br->acl_debug) 
+				printk("interface  is %s\n", skb->dev->name);
+			return 1;
+		}
 	}
    
 	if (type & ACL_CHECK_SRC) {
@@ -209,8 +215,9 @@ int br_acl_should_pass(struct net_bridge *br, struct sk_buff *skb, int type)
 	if (drop) {
 		/* pass through the http packet to/from DUT */
 		if (ip_h != NULL && tcpudp_h != NULL && eth_h->h_proto == __constant_htons(ETH_P_IP) && ip_h->protocol == IPPROTO_TCP && (tcpudp_h->dst ==__constant_htons(80) || tcpudp_h->src == __constant_htons(80))) {
-			in_dev = (struct in_device *)br->dev->ip_ptr;
-			if (in_dev && in_dev->ifa_list && (in_dev->ifa_list->ifa_local == ip_h->saddr || in_dev->ifa_list->ifa_local == ip_h->daddr))
+		//Fix satelliet attached device don't display block page,and base attached device access satelliet br0 don't display too.
+		//	in_dev = (struct in_device *)br->dev->ip_ptr;
+		//	if (in_dev && in_dev->ifa_list && (in_dev->ifa_list->ifa_local == ip_h->saddr || in_dev->ifa_list->ifa_local == ip_h->daddr))
 				return 1;
 		}
 

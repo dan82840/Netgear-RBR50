@@ -55,7 +55,6 @@ local rssi_samples rssi_far rssi_near rssi_min rssi_pref2G
 local assoc_timeout wps_timeout config_downtime2G measuring_attempts=0
 local config_short_eval_time5g=0 config_long_eval_time5g=0
 
-
 # Emit a message at debug level.
 # input: $1 - the message to log
 __repacd_wifimon_debug() {
@@ -637,6 +636,7 @@ __repacd_wifimon_bring_iface_up() {
         __repacd_wifimon_info "Interface $sta_iface Brought up"
         force_down_5g=0
     fi
+
 }
 
 # Bring down sta vap interface.
@@ -953,10 +953,8 @@ repacd_wifimon_init() {
         config_get rssi_pref2G 'WiFiLink' 'RSSIThresholdPrefer2GBackhaul' '-100'
         config_get config_downtime2G 'WiFiLink' '2GBackhaulSwitchDownTime' '10'
         config_get measuring_attempts 'WiFiLink' 'MaxMeasuringStateAttempts' '3'
-
         config_get config_short_eval_time5g 'WiFiLink' '5GBackhaulEvalTimeShort' '1800'
         config_get config_long_eval_time5g  'WiFiLink' '5GBackhaulEvalTimeLong' '7200'
-
         # Create ourselves a named pipe so we can be informed of WPS push
         # button events.
         if [ -e $WIFIMON_PIPE_NAME ]; then

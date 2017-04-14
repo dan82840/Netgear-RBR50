@@ -32,38 +32,11 @@ var bridge_mode="<% cfg_get("bridge_mode") %>";
 function loadvalue()
 {
 	var cf = document.forms[0];
-	var len = 1;
-	if(parent.rae_flag & 1)
-	{
-		document.getElementById("ap_mode").style.display = "";
-		len++;
-	}
-	else
-		document.getElementById("ap_mode").style.display = "none";
-	if(parent.rae_flag & 2)
-	{
-		document.getElementById("bridge_mode").style.display = "";
-		len++;
-	}
-	else
-		document.getElementById("bridge_mode").style.display = "none";
-	if(parent.rae_flag & 4)
-	{
-		document.getElementById("repeating_mode").style.display = "";
-		len++;
-	}
-	else
-		document.getElementById("repeating_mode").style.display = "none";
-	document.getElementById("icon_box").style.width=(len*220+20)+"px";
+	
 	if( ap_mode == "1" )
 	{
 		cf.operation_type[1].checked = true;
 		$$("#ap").removeClass("icon").addClass("icon_select");
-	}
-	else if(bridge_mode == "1")
-	{
-		cf.operation_type[2].checked = true;
-		$$("#bridge").removeClass("icon").addClass("icon_select");
 	}
 	else
 	{
@@ -86,14 +59,6 @@ function loadvalue()
 <div id="ap_mode" class="box ui-corner-all ap">
 <div class="radio_box"><input type="radio" name="operation_type" onclick="select_type(1)" value=1> $ap_mode</div>
 <div id="ap" class="icon" onclick="select_type(1)"><img src="/image/ap.gif"></div>
-</div>
-<div id="bridge_mode" class="box ui-corner-all bridge">
-<div class="radio_box"><input type="radio" name="operation_type" onclick="select_type(2)" value=2> $bridge_mode</div>
-<div id="bridge" style="width:115px" class="icon" onclick="select_type(2)"><img src="/image/bridge.gif"></div>
-</div>
-<div id="repeating_mode" class="box ui-corner-all repeating">
-<div class="radio_box"><input type="radio" name="operation_type" onclick="select_type(3)" value=2> $repeating_mode</div>
-<div id="repeating" class="icon" onclick="select_type(3)"><img src="/image/repeating.gif"></div>
 </div>
 
 </div>

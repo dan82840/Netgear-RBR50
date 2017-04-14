@@ -93,7 +93,7 @@ var dyn_get_dns_flag="<% cfg_get("ap_ether_dns_assign") %>";
 
 //Enable 20/40 MHz Coexistence: 0: enable, 1: disabled
 var wl_disablecoext="<% cfg_get("wl_disablecoext") %>";
-var endis_beamforming = "<% cfg_get("wla_bf") %>";
+var endis_beamforming = "<% cfg_get("wla_implicit_bf") %>";
 var enable_ht160 = "<% cfg_get("wla_ht160") %>";
 var enable_mu="<% cfg_get("wla_mu_mimo") %>";
 
@@ -986,16 +986,6 @@ $bluebar
 </TR>
 <TR><TD>&nbsp;</TD></TR>
 <!--$bluebar-->
-<TR id='wladv_beamforming' style="display:none">
-	<TD nowrap colspan=2 >
-		<input type="checkbox" name="enable_implicit_beamforming" id="enable_implicit_beamforming" onclick="power_display();" value=0>$enable_beamform1
-	</TD>
-</TR>
-<TR id='wladv_mu' style="display:none">
-	<TD nowrap colspan=2 >
-	<input type="checkbox" name="enable_mu" value="">$enable_mu
-	</TD>
-</TR>
 <TR id="wladv_atf" style="display:none">
 	<TD nowrap colspan=2 >
 		<input type="checkbox" name="enable_atf">$wlan_adv_atf
@@ -1016,13 +1006,23 @@ $bluebar
 	</TD>
 </TR>
 
-<tr><td colspan="2"><b>$orbi_backhaul_pwd</b></td></tr>
+<tr><td colspan="2"><A tabindex=-1 href="javascript:loadhelp('_wladv','backhaul')"><b>$orbi_backhaul_pwd</b></A></td></tr>
 <tr><td colspan="2">$ORT_001</td></tr>
 <tr><td colspan="2">$ORT_002 &nbsp;&nbsp;&nbsp;&nbsp;
 	<input type="button" name="generate" onclick="location.href='Orbi_backhaul.htm';" value="$generate_mark" class="common_bt"/>
 	</td>
 </tr>
 $bluebar
+<TR id='wladv_beamforming'>
+	<TD nowrap colspan=2 >
+		<input type="checkbox" name="enable_implicit_beamforming" id="enable_implicit_beamforming" onclick="power_display();" value=0><b>$enable_beamform1</b>
+	</TD>
+</TR>
+<TR id='wladv_mu' style="display:none">
+	<TD nowrap colspan=2 >
+		<input type="checkbox" name="enable_mu" value=""><b>$enable_mu</b>
+	</TD>
+</TR>
 </TABLE>
 </div>
 <% help_box("0","_wladv") %>

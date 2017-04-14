@@ -1625,7 +1625,7 @@ CONFIG_PACKAGE_qsdk-wifi-script=y
 #
 CONFIG_QSDK_WIFI_SCRIPT_GIT_REPOSITORY="qsdk-wifi-script.git"
 CONFIG_QSDK_WIFI_SCRIPT_GIT_URL="ssh://dniserver/scm/dnigit/common/apps/qsdk-wifi-script.git"
-CONFIG_QSDK_WIFI_SCRIPT_GIT_TREEISH="bf568129741ae6059652688e61c438c29d222ce4"
+CONFIG_QSDK_WIFI_SCRIPT_GIT_TREEISH="7bc14eb6a5ca9264fca6dd0cb9e2ff8336cbc280"
 CONFIG_PACKAGE_radardetect=y
 
 #
@@ -1673,7 +1673,7 @@ CONFIG_PACKAGE_wlan-common=y
 #
 # Configurations
 #
-CONFIG_WLAN_COMMON_GIT_TREEISH="d5c18715a6dadbcf56f4b5a4633bdb92b92931b2"
+CONFIG_WLAN_COMMON_GIT_TREEISH="27d00da8069eddb448c737f0bc3d32a523a1df0c"
 CONFIG_WLAN_COMMON_GIT_REPOSITORY="wlan-common.git"
 CONFIG_WLAN_COMMON_GIT_URL="ssh://dniserver/scm/dnigit/apps/wlan-common/spencer/wlan-common.git"
 
@@ -1738,7 +1738,7 @@ CONFIG_HYD_WIFI_LOAD_BALANCING=y
 CONFIG_HYD_SUPPORT_VHT160=y
 # CONFIG_PACKAGE_qca-hyd-plc is not set
 CONFIG_PACKAGE_qca-libhyfi-bridge=y
-CONFIG_WIFISON_HIFY_GIT_TREEISH="f3c0f6b2398a7b3fdde625f8f39c27c34c20dbfe"
+CONFIG_WIFISON_HIFY_GIT_TREEISH="95f1a2cce92b70e834bd63b266fe0ddd24316301"
 CONFIG_WIFISON_HIFY_KMOD_GIT_TREEISH="7ed166aa0b322c7aa347df483afd5a662c2ca957"
 
 
@@ -1770,12 +1770,12 @@ CONFIG_PACKAGE_qca-wsplcd=y
 #
 # Whole Home Coverage features
 #
-CONFIG_PACKAGE_luci-whc=y
-CONFIG_PACKAGE_luci-whc-lbd=y
-CONFIG_PACKAGE_luci-whc-lbd-advanced=y
-CONFIG_PACKAGE_luci-whc-lbd-diaglog=y
-CONFIG_PACKAGE_luci-whc-repacd=y
-CONFIG_PACKAGE_luci-whc-repacd-advanced=y
+#CONFIG_PACKAGE_luci-whc is not set 
+#CONFIG_PACKAGE_luci-whc-lbd is not set
+#CONFIG_PACKAGE_luci-whc-lbd-advanced is not set 
+#CONFIG_PACKAGE_luci-whc-lbd-diaglog is not set
+#CONFIG_PACKAGE_luci-whc-repacd is not set
+#CONFIG_PACKAGE_luci-whc-repacd-advanced is not set
 CONFIG_PACKAGE_qca-whc-init=y
 
 #
@@ -1785,7 +1785,7 @@ CONFIG_QCA_WHC_USE_DNI_GIT=y
 CONFIG_PACKAGE_qca-whc-lbd=y
 CONFIG_LBD_SUPPORT_VHT160=y
 
-CONFIG_WIFISON_WHC_GIT_TREEISH="a1fb5ba1474fe489f1967384457cf79b593bd87e"
+CONFIG_WIFISON_WHC_GIT_TREEISH="569a2e4acbdb18cd6f6f69dd1c6be9ec3d90e359"
 
 #
 # overwrite package version

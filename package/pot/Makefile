@@ -25,11 +25,11 @@ define Package/pot
 endef
 
 define Build/Prepare
-	$(CP) ./src/* $(PKG_BUILD_DIR)/
+	$(CP) $(GIT_HOME)/pot.git/* $(PKG_BUILD_DIR)/
 endef
 
-
 define Build/Configure
+	$(CP) ./files/config.h $(BUILD_DIR)/$(PKG_NAME)/
 endef
 
 define Package/pot/install

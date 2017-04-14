@@ -210,6 +210,8 @@ __hyd_create_config() {
 	__hyd_cfg_add_str		Topology		ENABLE_TD3
 	__hyd_cfg_add_str		Topology		ENABLE_BD_SPOOFING
 	__hyd_cfg_add_str		Topology		NOTIFICATION_THROTTLING_WINDOW
+	__hyd_cfg_add_str		Topology		PERIODIC_QUERY_INTERVAL
+	__hyd_cfg_add_str		Topology		ENABLE_NOTIFICATION_UNICAST
 
 	__hyd_cfg_nl_append '[PATHSELECT]'
 	__hyd_cfg_add_str		PathSelect		UpdateHDInterval

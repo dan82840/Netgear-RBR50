@@ -32,8 +32,15 @@ function check_dev_name(cf)
 	cf.submit();
 	return true;
 }
+function backtoDev()
+{
+	if("<% cfg_get("enable_adv_attached") %>" == "1")
+		location.href="DEV_show_device.htm";
+	else
+		location.href="DEV_show_device_basic.htm";
+}
 if( master =="admin" )
-    document.write('<TR><TD nowrap colspan=2 align=center><input class="cancel_bt" type="button" name="Cancel" id="cancel" value="$cancel_mark" onClick="location.href=\'DEV_show_device.htm\';">&nbsp;&nbsp;<input class="apply_bt" type="button" name="Apply" id="apply" value="$apply_mark" onClick="return check_dev_name(document.forms[0]);"></TD></TR>');
+    document.write('<TR><TD nowrap colspan=2 align=center><input class="cancel_bt" type="button" name="Cancel" id="cancel" value="$cancel_mark" onClick="backtoDev();">&nbsp;&nbsp;<input class="apply_bt" type="button" name="Apply" id="apply" value="$apply_mark" onClick="return check_dev_name(document.forms[0]);"></TD></TR>');
 else
 	document.write('<TR><TD nowrap colspan=2 align=center><input class="cancel1_bt" type="button" name="Cancel" id="cancel" value="$cancel_mark" disabled>&nbsp;&nbsp;<input class="apply1_bt" type="button" name="Apply" id="apply" value="$apply_mark" disabled></TD></TR>');
 </script>

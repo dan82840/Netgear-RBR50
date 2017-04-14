@@ -1873,7 +1873,7 @@
 							});
 						} else {
 							$$('.changing_lang').remove();
-							$$.confirmBox(ml_switch+" "+json.from+ml_curlang+" "+json.to,
+							$$.confirmBox(ml_switch+" "+json.from+" "+ml_curlang+" "+json.to,
 								null,
 								function() {
 									if ( $$('.promo:first').length )

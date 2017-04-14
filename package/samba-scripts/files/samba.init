@@ -27,6 +27,11 @@ start()
     # create users, groups
     update_user
 
+    # only allow access readyshare file in factory_mode
+    if [ "x$(/bin/config get factory_mode)" != "x1" ]; then
+        return
+    fi
+
     # detect SATA disk
     /usr/sbin/detectSATA start
 

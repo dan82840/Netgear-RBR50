@@ -10,11 +10,6 @@ var auto_flag = '<% cfg_get("auto_upgrade_flag") %>';
 	<tr><td colSpan=2><H1>$firm_upgrade</H1></td></tr>
 	<tr><td colSpan=2></td></tr>
 	<tr><td colSpan=2><hr class=blueBar /></td></tr>
-	<tr><td nowrap><a tabindex=-1 href=\"javascript:loadhelp('_upgrade','check')\"><B>$upgrade_new_version</B></a></td></tr>
-	$bluebar
-	<tr><td nowrap><a tabindex=-1 href=\"javascript:loadhelp('_upgrade','locate')\"><B>$upgrade_select_disk</B></a></td></tr>
-	<tr><td nowrap><input name=filename disabled=true type=file size=32></td></tr>
-	$bluebar
 </table>
 </div>
 </FORM>
@@ -36,7 +31,6 @@ var maxchars = 60;
 var percent = (upg_status - 1000) *  maxchars / 100;
 var charcount = percent;
 var upgrade_str="<P><font size=2>$upgrade_str_1 3 $upgrade_str_2<P><input type=text name=progress class=prgbar width=600 height=70><P><P><img src=/upload.gif width=200 height=70 border=0></TD></TR><P>";
-var upgrade_msgstr="<TABLE width=100% border=0 cellpadding=0 cellspacing=3><TR><TD colSpan=2><H1>$firm_upgrade</H1></TD></TR><TR><TD colSpan=2></TD></TR>$bluebar<TR><TD nowrap> <A tabindex=-1 href=\"javascript:loadhelp('_upgrade','check')\"><B>$upgrade_new_version</B></A></TD></TR>$bluebar<TR><TD nowrap> <A tabindex=-1 href=\"javascript:loadhelp('_upgrade','locate')\"><B>$upgrade_select_disk</B></A></TD></TR><TR><TD nowrap> <input name=filename disabled=true type=file size=32></TD></TR>$bluebar</TABLE>";
 
 function refreshnexttime()
 {

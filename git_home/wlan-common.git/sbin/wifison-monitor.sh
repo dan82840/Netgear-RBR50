@@ -44,6 +44,10 @@ echo "" >> $hyd_restart_log
 echo "[hyd restart $hyd_restart_cnt times]" >> $hyd_restart_log
 echo "=====  $timestamp" >> $hyd_restart_log
 echo "$wifi_status" >> $hyd_restart_log
+
+hyctl flushatbl br0
+hyctl flushdtbl br0
+
 /etc/init.d/hyd restart
 }
 

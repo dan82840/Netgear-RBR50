@@ -318,7 +318,7 @@ case "$1" in
 			          vap_radio=0
 			    fi
 			fi
-			start_dhcpd 
+			[ "$(cat /tmp/link_status)" = "0" ] && [ "$(cat /tmp/link_status_5g)" = "0" ] && start_dhcpd 
 			#echo -n 5 > /proc/switch_phy
 		if [ "$(/bin/config get factory_mode)" = "1" ]; then
 			echo "not restart eth_handle in factory_mode"

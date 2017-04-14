@@ -840,6 +840,9 @@ enable_qcawifi() {
         config_get delay_stavapup "$device" delay_stavapup
         [ -n "$delay_stavapup" ] && iwpriv "$phy" delay_stavapup "${delay_stavapup}"
 
+        config_get cca_threshold "$device" cca_threshold
+        [ -n "$cca_threshold" ] && iwpriv "$phy" cca_threshold "${cca_threshold}"
+
 	if [ -f /lib/wifi/wifi_nss_olcfg ]; then
 		nss_wifi_olcfg="$(cat /lib/wifi/wifi_nss_olcfg)"
 		if [ $nss_wifi_olcfg != 0 ]; then
@@ -1710,11 +1713,20 @@ enable_qcawifi() {
 		txpower="${txpower:-$vif_txpower}"
 		[ -z "$txpower" ] || iwconfig "$ifname" txpower "${txpower%%.*}"
 
+		config_get rps "$vif" rps
+		if [ $rps == 1 ]; then
+			enable_rps_wifi=1
+		elif [ $rps == 0 ]; then
+			enable_rps_wifi=0
+		fi
+
 		if [ $enable_rps_wifi == 1 ] && [ -f "/lib/update_system_params.sh" ]; then
 			. /lib/update_system_params.sh
 			enable_rps $ifname
 		fi
 
+		config_get dyn_bw_rts "$vif" dyn_bw_rts
+		[ -n "$dyn_bw_rts" ] && iwpriv "$ifname" dyn_bw_rts "$dyn_bw_rts"
 	done
 
 	config_get vifs "$device" vifs

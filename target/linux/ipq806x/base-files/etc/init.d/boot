@@ -318,6 +318,9 @@ start() {
 		do_load_ipq4019_board_bin
 	}
 	
+	/bin/config set lbd_MUOverloadThreshold_W2="80"
+	/bin/config set lbd_MUSafetyThreshold_W2="50"
+
 	#For debug page pre setting
 	local wifi_debug_option=$(/bin/config get wifi_debug_option)
 	local wifi_debug_max_log_size=$(/bin/config get wifi_debug_max_log_size)

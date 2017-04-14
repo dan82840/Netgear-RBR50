@@ -699,16 +699,20 @@ p{
   width:100%;
 }
 #card-configure-internet-connection .desc-title-bullet{
-  float: right;
-  width: 58%;
+  float: left;
 }
 #card-problem-with-router .desc-title-bullet.long-bullet{
   width: 95%;
 }
 #card-configure-internet-connection .desc-title-bullet.long-bullet{
-  width: 86%;
+  margin-left:35px;
+  width:90%;
 }
-#card-configure-internet-connection .bullet,
+#card-configure-internet-connection .bullet
+{
+  margin-right: 4px;
+  width:90%;
+}
 #card-no-internet-cable .bullet{
   margin-bottom: 13px;
   margin-right: 4px;
@@ -1662,6 +1666,7 @@ div.dropdown.open ul {
 
 div.dropdown{
     margin-bottom: 40px;
+    height: 10px; /* bug 62523-password question is shown wrong in Iphone5S.*/
 }
 .button-nav-skip-long{
     display: block;

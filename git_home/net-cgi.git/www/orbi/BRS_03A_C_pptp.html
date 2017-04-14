@@ -151,23 +151,23 @@ function checkIPaddr()
 
 			<div class="col-lg-12 col-md-12 col-sm-12 ip-wrapper">
 				<div class="input-title"><script>document.write(bh_info_mark_ip);</script></div>
-				<input class="ip-box" type="number" min="0" max="255" name="myip_1" id="myip1"><div>.</div>
-				<input class="ip-box" type="number" min="0" max="255" name="myip_2" id="myip2"><div>.</div>
-				<input class="ip-box" type="number" min="0" max="255" name="myip_3" id="myip3"><div>.</div>
-				<input class="ip-box" type="number" min="0" max="255" name="myip_4" id="myip4">
+				<input class="ip-box" name="myip_1" id="myip1" autocomplete="off" maxlength="3" onfocus="this.select();" onkeydown="keydown(event,this);" onkeypress="return getkey('num',event);" onkeyup="keyup(event,this);" type="text"><div>.</div>
+				<input class="ip-box" name="myip_2" id="myip2" autocomplete="off" maxlength="3" onfocus="this.select();" onkeydown="keydown(event,this);" onkeypress="return getkey('num',event);" onkeyup="keyup(event,this);" type="text"><div>.</div>
+				<input class="ip-box" name="myip_3" id="myip3" autocomplete="off" maxlength="3" onfocus="this.select();" onkeydown="keydown(event,this);" onkeypress="return getkey('num',event);" onkeyup="keyup(event,this);" type="text"><div>.</div>
+				<input class="ip-box" name="myip_4" id="myip4" autocomplete="off" maxlength="3" onfocus="this.select();" onkeydown="keydown(event,this);" onkeypress="return getkey('num',event);" onkeyup="keyup(event,this);" type="text">
  			</div>
 
 			<div class="col-lg-12 col-md-12 col-sm-12 ip-wrapper">
 				<div class="input-title"><script>document.write(bh_sta_routes_gtwip);</script></div>
-				<input class="ip-box" type="number" min="0" max="255" name="mygw_1" id="mygw1"><div>.</div>
-				<input class="ip-box" type="number" min="0" max="255" name="mygw_2" id="mygw2"><div>.</div>
-				<input class="ip-box" type="number" min="0" max="255" name="mygw_3" id="mygw3"><div>.</div>
-				<input class="ip-box" type="number" min="0" max="255" name="mygw_4" id="mygw4">
+				<input class="ip-box" name="mygw_1" id="mygw1" autocomplete="off" maxlength="3" onfocus="this.select();" onkeydown="keydown(event,this);" onkeypress="return getkey('num',event);" onkeyup="keyup(event,this);" type="text"><div>.</div>
+				<input class="ip-box" name="mygw_2" id="mygw2" autocomplete="off" maxlength="3" onfocus="this.select();" onkeydown="keydown(event,this);" onkeypress="return getkey('num',event);" onkeyup="keyup(event,this);" type="text"><div>.</div>
+				<input class="ip-box" name="mygw_3" id="mygw3" autocomplete="off" maxlength="3" onfocus="this.select();" onkeydown="keydown(event,this);" onkeypress="return getkey('num',event);" onkeyup="keyup(event,this);" type="text"><div>.</div>
+				<input class="ip-box" name="mygw_4" id="mygw4" autocomplete="off" maxlength="3" onfocus="this.select();" onkeydown="keydown(event,this);" onkeypress="return getkey('num',event);" onkeyup="keyup(event,this);" type="text">
 			</div>
 
 			<div class="input-wrapper col-lg-6 col-md-6 col-sm-6 float-left">
 				<div class="input-title non-active-val disabled"><script>document.write(bh_basic_pptp_servip);</script></div>
-				<input type="text" value="10.0.0.138" id="pptp_serv_ip" name="pptp_serv_ip">
+				<input type="text" value="10.0.0.138  " id="pptp_serv_ip" name="pptp_serv_ip">
 			</div>
 
 			<div class="input-wrapper col-lg-6 col-md-6 col-sm-6 input-wrapper-right">

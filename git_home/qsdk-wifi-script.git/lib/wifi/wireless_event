@@ -47,5 +47,22 @@ case "$ACTION" in
         ( sleep 2; /etc/init.d/wsplcd restart ) &
         rm $lockfile
         ;;
+    BACKHAUL_HOPCOUNT)
+        read IFNAME HOPCOUNT <<EOF
+        $INFO
+EOF
+        echo "WIFI EVENT: $ACTION: $IFNAME with hop counter = $HOPCOUNT" > /dev/console
+        local new_ap_hopcount=$(( $HOPCOUNT + 1 ))
+        if [ $new_ap_hopcount -gt 7 ]; then
+            new_ap_hopcount=7
+        fi
+        for ifname in `awk -v input_optype=BACKHAUL -v input_opmode=AP -v output_rule=ifname -f /etc/search-wifi-interfaces.awk $wifi_topology_file`; do
+            cur_ap_hopcount=`iwpriv $ifname g_dni_hopcnt | awk -F: '{printf "%d", $2}'`
+            if [ "$cur_ap_hopcount" != "$new_ap_hopcount" ]; then
+                echo "WIFI EVENT: Set hop counter $new_ap_hopcount to $ifname" > /dev/console
+                iwpriv $ifname dni_hopcnt $new_ap_hopcount
+            fi
+        done
+        ;;
 esac
 

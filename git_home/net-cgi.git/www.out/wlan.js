@@ -310,7 +310,14 @@ function check_wlan()
 	var wla1_ssid=document.forms[0].wla1ssid.value;
 	var wlg1_ssid=document.forms[0].wlg1ssid.value;
 	
-	if(ssid_bgn == "")
+	var ssid_len = ssid_bgn.length;
+	for(i=0;i<ssid_bgn.length;i++)
+	{
+		if(ssid_bgn.charCodeAt(i)==32)
+			ssid_len--;
+	}
+	
+	if(ssid_bgn == "" || ssid_len == 0)
 	{
 		alert("$ssid_null");
 		return false;
