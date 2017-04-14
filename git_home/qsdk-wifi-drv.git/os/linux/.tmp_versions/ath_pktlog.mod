@@ -1,0 +1,2 @@
+/home/haiyan.zhuang/project/orbi.git/build_dir/linux-ipq806x/qca-wifi-10.4-g3.0.1500.042-unified-profile/qca-wifi-10.4-g3.0.1500.042/os/linux/../../lmac/ath_pktlog/ath_pktlog.ko
+/home/haiyan.zhuang/project/orbi.git/build_dir/linux-ipq806x/qca-wifi-10.4-g3.0.1500.042-unified-profile/qca-wifi-10.4-g3.0.1500.042/os/linux/../../lmac/ath_pktlog/pktlog.o /home/haiyan.zhuang/project/orbi.git/build_dir/linux-ipq806x/qca-wifi-10.4-g3.0.1500.042-unified-profile/qca-wifi-10.4-g3.0.1500.042/os/linux/../../lmac/ath_pktlog/linux.o

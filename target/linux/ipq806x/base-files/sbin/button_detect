@@ -1,0 +1,146 @@
+#!/bin/sh
+
+### Button status defination
+FREE=0	# Button is pop up
+PUSH=1	# Button is pressed
+HOLD=2	# Button is pressed and hold on a moment
+
+### Free button pressed state
+free_pushbut=10
+free_wifibut=20
+free_resetbut=30
+
+### Tool
+CONFIG=/bin/config
+
+buttonfile=/proc/simple_config/button_state
+buttonstate=
+pushbutton=${FREE}
+wifibutton=${FREE}
+resetbutton=${FREE}
+
+ledfile=/proc/simple_config/led_state
+ledstate=
+
+### LED status defination
+OFF=0
+ON=1
+PULSE=2	
+RING=3  
+
+### LED color defination
+RED=0
+GREEN=1
+BLUE=2	
+WHITE=3
+AMBER=4
+CYAN=5
+MAGENTA=6
+
+### recover led state
+run_state=10
+color_state=20
+recover_state=30
+
+echo -n "" > /tmp/usb_state
+
+#usb enable
+if [ ! -e /sys/class/gpio/gpio45 ]; then
+    echo 45 > /sys/class/gpio/export
+fi
+
+while [ 1 ]
+do
+	usb_enable=`cat /sys/class/gpio/gpio45/value`
+	if [ $usb_enable -eq '0' ];then
+		ledcontrol -n usb_enable -s off
+		/bin/sleep 1
+		ledcontrol -n usb_enable -s on
+	fi
+
+        #----------------------------------------------------------------------#
+	if [ -f /tmp/button_test_mode ];then
+		/bin/sleep 1
+		continue
+	fi	
+
+        #----------------------------------------------------------------------#
+	usb_state=$(cat /tmp/usb_state)
+	cat /proc/partitions | grep sda > /dev/null
+	if [ $? -eq 0 ];then
+	        [ $usb_state -eq 0 ] && ledcontrol -n usb -c green -s on #usb plugin
+		echo 1 > /tmp/usb_state
+		ethtool -K eth0 gro on
+		ethtool -K eth1 gro on
+	else
+	        [ $usb_state -eq 1 ] && ledcontrol -n usb -c green -s off #usb plugoff
+		echo 0 > /tmp/usb_state
+		ethtool -K eth0 gro off
+		ethtool -K eth1 gro off
+	fi
+
+        #----------------------------------------------------------------------#
+	#get states of buttons
+	buttonstate=$(/bin/cat ${buttonfile})
+	pushbutton=$(/bin/echo ${buttonstate} | cut -c 2)
+	wifibutton=$(/bin/echo ${buttonstate} | cut -c 4)
+	resetbutton=$(/bin/echo ${buttonstate} | cut -c 6)
+
+	if [ ${PUSH} -eq ${pushbutton} ]; then
+		# WPS is enabled
+                echo "start" > /tmp/wps_process_state
+                wlan wps --pbc_start 
+		echo ${free_pushbut} > ${buttonfile}
+	fi
+	
+	if [ ${PUSH} -eq ${resetbutton} ]; then
+		/sbin/led_ring stop
+		/bin/config commit
+		/sbin/reboot
+		echo ${free_resetbut} > ${buttonfile}
+	elif [ ${HOLD} -eq ${resetbutton} ]; then
+		/sbin/led_ring stop
+		/bin/config default
+		/sbin/reboot
+		echo ${free_resetbut} > ${buttonfile}
+	fi
+
+        #----------------------------------------------------------------------#
+	#get states of leds
+	ledstate=$(/bin/cat ${ledfile})
+	runstate=$(/bin/echo ${ledstate} | cut -c 2)
+	colorstate=$(/bin/echo ${ledstate} | cut -c 4)
+	recoverstate=$(/bin/echo ${ledstate} | cut -c 6)
+	ledringnum=`ps | grep led_ring_action | grep -v grep | awk '{printf("%s\n",$1)}' | wc -l`
+	
+	i=0
+	ps | grep led_ring_action | grep -v grep | awk '{printf("%s\n",$1)}' | while read PID
+	do
+	    let "i=$i+1"
+	    if [ $i -ne $ledringnum ];then
+	        kill $PID 2> /dev/null
+	    fi
+	done
+
+	
+	# recover led state
+	if [ ${ON} -eq ${recoverstate} ]; then
+	    echo ${recover_state} > ${ledfile}
+
+	    if [ ${OFF} -eq ${runstate} ]; then
+	        ledcontrol -n all -c ${colorstate} -s off
+
+	    elif [ ${ON} -eq ${runstate} ]; then
+	        ledcontrol -n all -c ${colorstate} -s on
+
+	    elif [ ${PULSE} -eq ${runstate} ]; then
+	        ledcontrol -n all -c ${colorstate} -s pulse
+		
+	    elif [ ${RING} -eq ${runstate} ]; then
+                /sbin/led_ring start ${colorstate} 
+	    fi
+	
+	fi
+	
+	/bin/sleep 1
+done

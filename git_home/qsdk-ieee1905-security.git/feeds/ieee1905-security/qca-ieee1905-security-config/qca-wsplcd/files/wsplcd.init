@@ -1,0 +1,382 @@
+#!/bin/sh /etc/rc.common
+# Copyright (c) 2013 Qualcomm Atheros, Inc.
+#
+# All Rights Reserved.
+# Qualcomm Atheros Confidential and Proprietary. 
+
+
+START=52
+
+SERVICE_WRITE_PID=1
+SERVICE_DAEMONIZE=1
+#SERVICE_DEBUG=1
+SERVICE_DEBUG_OUTPUT=0
+SERVICE_PATH="/usr/sbin/wsplcd"
+WSPLCD_CONFIG_FILE="/tmp/wsplcd.conf"
+WSPLCD_RUN_FILE="/var/run/.wsplcd"
+
+NON_PBC_IFACES=
+
+. /lib/functions/hyfi-debug.sh
+. /lib/functions/hyfi-iface.sh
+. /lib/functions/hyfi-network.sh
+
+wsplcd_cfg_append() {
+    echo "$1" >> "$WSPLCD_CONFIG_FILE"
+}
+
+wsplcd_cfg_add_str() {
+    local cfg="$1"
+    local key="$2"
+    local def="$3"
+    local val
+
+    config_get val config "$key" "$def"
+    [ -n "$val" ] && wsplcd_cfg_append "$cfg=$val"
+}
+
+wsplcd_cfg_add_bool() {
+    local cfg="$1"
+    local key="$2"
+    local def="$3"
+    local val
+
+    config_get_bool val config "$key" "$def"
+    [ -n "$val" ] && wsplcd_cfg_append "$cfg=$val"
+}
+
+wsplcd_cfg_add_debuglevel() {
+    local cfg="$1"
+    local key="$2"
+    local def="$3"
+    local val
+
+    config_get val config "$key" "$def"
+    case "$val" in
+        DUMP)
+            val='0'
+        ;;
+        DEBUG)
+            val='1'
+        ;;
+        INFO)
+            val='2'
+        ;;
+        ERROR)
+            val='3'
+        ;;
+    esac
+    [ -n "$val" ] && wsplcd_cfg_append "$cfg=$val"
+}
+
+__wsplcd_get_default_mode() {
+    local mode=$(artmtd -r board_model_id)
+
+    if [ "$mode" = "model_id:RBS50" ] ;then
+        eval "$1='ENROLLEE'"
+    elif [ "$mode" = "model_id:RBR50" ] ;then
+        eval "$1='REGISTRAR'"
+    fi
+}
+
+wsplcd_cfg_add_role() {
+	local cfg="$1"
+	local key="$2"
+	local default_mode
+	local val
+
+	__wsplcd_get_default_mode default_mode
+	config_get val config "$key"
+	case "$val" in
+		REGISTRAR)
+			val='0'
+		;;
+		ENROLLEE)
+			val='1'
+		;;
+		NONE)
+			val='2'
+		;;
+		*)
+			if [ "$default_mode" = "REGISTRAR" ]; then
+				val='0'
+			else
+				val='1'
+			fi
+			uci_set wsplcd config $key $default_mode
+		;;
+	esac
+	[ -n "$val" ] && wsplcd_cfg_append "$cfg=$val"
+}
+
+wsplcd_cfg_add_wpsmethod() {
+    local cfg="$1"
+    local key="$2"
+    local def="$3"
+    local val
+
+    config_get val config "$key" "$def"
+    case "$val" in
+        WPS_M2)
+            val='M2'
+        ;;
+        WPS_M8)
+            val='M8'
+        ;;
+    esac
+    [ -n "$val" ] && wsplcd_cfg_append "$cfg=$val"
+}
+
+wsplcd_cfg_add_wpstxmode() {
+    local cfg="$1"
+    local key="$2"
+    local def="$3"
+    local val
+
+    config_get val config "$key" "$def"
+    case "$val" in
+        WPS_TX_ENCRYPTED)
+            val='encrypted'
+        ;;
+        WPS_TX_NONE)
+            val='none'
+        ;;
+    esac
+    [ -n "$val" ] && wsplcd_cfg_append "$cfg=$val"
+}
+
+wsplcd_cfg_add_wpsrxmode() {
+    local cfg="$1"
+    local key="$2"
+    local def="$3"
+    local val
+
+    config_get val config "$key" "$def"
+    case "$val" in
+        WPS_RX_ENCRYPTED)
+            val='encrypted'
+        ;;
+        WPS_RX_EITHER)
+            val='either'
+        ;;
+    esac
+    [ -n "$val" ] && wsplcd_cfg_append "$cfg=$val"
+}
+
+wsplcd_cfg_add_configsta() {
+    uci_set wsplcd config ConfigSta 0
+    wsplcd_cfg_append "config_station=no"
+}
+
+wsplcd_cfg_add_wpatype() {
+    local cfg="$1"
+    local key="$2"
+    local def="$3"
+    local val
+
+    config_get val config "$key" "$def"
+    case "$val" in
+        LONG)
+            val='0'
+        ;;
+        SHORT)
+            val='1'
+        ;;
+    esac
+    [ -n "$val" ] && wsplcd_cfg_append "$cfg=$val"
+}
+
+wsplcd_cfg_add_buttonmode() {
+    local cfg="$1"
+    local key="$2"
+    local def="$3"
+    local val
+
+    config_get val config "$key" "$def"
+    case "$val" in
+        ONEBUTTON)
+            val='1'
+        ;;
+        TWOBUTTON)
+            val='2'
+        ;;
+    esac
+    [ -n "$val" ] && wsplcd_cfg_append "$cfg=$val"
+}
+
+__wsplcd_iterate_wlan_ifaces_nonpbc() {
+	local config="$1"
+	local iface network mode wps_pbc
+
+	config_get iface "$config" ifname
+	config_get network "$config" network
+	config_get mode "$config" mode
+	config_get_bool wps_pbc "$config" wps_pbc 0
+
+	if [ "$2" = "$network" -a "$wps_pbc" -eq "0" ]; then
+		NON_PBC_IFACES="${NON_PBC_IFACES}${NON_PBC_IFACES:+","}${iface}"
+	fi
+}
+
+wsplcd_cfg_add_nonpbc() {
+	NON_PBC_IFACES=
+
+	config_load wireless
+	config_foreach __wsplcd_iterate_wlan_ifaces_nonpbc wifi-iface $ieee1905managed_bridge
+
+	if [ -n "$NON_PBC_IFACES" ]; then
+		wsplcd_cfg_append 'NonPBCInterfaces='$NON_PBC_IFACES
+	fi
+}
+
+wsplcd_cfg_add_interface() {
+	local wlan_ifaces ether_ifaces plc_iface non_wlan_ifaces
+
+	wsplcd_cfg_append          'bridge=br'$ieee1905managed_bridge
+
+	# Get all WLAN interfaces bound to the managed bridge
+	hyfi_get_wlan_ifaces $ieee1905managed_bridge wlan_ifaces
+	wsplcd_cfg_append          '1905InterfacesWlan='$wlan_ifaces
+
+	# Get all Ethernet interfaces and PLC interface
+	hyfi_get_ether_ifaces $ieee1905managed_bridge ether_ifaces
+	hyfi_get_plc_iface $ieee1905managed_bridge plc_iface
+	if [ -n "${plc_iface}" ] ; then
+		non_wlan_ifaces=${ether_ifaces}${ether_ifaces:+","}${plc_iface}
+	else
+		non_wlan_ifaces=${ether_ifaces}
+	fi
+	non_wlan_ifaces=`echo "$non_wlan_ifaces" | sed 's/ESWITCH/ETHER/g'`
+	wsplcd_cfg_append          '1905InterfacesElse='$non_wlan_ifaces
+
+	wsplcd_cfg_add_nonpbc
+}
+
+
+wsplcd_create_config() {
+	lock /var/run/wsplcd.lock
+
+	echo "# Config file for wsplcd, automatically created by script" > "$WSPLCD_CONFIG_FILE"
+	wsplcd_cfg_add_debuglevel  debug_level                   DebugLevel           'ERROR'
+	wsplcd_cfg_add_interface
+	wsplcd_cfg_add_role        role                          RunMode
+	wsplcd_cfg_add_bool        designated_pb_ap              DesignatedPBAP       '0'
+	wsplcd_cfg_add_wpsmethod   WPS_method                    WPSMethod            'WPS_M2'
+	wsplcd_cfg_add_wpstxmode   WPS_tx_mode                   TXMode               'WPS_TX_ENCRYPTED'
+	wsplcd_cfg_add_wpsrxmode   WPS_rx_mode                   RXMode               'WPS_RX_ENCRYPTED'
+	wsplcd_cfg_add_configsta   config_station                ConfigSta            '1'
+	wsplcd_cfg_add_str         ssid_suffix                   SSIDSuffix           ''
+	wsplcd_cfg_add_str         search_timeout                SearchTimeout        '60'
+	wsplcd_cfg_add_str         WPS_session_timeout           WPSSessionTimeout    '120'
+	wsplcd_cfg_add_str         WPS_retransmission_timeout    WPSRetransmitTimeout '5'
+	wsplcd_cfg_add_str         WPS_per_message_timeout       WPSPerMessageTimeout '15'
+	wsplcd_cfg_add_bool        band_sel_enable               BandSel              '1'
+	wsplcd_cfg_add_bool        band_choice                   BandChoice           '5G'
+	wsplcd_cfg_add_str         rm_collect_timeout            RMCollectTimeout     '10'
+	wsplcd_cfg_add_bool        deep_clone_enable             DeepClone            '1'
+	wsplcd_cfg_add_bool        manage_vap_ind                ManageVAPInd         '1'
+	wsplcd_cfg_add_str         1905Nwkey                     NetworkKey1905       ''
+	wsplcd_cfg_add_str         ucpk_salt                     UCPKSalt             ''
+	wsplcd_cfg_add_wpatype     wpa_passphrase_type           WPAPassphraseType    'LONG'
+	wsplcd_cfg_append          'config_methods=push_button virtual_push_button physical_push_button'
+	wsplcd_cfg_append          'manufacturer=Qualcomm Atheros'
+	wsplcd_cfg_append          'model_name=ModelNameHere'
+	wsplcd_cfg_append          'model_number=ModelNumberHere'
+	wsplcd_cfg_append          'serial_number=SerialNumberHere'
+	wsplcd_cfg_append          'device_type=6-0050f204-1'
+	wsplcd_cfg_append          'device_name=ExampleWpa'
+	wsplcd_cfg_append          'os_version=01020300'
+	wsplcd_cfg_append          '#AP Cloning 1.0 parameters'
+	wsplcd_cfg_add_bool        APCloning                     APCloning            '0'
+	wsplcd_cfg_add_buttonmode  button_mode                   ButtonMode           'TWOBUTTON'
+	wsplcd_cfg_add_str         clone_timeout                 CloneTimeout         '180'
+	wsplcd_cfg_add_str         walk_timeout                  WalkTimeout          '120'
+	wsplcd_cfg_add_str         repeat_timeout                RepeatTimeout        '1'
+	wsplcd_cfg_add_str         internal_timeout              InternalTimeout      '15'
+	wsplcd_cfg_add_str         wait_wifi_config_secs_other   WaitOtherBandsSecs   '20'
+	wsplcd_cfg_add_str         wait_wifi_config_secs_first   WaitFirstBandSecs    '30'
+
+	[ -x "/sbin/uci2cfg.sh" ] && {
+		`/sbin/uci2cfg.sh >> $WSPLCD_CONFIG_FILE`
+		`/sbin/uci2cfg.sh wifisec > "/tmp/.wsplc.wifisec"`
+	}
+
+	lock -u /var/run/wsplcd.lock
+
+	return 0
+}
+
+__wsplcd_wlanif_ready() {
+	local vif vifs
+	local vifstat
+
+	vifs=`cat $WSPLCD_CONFIG_FILE | grep '^1905InterfacesWlan' | sed -e 's/1905InterfacesWlan=//' -e 's/,/ /g' -e 's/:WLAN//g'`
+	if [ -z "$vifs" ]; then
+		echo "[wsplcd]WLAN interface is not ready" > /dev/console
+		return 0
+	fi
+
+	for vif in $vifs; do
+		vifstat=`ifconfig $vif 2>/dev/null`
+		if [ -z "$vifstat" ]; then
+			echo "[wsplcd]WLAN interface $vif is not ready" > /dev/console
+			return 0
+		fi
+	done
+	return 1
+}
+
+start() {
+	local enabled
+	local ieee1905managed_bridge
+	local log_mode
+
+	stop
+	config_load 'wsplcd'
+	config_get_bool enabled config 'HyFiSecurity' '0'
+	config_get log_mode config "WriteDebugLogToFile" "NONE"
+	case "$log_mode" in
+		NONE)
+			log_mode=''
+		;;
+		APPEND)
+			log_mode='-a'
+		;;
+		TRUNCATE)
+			log_mode='-w'
+		;;
+	esac
+
+	[ "$enabled" -gt 0 ] || {
+		return 1
+	}
+
+	# Get the IEEE1905.1 managed bridge name
+	hyfi_get_ieee1905_managed_iface ieee1905managed_bridge
+
+	wsplcd_create_config || return 1
+
+	__wsplcd_wlanif_ready
+	if [ $? -eq 1 ]; then
+		hyfi_echo wsplcd "starting daemon"
+		${SVCDBG}service_start ${SERVICE_PATH} -c "$WSPLCD_CONFIG_FILE" "$log_mode"
+	fi
+	touch $WSPLCD_RUN_FILE
+}
+
+stop() {
+	${SVCDBG}service_stop ${SERVICE_PATH}
+	# Hotplug will compare WLAN configuration stored in the config file,
+	# if it finds nothing changed, wsplcd will not be restarted.
+	# So here we remove the config file to force wsplcd restarting if it stopped.
+	[ -f "$WSPLCD_CONFIG_FILE" ] &&
+		mv ${WSPLCD_CONFIG_FILE} ${WSPLCD_CONFIG_FILE}.bak
+}
+
+restart() {
+	[ -f "$WSPLCD_RUN_FILE" ] || return
+	hyfi_lock
+	stop
+	start
+	hyfi_unlock
+}

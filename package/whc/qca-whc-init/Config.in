@@ -1,0 +1,18 @@
+menu "Configuration"
+
+config QCA_WHC_USE_DNI_GIT
+	bool "Fetch source from DNI git repository"
+	default y
+
+config WIFISON_WHC_GIT_TREEISH
+        string
+        prompt "treeish of wifison whc git repository"
+        default "e705da9ed27e4e3a8bf3234e066ff207ad43264e"
+        help
+           Input the treeish of wifison whc git repository which you want to build
+
+
+
+
+
+endmenu

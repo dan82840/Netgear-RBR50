@@ -1,0 +1,14 @@
+menu "Configuration"
+
+config QCA_IEEE1905SECU_USE_DNI_GIT
+	bool "Fetch source from DNI git repository"
+	default y
+
+config WIFISON_IEEE1905_GIT_TREEISH
+        string
+        prompt "treeish of wifison IEEE 1905 git repository"
+        default "524e0c3b9ab3f87c6d35e9f8f15556e28ff066ba"
+        help
+           Input the treeish of wifison IEEE1905 git repository which you want to build
+
+endmenu
