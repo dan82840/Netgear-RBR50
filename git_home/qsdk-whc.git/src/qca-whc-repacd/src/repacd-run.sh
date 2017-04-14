@@ -58,6 +58,7 @@ fi
 local start_role=$1
 local config_re_mode=$2
 local current_re_mode=$3
+local re_mode_change=0
 
 local led_solid_times=$((10/$link_check_delay))
 
@@ -129,16 +130,16 @@ while true; do
 
         # First test for range extender mode change, which could also include
         # a role change if the LED state is updated to indicate that.
-            re_mode_change=0
-            if [ "$config_re_mode" = 'auto' -a \
-                 ! "$current_re_mode" = "$new_re_mode" ]; then
-                __repacd_info "New auto-derived RE mode=$new_re_mode"
+        re_mode_change=0
+        if [ "$config_re_mode" = 'auto' -a \
+             ! "$current_re_mode" = "$new_re_mode" ]; then
+            __repacd_info "New auto-derived RE mode=$new_re_mode"
 
-                uci_set repacd repacd AssocDerivedREMode $new_re_mode
-                uci_commit repacd
+            uci_set repacd repacd AssocDerivedREMode $new_re_mode
+            uci_commit repacd
 
-                re_mode_change=1
-            fi
+            re_mode_change=1
+        fi
 
 
 

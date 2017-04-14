@@ -15,13 +15,7 @@ function loadvalue()
 	if(wl_sectype=="1")
 		location.href="BRS_orbi_complete.html";
 	else
-	{
 		document.getElementById("container").style.display="";
-		if(wl_sectype=="4")
-			cf.password.value="<% cfg_sed_passphrase("wl_wpa2_psk") %>";
-		else if(wl_sectype == "5")
-			cf.password.value="<% cfg_sed_passphrase("wl_wpas_psk") %>";
-	}
 }
 
 function isValidChar_space(each_char)
@@ -83,7 +77,13 @@ function checkpsk(passphrase, passphrase_len)
 function checkwlan(cf)
 {
 	var tmp_ssid=cf.ssid.value;
-	if(tmp_ssid == "")
+	var ssid_len = tmp_ssid.length;
+	for(i=0;i<tmp_ssid.length;i++)
+	{
+		if(tmp_ssid.charCodeAt(i)==32)
+			ssid_len--;
+	}
+	if(tmp_ssid == "" || ssid_len == 0)
 	{
 		alert(bh_ssid_null);
 		return false;
@@ -124,7 +124,7 @@ function checkwlan(cf)
 
 			<div class="input-wrapper input-text-box-two">
 				<div class="input-title non-active-val"><script>document.write(bh_ddns_passwd);</script></div>
-				<input type="text" name="password" maxlength="64"/>
+				<input type="text" name="password" maxlength="64" value="<% get_wifi_pwd() %>"/>
 			</div>
 
 			<button class="waves-effect waves-light btn button-nav" onclick="return checkwlan(document.forms[0]);">

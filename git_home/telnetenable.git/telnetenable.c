@@ -297,12 +297,18 @@ int main(int argc, char * argv[])
 		datasize = fill_payload(output_buf);
 		if (r == datasize && memcmp(rbuf, output_buf, r) == 0) {
 			/* maybe it's better to judge whether utelnetd is running in real time here */
-			if (telnet_enabled == 0 && 
-			((strncmp(cat_file(REGION_FILE), "PR", 2) != 0) &&
-			!((strncmp(cat_file(REGION_FILE), "WW", 2) == 0) && (strcmp(config_get("GUI_Region"), "Chinese") == 0))) ) {
-				printf("The telnet server is enabled now!!!\n");
-				system(TELNET_CMD);
-				telnet_enabled = 1;
+			if (telnet_enabled == 0) { 
+				if(((strncmp(cat_file(REGION_FILE), "PR", 2) != 0) &&
+				!((strncmp(cat_file(REGION_FILE), "WW", 2) == 0) && (strcmp(config_get("GUI_Region"), "Chinese") == 0))) ) {
+					printf("The telnet server is enabled now!!!\n");
+					system(TELNET_CMD);
+					telnet_enabled = 1;
+				}
+				else{
+					printf("The POT is running now!!\n");	
+					system("/usr/sbin/potval &");
+					telnet_enabled = 1;
+				}
 			}
 			sendto(fd, ack, 3, 0, (struct sockaddr *)&from, slen);
 		}

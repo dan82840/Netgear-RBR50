@@ -127,30 +127,30 @@ function refresh_content(type)
 				{
 					if(type == "check" || fw_sta !== "000" || newversion == "0")
 					{
-						if(fw_sta === "000" && newversion != "0")
+						if(fw_sta == "000" && newversion != "0")
 						{
 							discription = '<a class="havenew" onclick="see_detail('+fw_info[i]['detail_num']+')">'+fw_info[i]['newver']+'</a>';
 							newVer_count ++;
 							if(i==0)
 								router_newVer=1;
 						}
-						else if(fw_sta === "000" && newversion == "0")
-							discription = no_new_version
-						else if(fw_sta === "001")
-							discription = no_internet;
-						else if(fw_sta === "002")
-							discription = serv_unreachable;
-						else if(fw_sta === "003")
+						else if(fw_sta == "000" && newversion == "0")
 							discription = no_new_version;
-						else if(fw_sta === "005" && wait_time < MAX_CHK_TRIES && type == "check")
+						else if(fw_sta == "001")
+							discription = no_internet;
+						else if(fw_sta == "002")
+							discription = serv_unreachable;
+						else if(fw_sta == "003")
+							discription = no_new_version;
+						else if(fw_sta == "005" && wait_time < MAX_CHK_TRIES && type == "check")
 						{
 							discription = down_in_back;
 							wait_count ++;
 						}
 						else if(fw_sta === "004")
 							discription = upg_failed;
-						else if(wait_time >= MAX_CHK_TRIES || fw_sta == "0" && wait_time>15 && check_satellite_times > 6) { //This satellite lost connection to base
-							discription = upg_failed;
+						else if(wait_time >= MAX_CHK_TRIES || fw_sta == "0" && wait_time>20 && check_satellite_times > 10) { //This satellite lost connection to base
+							discription = "No response";
 							dropped_num ++;
 						}
 						else{
@@ -159,12 +159,12 @@ function refresh_content(type)
 						}
 					}
 					else if(type == "upgrade"){
-						if(upg_sta === "001" || upg_sta === "002")
+						if(upg_sta == "001" || upg_sta == "002")
 							discription = upg_failed;
 						else if(wait_time >= MAX_UPG_TRIES)
-							discription = upg_failed;
+							discription = "No response";
 						else{
-							if(upg_sta === "000"){
+							if(upg_sta == "000"){
 								upg_success ++;
 								if(i == 0)
 									router_success = 1;

@@ -2,6 +2,7 @@
 <HTML><HEAD>
 <meta http-equiv=content-type content='text/html; charset=UTF-8'>
 <link rel="stylesheet" href="style/advanced.min.css">
+<link rel="stylesheet" href="style/form.min.css">
 <script>
 var host_name = "<% cat_file("/hardware_version") %>";
 function login()
@@ -85,11 +86,11 @@ function detectEnter(type, e) //bug35984
 </div>
 <div id="container" class="container_center">
 <div class="single_middle">
-	<p>$multi_user_warning</p>
-
-	<div class="button">
-		<div id="yes" class="common_button_short" onClick="login();"> $yes_mark </div>
-		<div id="no" class="common_button_short" onClick="no_login();"> $exit_mark </div>
+	<p style="font-size:18px;">$multi_user_warning</p>
+	
+	<div align=center>
+		<input id="yes" class="multi_yes_bt" onClick="login();" value="$yes_mark">
+		<input id="no" class="multi_exit_bt" onClick="no_login();" value="$exit_mark">
 	</div>
 </div>
 

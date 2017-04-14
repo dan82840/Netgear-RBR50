@@ -223,6 +223,14 @@ case "$CMD" in
 			echo $IFNAME > /var/run/wifi-wps-enhc-extn.done
 			kill -SIGUSR1 "$(cat "/var/run/wifi-wps-enhc-extn.pid")"
 		fi
+		for wifivap in `awk -v input_ifname=$IFNAME -v search_rule=opmode -v output_rule=ifname -f /etc/search-wifi-interfaces.awk $wifi_topology_file`; do
+			parent=$(cat /sys/class/net/${wifivap}/parent)
+			dir=/var/run/hostapd-$parent
+			[ -d $dir ] && {
+				hostapd_cli -i $wifivap -p "$dir" wps_cancel
+			}
+		done
+
 		kill "$(cat "/var/run/hostapd-cli-$IFNAME.pid")"
 		env -i ACTION="wps-success" INTERFACE=$IFNAME /sbin/hotplug-call iface
 		;;

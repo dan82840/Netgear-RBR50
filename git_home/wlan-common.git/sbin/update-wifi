@@ -318,10 +318,12 @@ generate_mode()
         uci set wireless.${wl_section}.mode=ap
         uci set wireless.${wl_section}.athnewind=1
         uci set wireless.${wl_section}.vap_ind=0
-        uci set wireless.${wl_section}.wds=1
-        uci set wireless.${wl_section}.backhaul=1
-        uci set wireless.${wl_section}.wsplcd_unmanaged=1
-        uci set wireless.${wl_section}.repacd_security_unmanaged=1
+        if [ "$1" != "wla2_ap_bh" -o "x$wla2_ap_bh_backhaul" = "x1" ]; then
+            uci set wireless.${wl_section}.wds=1
+            uci set wireless.${wl_section}.backhaul=1
+            uci set wireless.${wl_section}.wsplcd_unmanaged=1
+            uci set wireless.${wl_section}.repacd_security_unmanaged=1
+        fi
     else
         uci set wireless.${wl_section}.mode=ap
         local radio=`echo $1 | awk -F_ '{print $1}'`
@@ -556,26 +558,40 @@ generate_protocol_setting()
     eval wl_preamble_value=\$`echo $parent_radio`_preamble
     eval wl_country_ie_value=\$`echo $parent_radio`_country_ie_onoff
 
-    uci set wireless.${wl_section}.rts=${wl_rts_value}
-    uci set wireless.${wl_section}.frag=${wl_frag_value}
-    if [ "$wl_wmm_value" = "on" ]; then
-        uci set wireless.${wl_section}.wmm=1
-    else
-        uci set wireless.${wl_section}.wmm=0
+    if [ -n "$wl_rts_value" ]; then
+        uci set wireless.${wl_section}.rts=${wl_rts_value}
     fi
-    if [ "$wl_country_ie_value" = "on" ]; then
-        uci set wireless.${wl_section}.countryie=1
-    else
-        uci set wireless.${wl_section}.countryie=0
+
+    if [ -n "$wl_frag_value" ]; then
+        uci set wireless.${wl_section}.frag=${wl_frag_value}
     fi
-    case "$wl_preamble_value" in
-        *long*)
-            uci set wireless.${wl_section}.short_preamble=0
-            ;;
-        *)
-            uci set wireless.${wl_section}.short_preamble=1
-            ;;
-    esac
+
+    if [ -n "$wl_wmm_value" ]; then
+        if [ "$wl_wmm_value" = "on" ]; then
+            uci set wireless.${wl_section}.wmm=1
+        else
+            uci set wireless.${wl_section}.wmm=0
+        fi
+    fi
+
+    if [ -n "$wl_country_ie_value" ]; then
+        if [ "$wl_country_ie_value" = "on" ]; then
+            uci set wireless.${wl_section}.countryie=1
+        else
+            uci set wireless.${wl_section}.countryie=0
+        fi
+    fi
+
+    if [ -n "$wl_preamble_value" ]; then
+        case "$wl_preamble_value" in
+            *long*)
+                uci set wireless.${wl_section}.short_preamble=0
+                ;;
+            *)
+                uci set wireless.${wl_section}.short_preamble=1
+                ;;
+        esac
+    fi
 }
 
 generate_acl()
@@ -771,13 +787,13 @@ generate_bf()
     fi
     case "$1" in
         wlg)
-            uci set wireless.${g_device}.bf=${wl_value}
+            uci set wireless.${g_device}.bf=${wl_value:-0}
             ;;
         wla)
-            uci set wireless.${a_device}.bf=${wl_value}
+            uci set wireless.${a_device}.bf=${wl_value:-0}
             ;;
         wla2)
-            uci set wireless.${a2_device}.bf=${wl_value}
+            uci set wireless.${a2_device}.bf=${wl_value:-0}
             ;;
     esac
 }
@@ -800,11 +816,14 @@ generate_implicitbf()
     fi
 
     case "$1" in
+        wlg)
+            uci set wireless.${g_device}.implicitbf=${wl_value:-0}
+        ;;
         wla)
-            uci set wireless.${a_device}.implicitbf=${wl_value}
+            uci set wireless.${a_device}.implicitbf=${wl_value:-0}
         ;;
         wla2)
-            uci set wireless.${a2_device}.implicitbf=${wl_value}
+            uci set wireless.${a2_device}.implicitbf=${wl_value:-0}
         ;;
     esac
 }
@@ -829,11 +848,14 @@ generate_mu_mimo()
     fi
 
     case "$1" in
+        wlg)
+            uci set wireless.${g_device}.mu_mimo=${wl_mu_mimo_value:-0}
+        ;;
         wla)
-            uci set wireless.${a_device}.mu_mimo=${wl_mu_mimo_value}
+            uci set wireless.${a_device}.mu_mimo=${wl_mu_mimo_value:-0}
         ;;
         wla2)
-            uci set wireless.${a2_device}.mu_mimo=${wl_mu_mimo_value}
+            uci set wireless.${a2_device}.mu_mimo=${wl_mu_mimo_value:-0}
         ;;
     esac
 }
@@ -900,6 +922,37 @@ generate_ifname()
     }
 }
 
+generate_cca_threshold()
+{
+    eval wl_cca_threshold=\$${1}_cca_threshold
+
+    if [ "$wl_cca_threshold" -lt -10 -a "$wl_cca_threshold" -gt -95 ]; then
+        if [ "$1" = "wlg" ]; then
+            uci set wireless.${g_device}.cca_threshold=${wl_cca_threshold}
+        elif [ "$1" = "wla" ]; then
+            uci set wireless.${a_device}.cca_threshold=${wl_cca_threshold}
+        elif [ "$1" = "wla2" ]; then
+            uci set wireless.${a2_device}.cca_threshold=${wl_cca_threshold}
+        elif [ "$1" = "wig" ]; then
+            uci set wigig.${wig_device}.cca_threshold=${wl_cca_threshold}
+        fi
+    fi
+}
+
+generate_dyn_bw_rts()
+{
+    eval wl_value=\$`echo $1`_dyn_bw_rts
+    uci set wireless.${wl_section}.dyn_bw_rts=${wl_value:-0}
+}
+
+generate_rps()
+{
+    eval wl_value=\$`echo $1`_rps
+    if [ -n "$wl_value" ]; then
+        uci set wireless.${wl_section}.rps=${wl_value}
+    fi
+}
+
 create_new_iface()
 {
     [ "$USE_QCA_SECTION_RULE" = "1" ] && {
@@ -935,7 +988,11 @@ if [ "$update_conf" = "wifi" -o "$update_conf" = "all" ]; then
         generate_hwmode "wlg"
         generate_htmode "wlg"
         generate_tpscale "wlg"
+        generate_bf "wlg"
+        generate_implicitbf "wlg"
+        generate_mu_mimo "wlg"
         generate_keepalive "wlg"
+        generate_cca_threshold "wlg"
     fi
 
     if [ "$wla_exist" = "on" ] &&
@@ -958,6 +1015,7 @@ if [ "$update_conf" = "wifi" -o "$update_conf" = "all" ]; then
         generate_implicitbf "wla"
         generate_mu_mimo "wla"
         generate_keepalive "wla"
+        generate_cca_threshold "wla"
     fi
 
     if [ "$wla2_exist" = "on" ] &&
@@ -979,6 +1037,7 @@ if [ "$update_conf" = "wifi" -o "$update_conf" = "all" ]; then
         generate_implicitbf "wla2"
         generate_mu_mimo "wla2"
         generate_keepalive "wla2"
+        generate_cca_threshold "wla2"
     fi
 
     get_intf_onoff _tmp_wlg_onoff "wlg"
@@ -1009,6 +1068,8 @@ if [ "$update_conf" = "wifi" -o "$update_conf" = "all" ]; then
         generate_dtim $wl_vap
         generate_PIN $wl_vap
         generate_hostapd_debug_level $wl_vap
+        generate_dyn_bw_rts $wl_vap
+        generate_rps $wl_vap
         generate_ifname $wl_vap
         uci set wireless.${wl_section}.acsmindwell=500
     fi
@@ -1033,6 +1094,8 @@ if [ "$update_conf" = "wifi" -o "$update_conf" = "all" ]; then
         # generate_PIN $wl_vap
         generate_ifname $wl_vap
         generate_hostapd_debug_level $wl_vap
+        generate_dyn_bw_rts $wl_vap
+        generate_rps $wl_vap
     fi
 
     if [ "$wlg_sta_operation_type" != "none" ]; then
@@ -1048,6 +1111,8 @@ if [ "$update_conf" = "wifi" -o "$update_conf" = "all" ]; then
         generate_ifname $wl_vap
         generate_wps $wl_vap
         generate_hostapd_debug_level $wl_vap
+        generate_dyn_bw_rts $wl_vap
+        generate_rps $wl_vap
     fi
 
     get_intf_onoff _tmp_wla_onoff "wla"
@@ -1079,6 +1144,8 @@ if [ "$update_conf" = "wifi" -o "$update_conf" = "all" ]; then
         generate_PIN $wl_vap
         generate_hostapd_debug_level $wl_vap
         generate_ifname $wl_vap
+        generate_dyn_bw_rts $wl_vap
+        generate_rps $wl_vap
     fi
 
     if [ "$wla_ap_bh_operation_type" != "none" ]; then
@@ -1095,11 +1162,14 @@ if [ "$update_conf" = "wifi" -o "$update_conf" = "all" ]; then
         generate_wps $wl_vap
         generate_hide_ssid $wl_vap
         generate_disablecoext $wl_vap
-        # generate_protocol_setting $wl_vap
+        generate_protocol_setting $wl_vap
         generate_bintval $wl_vap
         # generate_PIN $wl_vap
         generate_ifname $wl_vap
+        generate_dyn_bw_rts $wl_vap
+        generate_rps $wl_vap
         generate_hostapd_debug_level $wl_vap
+        generate_wps $wl_vap
     fi
 
     if [ "$wla_sta_operation_type" != "none" ]; then
@@ -1114,7 +1184,10 @@ if [ "$update_conf" = "wifi" -o "$update_conf" = "all" ]; then
         generate_security $wl_vap
         generate_ifname $wl_vap
         generate_wps $wl_vap
+        generate_dyn_bw_rts $wl_vap
+        generate_rps $wl_vap
         generate_hostapd_debug_level $wl_vap
+        generate_wps $wl_vap
     fi
 
     get_intf_onoff _tmp_wlg_guest_onoff "wlg_guest"
@@ -1144,7 +1217,8 @@ if [ "$update_conf" = "wifi" -o "$update_conf" = "all" ]; then
         generate_ifname $wl_vap
         generate_rrm $wl_vap
         generate_hostapd_debug_level $wl_vap
-        generate_wps $wl_vap
+        generate_dyn_bw_rts $wl_vap
+        generate_rps $wl_vap
     fi
 
     get_intf_onoff _tmp_wla_guest_onoff "wla_guest"
@@ -1172,7 +1246,8 @@ if [ "$update_conf" = "wifi" -o "$update_conf" = "all" ]; then
         generate_ifname $wl_vap
         generate_rrm $wl_vap
         generate_hostapd_debug_level $wl_vap
-        generate_wps $wl_vap
+        generate_dyn_bw_rts $wl_vap
+        generate_rps $wl_vap
     fi
 
     if [ "$wla2_ap_operation_type" = "normal_ap" ]; then
@@ -1205,6 +1280,8 @@ if [ "$update_conf" = "wifi" -o "$update_conf" = "all" ]; then
         generate_PIN $wl_vap
         generate_hostapd_debug_level $wl_vap
         generate_ifname $wl_vap
+        generate_dyn_bw_rts $wl_vap
+        generate_rps $wl_vap
     fi
 
     if [ "$wla2_ap_bh_operation_type" != "none" ]; then
@@ -1223,11 +1300,13 @@ if [ "$update_conf" = "wifi" -o "$update_conf" = "all" ]; then
         generate_wps $wl_vap
         generate_hide_ssid $wl_vap
         generate_disablecoext $wl_vap
-        # generate_protocol_setting $wl_vap
+        generate_protocol_setting $wl_vap
         generate_bintval $wl_vap
         # generate_PIN $wl_vap
         generate_ifname $wl_vap
         generate_hostapd_debug_level $wl_vap
+        generate_dyn_bw_rts $wl_vap
+        generate_rps $wl_vap
     fi
 
     if [ "$wla2_sta_operation_type" != "none" ]; then
@@ -1245,6 +1324,8 @@ if [ "$update_conf" = "wifi" -o "$update_conf" = "all" ]; then
         generate_ifname $wl_vap
         generate_wps $wl_vap
         generate_hostapd_debug_level $wl_vap
+        generate_dyn_bw_rts $wl_vap
+        generate_rps $wl_vap
     fi
 
     uci commit wireless

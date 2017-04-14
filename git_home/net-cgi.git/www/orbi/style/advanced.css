@@ -100,7 +100,7 @@ dl{ margin: 0px; padding: 5px 0 8px 0; float: left; position: relative }
 .footer #search{float: right; position: absolute; bottom: 0px;  right: 10px;}
 .footer_double #search{ float: right; position: absolute; bottom: 10px; right: 10px;}
 
-#footer #search .search_button{background: Transparent url(../image/menus.gif ) no-repeat 0px -192px; border: none; width:39px; height:22px; font: bold 14px arial ; color: #ffffff; cursor: pointer; }
+#footer #search .search_button{background: Transparent url(../image/menus.gif ) no-repeat 0px -192px; border: none; min-width:39px; height:22px; font: bold 14px arial ; color: #ffffff; cursor: pointer; }
 #footer #search .search_button_middle{background: Transparent url(../image/menus.gif ) no-repeat -39px -192px; border: none; width:65px; height:22px; font: bold 14px arial ; color: #ffffff; cursor: pointer; }
 #footer #search .search_button_long{background: Transparent url(../image/menus.gif ) no-repeat -104px -192px; border: none; width:95px; height:22px; font: bold 14px arial ; color: #ffffff; cursor: pointer; }
 

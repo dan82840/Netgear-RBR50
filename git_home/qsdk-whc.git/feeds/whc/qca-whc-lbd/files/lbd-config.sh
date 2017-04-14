@@ -225,9 +225,11 @@ lbd_create_config() {
 		# Only set number of supported remote radios for multi-AP setup
 		__lbd_cfg_add_str	StaDB_Adv	NumRemoteBSSes		$filename
 	fi
-
 	__lbd_cfg_add_str	StaDB		MarkAdvClientAsDualBand $filename
 	__lbd_cfg_add_str	StaDB_Adv	PopulateNonServingPHYInfo $filename
+
+	__lbd_cfg_add_str	StaDB		MarkAdvClientAsDualBand $filename
+	__lbd_cfg_add_str	StaDB		PopulateNonServingPHYInfo $filename
 
 	__lbd_cfg_nl_append '[STAMON]' $filename
 	__lbd_cfg_add_str	StaMonitor_Adv	RSSIMeasureSamples_W2 $filename

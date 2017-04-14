@@ -169,7 +169,7 @@ case "$CMD" in
 		[ -f $supplicant_lock_file ] && exit
 		touch $supplicant_lock_file
 		local save_result
-		for wifivap in `awk -v input_ifname=$IFNAME -v search_rule=optype_opmode -v output_rule=ifname -f /etc/search-wifi-interfaces.awk $wifi_topology_file`; do
+		for wifivap in `awk -v input_ifname=$IFNAME -v search_rule=opmode -v output_rule=ifname -f /etc/search-wifi-interfaces.awk $wifi_topology_file`; do
 			wpa_cli -i$wifivap -p/var/run/wpa_supplicant-$wifivap wps_cancel
 		done
 		save_result=`wpa_cli -i$IFNAME -p/var/run/wpa_supplicant-$IFNAME save_config`
