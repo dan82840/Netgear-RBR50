@@ -62,6 +62,10 @@
 					function = "blsp_uart0";
 					bias-disable;
 				};
+				pulldowns {
+					pins = "gpio16";
+					bias-pull-down;
+				};
 			};
 
 			led_0_pins: led0_pinmux {
