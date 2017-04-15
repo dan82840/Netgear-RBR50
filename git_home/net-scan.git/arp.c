@@ -6,6 +6,14 @@
 #ifdef SUPPORT_STREAMBOOST
 #define SB_INFO_STATE_1 1
 #define SB_INFO_STATE_2 2
+
+enum device_type{
+	NONETYPE,
+	WIRELESS_2G,
+	WIRELESS_5G,
+	WIRED
+};
+
 typedef enum {
 	TYPE_SOAP_OLD = 0, /* This type is for SOAP API */
 	TYPE_AMAZON_KINDLE,
@@ -917,10 +925,96 @@ int check_sta_format(char *info)
 	return 1;
 }
 
+char *get_mac(char *ifname, char *eabuf)
+{
+	int s;
+	struct ifreq ifr;
+
+	eabuf[0] = '\0';
+	s = socket(AF_INET, SOCK_RAW, IPPROTO_RAW);
+	if (s < 0)
+		return eabuf;
+
+	strncpy(ifr.ifr_name, ifname, IFNAMSIZ);
+	if (ioctl(s, SIOCGIFHWADDR, &ifr) == 0)
+		ether_etoa((uint8 *)ifr.ifr_hwaddr.sa_data, eabuf);
+	close(s);
+
+	return eabuf;
+}
+
+
+static int get_device_type(uint8 *mac)
+{
+	FILE *tfp;
+	int found = NONETYPE, portnum, ath2_portnum;
+	char buff[512],arpmac[32], ath2_port[2]={0}, ath2_mac[18]={0};
+	char *port,*bmac,*other, *p;
+//    char *mode, *isFastlane, *fastlaneType;
+	if ((tfp = popen("brctl showmacs br0","r")) == NULL)
+	{
+		return found;
+	}
+	
+	//get ath2 mac
+	p = get_mac("ath2", ath2_mac);
+	if(*p == '\0')
+		return 0;
+
+	//skip the first line
+	fgets(buff, sizeof(buff), tfp);
+	while(fgets(buff, sizeof(buff), tfp)){
+		port = strtok(buff, " \t\n");
+		bmac = strtok(NULL, " \t\n");
+		other = strtok(NULL, " \t\n");
+	
+		strupr(bmac);
+		if(!strncmp(bmac, ath2_mac, 17)){
+			strncpy(ath2_port, port, 1);
+			break;
+		}
+	}
+	if(ath2_port == NULL)
+		return 0;
+
+	pclose(tfp);
+	//reopen showmacs tables
+	if ((tfp = popen("brctl showmacs br0","r")) == NULL)
+	{
+		return found;
+	}
+	//skip the first line
+	fgets(buff, sizeof(buff), tfp);
+	while(fgets(buff, sizeof(buff), tfp)){
+		port = strtok(buff, " \t\n");
+		bmac = strtok(NULL, " \t\n");
+		other = strtok(NULL, " \t\n");
+		
+		portnum = atoi(port);
+		ath2_portnum = atoi(ath2_port);	
+		if (portnum == ath2_portnum || portnum == (ath2_portnum - 2))
+			continue;
+
+		ether_etoa(mac, arpmac);
+		strupr(bmac);
+		if(strncmp(arpmac, bmac, strlen(arpmac)) == 0){
+			if(portnum == (ath2_portnum - 3))
+				found = WIRELESS_2G;
+			else if(portnum == (ath2_portnum - 1))
+				found = WIRELESS_5G;
+			else
+				found = WIRED;
+			break;
+		}
+	}
+	pclose(tfp);
+	return found;
+}
+
 void show_arp_table(void)
 {
 	int i, j, fd_flag;
-	FILE *fp, *fw;
+	FILE *fp, *fw, *fp_wired, *fp_2g, *fp_5g;
 	char mac[32];
 	struct arp_struct *u;
 	struct arp_struct **pprev;
@@ -940,8 +1034,13 @@ void show_arp_table(void)
 #endif
 
 	fp = fopen(ARP_FILE, "w");
-	if (fp == 0) 
-		return;
+	if (fp == 0) return;
+	fp_2g = fopen(ARP_FILE_2G, "w");
+	if (fp_2g == 0) return;
+	fp_5g = fopen(ARP_FILE_5G, "w");
+	if (fp_5g == 0) return;
+	fp_wired = fopen(ARP_FILE_WIRED, "w");
+	if (fp_wired == 0) return;
 
 	if(config_match("i_opmode", "apmode"))
 		update_satellite_name();
@@ -989,9 +1088,36 @@ void show_arp_table(void)
 			}
 
 			/* for GUI dealing easily:  &lt;unknown&gt;   <----> <unknown>*/
-			fprintf(fp, "%s %s %s @#$&*!\n",
-				inet_ntoa(u->ip), ether_etoa(u->mac, mac),
-				u->host[0] == '\0' ? "&lt;unknown&gt;" : host_stod(u->host));
+			switch (get_device_type(u->mac))
+			{
+				case WIRELESS_2G:
+					fprintf(fp_2g, "%s %s %s @#$&*!\n",
+						inet_ntoa(u->ip), ether_etoa(u->mac, mac),
+						u->host[0] == '\0' ? "&lt;unknown&gt;" : host_stod(u->host));
+					fprintf(fp, "%s %s %s @#$&*!\n",
+						inet_ntoa(u->ip), ether_etoa(u->mac, mac),
+						u->host[0] == '\0' ? "&lt;unknown&gt;" : host_stod(u->host));
+					break;
+				case WIRELESS_5G:
+					fprintf(fp_5g, "%s %s %s @#$&*!\n",
+						inet_ntoa(u->ip), ether_etoa(u->mac, mac),
+						u->host[0] == '\0' ? "&lt;unknown&gt;" : host_stod(u->host));
+					fprintf(fp, "%s %s %s @#$&*!\n",
+						inet_ntoa(u->ip), ether_etoa(u->mac, mac),
+						u->host[0] == '\0' ? "&lt;unknown&gt;" : host_stod(u->host));
+					break;
+				case WIRED:
+					fprintf(fp_wired, "%s %s %s @#$&*!\n",
+						inet_ntoa(u->ip), ether_etoa(u->mac, mac),
+						u->host[0] == '\0' ? "&lt;unknown&gt;" : host_stod(u->host));
+					fprintf(fp, "%s %s %s @#$&*!\n",
+						inet_ntoa(u->ip), ether_etoa(u->mac, mac),
+						u->host[0] == '\0' ? "&lt;unknown&gt;" : host_stod(u->host));
+					break;
+			}
+		//	fprintf(fp, "%s %s %s @#$&*!\n",
+		//		inet_ntoa(u->ip), ether_etoa(u->mac, mac),
+		//		u->host[0] == '\0' ? "&lt;unknown&gt;" : host_stod(u->host));
 #ifdef SUPPORT_STREAMBOOST
 			ether_etoa(u->mac, mac);
 			if (sb_fp){
@@ -1057,9 +1183,30 @@ void show_arp_table(void)
 			if(!fd_flag) {
 				strncpy(mac, buffer, 17);
 				mac[17]='\0';
-				strupr(mac);
-				fprintf(fp, "%s %s %s @#$&*!\n",
-					"&lt;unknown&gt", mac , "&lt;unknown&gt;");
+				switch (get_device_type(ether_aton(mac)->ether_addr_octet))
+				{
+					strupr(mac);
+					case WIRELESS_2G:
+						fprintf(fp_2g, "%s %s %s @#$&*!\n",
+							"&lt;unknown&gt", mac , "&lt;unknown&gt;");
+						fprintf(fp, "%s %s %s @#$&*!\n",
+							"&lt;unknown&gt", mac , "&lt;unknown&gt;");
+						break;
+					case WIRELESS_5G:
+						fprintf(fp_5g, "%s %s %s @#$&*!\n",
+							"&lt;unknown&gt", mac , "&lt;unknown&gt;");
+						fprintf(fp, "%s %s %s @#$&*!\n",
+							"&lt;unknown&gt", mac , "&lt;unknown&gt;");
+						break;
+					case WIRED:
+						fprintf(fp_wired, "%s %s %s @#$&*!\n",
+							"&lt;unknown&gt", mac , "&lt;unknown&gt;");
+						fprintf(fp, "%s %s %s @#$&*!\n",
+							"&lt;unknown&gt", mac , "&lt;unknown&gt;");
+						break;
+				}
+		//		fprintf(fp, "%s %s %s @#$&*!\n",
+		//			"&lt;unknown&gt", mac , "&lt;unknown&gt;");
 #ifdef SUPPORT_STREAMBOOST
 				if (sb_fp){
 					for(sb_dlp = sb_device_list->next; sb_dlp != NULL && strcmp(sb_dlp ->mac, mac) != 0; sb_dlp = sb_dlp->next); 
@@ -1084,6 +1231,9 @@ void show_arp_table(void)
 	unlink(WLAN_STA_FILE);
 
 	fclose(fp);
+	fclose(fp_2g);
+	fclose(fp_5g);
+	fclose(fp_wired);
 #ifdef SUPPORT_STREAMBOOST
 	if (sb_fp)
 		fclose(sb_fp);
