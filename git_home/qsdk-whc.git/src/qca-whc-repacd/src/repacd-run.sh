@@ -60,15 +60,15 @@ local config_re_mode=$2
 local current_re_mode=$3
 local re_mode_change=0
 
-local led_solid_times=$((10/$link_check_delay))
+local led_solid_times=$((180/$link_check_delay))
+local boot_time=$((240/$link_check_delay))
 
 local solid_times=0
 local blink_times=0
+
 local off_times=0
 local wps_progress=0
 local last_associated=0
-
-__repacd_info "led_solid_times:$led_solid_times"
 
 
 # Clean up the background ping and related logic when being terminated
@@ -113,10 +113,6 @@ else
     __repacd_info "Failed to resolve STA interface; will attempt periodically"
 fi
 
-#Wait for WIFI ready
-while repacd_wifimon_check_wifi_ready; do
-    sleep 2
-done
 
 # Loop forever (unless we are killed with SIGTERM which is handled above).
 while true; do
@@ -184,59 +180,98 @@ while true; do
 
             __repacd_info "$cur_state"
 
+
             case $cur_state in
                 "RE_MoveFarther")
+                    if [ $boot_time -gt 0 ]; then
+                        boot_time=0
+                    fi
+
                     if [ $solid_times -eq 0 -a "$last_associated" -eq 0 ]; then
                         __repacd_info "LED STATE--$cur_state"
                         dni_led_set_states $cur_state
                         solid_times=$(($solid_times+1))
+                        led_solid_times=$((180/$link_check_delay))
                         last_associated=1
                     fi
+
+                    if [ "$led_solid_times" -gt 0 ]; then
+                        led_solid_times=$(($led_solid_times - $link_check_delay))
+
+                       if [ "$led_solid_times" -eq 0 ]; then
+                           dni_led_set_states "OFF"
+                       fi
+
+                    fi
+
+
                 ;;
 
                 "RE_LocationSuitable")
+                    if [ $boot_time -gt 0 ]; then
+                        boot_time=0
+                    fi
+
                     if [ $solid_times -eq 0 -a "$last_associated" -eq 0 ]; then
                         __repacd_info "LED STATE--$cur_state"
                         dni_led_set_states $cur_state
                         solid_times=$(($solid_times+1))
+                        led_solid_times=$((180/$link_check_delay))
                         last_associated=1
+                    fi
+
+                    if [ "$led_solid_times" -gt 0 ]; then
+                        led_solid_times=$(($led_solid_times - $link_check_delay))
+
+                        __repacd_info "LED SOLID TIMES--$led_solid_times"
+                       if [ "$led_solid_times" -eq 0 ]; then
+                           dni_led_set_states "OFF"
+                       fi
+
                     fi
                 ;;
 
                 "RE_MoveCloser")
+                    if [ $boot_time -gt 0 ]; then
+                        boot_time=0
+                    fi
+
                     if [ $solid_times -eq 0 -a "$last_associated" -eq 0 ]; then
                         __repacd_info "LED STATE--$cur_state"
                         dni_led_set_states $cur_state
                         solid_times=$(($solid_times+1))
+                        led_solid_times=$((180/$link_check_delay))
                         last_associated=1
                     fi
+
+                    if [ "$led_solid_times" -gt 0 ]; then
+                        led_solid_times=$(($led_solid_times - $link_check_delay))
+
+                       if [ "$led_solid_times" -eq 0 ]; then
+                           dni_led_set_states "OFF"
+                       fi
+
+                    fi
+
                 ;;
 
                 "Measuring")
                     wps_progress=0
-                    if [ "$blink_times" -eq 0 -a "$last_associated" -eq 0 ]; then
-                        #Wait WPS Finish LED finish
-                        #sleep 5
-                        __repacd_info "LED STATE--$cur_state"
-                        dni_led_set_states $cur_state
-                        blink_times=$(($blink_times+1))
-                    fi
                 ;;
 
                 "AssocTimeout")
-                    if [ $solid_times -eq 0 ]; then
-                        __repacd_info "LED STATE--$cur_state"
-                        dni_led_set_states $cur_state
-                        solid_times=$(($solid_times+1))
-                    fi
                 ;;
 
                 "NotAssociated")
-                    if [ "$blink_times" -eq 0 -a "$wps_progress" -eq 0 ]; then
-                        sleep 5
+                    if [ "$boot_time" -gt 0 ]; then
+                        if [ "$blink_times" -eq 0 ]; then
+                            dni_led_set_states "Booting"
+                            blink_times=1
+                        fi
+                    elif [ "$solid_times" -eq 0 -a "$wps_progress" -eq 0 ]; then
                         __repacd_info "LED STATE--$cur_state"
                         dni_led_set_states $cur_state
-                        blink_times=1
+                        solid_times=1
                     fi
                     last_associated=0
                 ;;
@@ -280,5 +315,12 @@ while true; do
     fi
 
     # Re-check the link conditions in a few seconds.
+
+    if [ $boot_time -gt 0 ]; then
+        boot_time=$(($boot_time - $link_check_delay))
+    fi
+
+    __repacd_info "Boot time count=$boot_time"
+
     sleep $link_check_delay
 done
