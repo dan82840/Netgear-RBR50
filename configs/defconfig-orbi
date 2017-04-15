@@ -1548,12 +1548,20 @@ CONFIG_PACKAGE_ip=y
 #
 # VPN
 #
-# CONFIG_PACKAGE_openvpn-easy-rsa is not set
-# CONFIG_PACKAGE_openvpn-miscprogs is not set
+CONFIG_PACKAGE_openvpn-easy-rsa=y
+CONFIG_PACKAGE_openvpn-miscprogs=y
 # CONFIG_PACKAGE_openvpn-nossl is not set
-# CONFIG_PACKAGE_openvpn-openssl is not set
+CONFIG_PACKAGE_openvpn-openssl=y
 # CONFIG_PACKAGE_openvpn-polarssl is not set
-
+CONFIG_OPENVPN_openssl_ENABLE_LZO=y
+CONFIG_OPENVPN_openssl_ENABLE_SERVER=y
+CONFIG_OPENVPN_openssl_ENABLE_HTTP=y
+CONFIG_OPENVPN_openssl_ENABLE_SOCKS=y
+CONFIG_OPENVPN_openssl_ENABLE_FRAGMENT=y
+CONFIG_OPENVPN_openssl_ENABLE_MULTIHOME=y
+CONFIG_OPENVPN_openssl_ENABLE_PORT_SHARE=y
+CONFIG_OPENVPN_openssl_ENABLE_DEF_AUTH=y
+CONFIG_OPENVPN_openssl_ENABLE_PF=y
 #
 # printing
 #
@@ -1673,7 +1681,7 @@ CONFIG_PACKAGE_wlan-common=y
 #
 # Configurations
 #
-CONFIG_WLAN_COMMON_GIT_TREEISH="27d00da8069eddb448c737f0bc3d32a523a1df0c"
+CONFIG_WLAN_COMMON_GIT_TREEISH="eb8ef672bf2741c26f44f5b4f905b7e2a4e44023"
 CONFIG_WLAN_COMMON_GIT_REPOSITORY="wlan-common.git"
 CONFIG_WLAN_COMMON_GIT_URL="ssh://dniserver/scm/dnigit/apps/wlan-common/spencer/wlan-common.git"
 
