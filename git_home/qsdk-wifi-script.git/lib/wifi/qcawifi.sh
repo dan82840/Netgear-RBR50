@@ -1522,6 +1522,16 @@ enable_qcawifi() {
 			iwpriv "$ifname" vhtmubfee 0
 		fi
 
+                # For Netgear Mars' request, when high band's backhaul is enabled,
+                # let explicit BF on and implicit BF off.
+                [ "x$backhaul" = "x1" -a "$device" = "wifi2" ] && {
+                    iwpriv "$ifname" implicitbf 0
+                    iwpriv "$ifname" vhtsubfee 1
+                    iwpriv "$ifname" vhtsubfer 1
+                    iwpriv "$ifname" vhtmubfee 1
+                    iwpriv "$ifname" vhtmubfer 1
+                }
+
 		config_get vhtstscap "$vif" vhtstscap
 		[ -n "$vhtstscap" ] && iwpriv "$ifname" vhtstscap "${vhtstscap}"
 
@@ -2500,8 +2510,6 @@ wps_qcawifi()
                                 fi
                             }
                         else
-                            local prefix=`awk -v input_ifname=$ifname -v output_rule=prefix -f /etc/search-wifi-interfaces.awk /tmp/wifi_topology`
-                            [ "$prefix" = "wlg_sta" ] && continue
                             dir=/var/run/wpa_supplicant-$ifname
                             [ -d $dir ] && {
                                 pid=/var/run/wps-hotplug-$ifname.pid
