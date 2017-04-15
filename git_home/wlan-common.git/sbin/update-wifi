@@ -187,6 +187,23 @@ generate_keepalive()
     fi
 }
 
+generate_sta_dfs()
+{
+    eval wl_value=\$`echo $1`_sta_dfs_en
+
+    if [ -n "$wl_value" ]; then
+        if [ "$1" = "wlg" ]; then
+            uci set wireless.${g_device}.staDFSEn=${wl_value}
+        elif [ "$1" = "wla" ]; then
+            uci set wireless.${a_device}.staDFSEn=${wl_value}
+        elif [ "$1" = "wla2" ]; then
+            uci set wireless.${a2_device}.staDFSEn=${wl_value}
+        elif [ "$1" = "wig" ]; then
+            uci set wigig.${wig_device}.staDFSEn=${wl_value}
+        fi
+    fi
+}
+
 #
 # Generate "wireless.<DEVICE>.disabled" in /etc/config/wireless or
 # "wigig.<DEVICE>.disabled" in /etc/config/wigig
@@ -451,8 +468,8 @@ generate_puren()
 
 generate_doth()
 {
-    wl_doth=0
-    uci set wireless.${wl_section}.doth=${wl_doth}
+    eval wl_value=\$`echo $1`_doth
+    uci set wireless.${wl_section}.doth=${wl_value:-0}
 }
 
 generate_disablecoext()
@@ -993,6 +1010,7 @@ if [ "$update_conf" = "wifi" -o "$update_conf" = "all" ]; then
         generate_mu_mimo "wlg"
         generate_keepalive "wlg"
         generate_cca_threshold "wlg"
+        generate_sta_dfs "wlg"
     fi
 
     if [ "$wla_exist" = "on" ] &&
@@ -1016,6 +1034,7 @@ if [ "$update_conf" = "wifi" -o "$update_conf" = "all" ]; then
         generate_mu_mimo "wla"
         generate_keepalive "wla"
         generate_cca_threshold "wla"
+        generate_sta_dfs "wla"
     fi
 
     if [ "$wla2_exist" = "on" ] &&
@@ -1038,6 +1057,7 @@ if [ "$update_conf" = "wifi" -o "$update_conf" = "all" ]; then
         generate_mu_mimo "wla2"
         generate_keepalive "wla2"
         generate_cca_threshold "wla2"
+        generate_sta_dfs "wla2"
     fi
 
     get_intf_onoff _tmp_wlg_onoff "wlg"
@@ -1111,6 +1131,7 @@ if [ "$update_conf" = "wifi" -o "$update_conf" = "all" ]; then
         generate_ifname $wl_vap
         generate_wps $wl_vap
         generate_hostapd_debug_level $wl_vap
+        generate_protocol_setting $wl_vap
         generate_dyn_bw_rts $wl_vap
         generate_rps $wl_vap
     fi
@@ -1307,6 +1328,7 @@ if [ "$update_conf" = "wifi" -o "$update_conf" = "all" ]; then
         generate_hostapd_debug_level $wl_vap
         generate_dyn_bw_rts $wl_vap
         generate_rps $wl_vap
+        generate_doth $wl_vap
     fi
 
     if [ "$wla2_sta_operation_type" != "none" ]; then
@@ -1323,8 +1345,8 @@ if [ "$update_conf" = "wifi" -o "$update_conf" = "all" ]; then
         generate_security $wl_vap
         generate_ifname $wl_vap
         generate_wps $wl_vap
+        generate_doth $wl_vap
         generate_hostapd_debug_level $wl_vap
-        generate_protocol_setting $wl_vap
         generate_dyn_bw_rts $wl_vap
         generate_rps $wl_vap
     fi
@@ -1375,7 +1397,16 @@ case "$country_code" in
     5000)
         REGULATORY_DOMAIN=AU
         ;;
+    458)
+        REGULATORY_DOMAIN=SRRC
+        ;;
     156)
+        REGULATORY_DOMAIN=SRRC
+        ;;
+    702)
+        REGULATORY_DOMAIN=SRRC
+        ;;
+    764)
         REGULATORY_DOMAIN=SRRC
         ;;
 esac
