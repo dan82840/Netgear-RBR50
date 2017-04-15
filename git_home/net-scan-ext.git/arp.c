@@ -2,6 +2,13 @@
 
 #define NEIGH_HASHMASK	0x1F
 
+enum device_type{
+	NONETYPE,
+	WIRELESS_2G,
+	WIRELESS_5G,
+	WIRED
+};
+
 struct arp_struct
 {
 	struct arp_struct *next;
@@ -136,14 +143,14 @@ static void get_dhcp_host(char host[], struct in_addr ip, int *isrepl)
 	fclose(tfp);
 }
 
-static int filter_ath1_mac(uint8 *mac)
+static int get_device_type(uint8 *mac)
 {
 	FILE *tfp;
-	int found = 0;
+	int found = NONETYPE;
 	char buff[512],arpmac[32];
 	char *port,*bmac,*other;
 //    char *mode, *isFastlane, *fastlaneType;
-	if ((tfp = fopen(BR0_MAC_INFO,"r")) == NULL)
+	if ((tfp = popen("brctl showmacs br0","r")) == NULL)
 	{
 		return found;
 	}
@@ -154,19 +161,22 @@ static int filter_ath1_mac(uint8 *mac)
 		bmac = strtok(NULL, " \t\n");
 		other = strtok(NULL, " \t\n");
 
-
         if(strncmp(port, "5", 1) == 0 || strncmp(port, "3", 1) == 0 )  //&& strncmp(port, "4", 1) != 0)
            continue; // found = 0
-
 
 		ether_etoa(mac, arpmac);
 		strupr(bmac);
 		if(strncmp(arpmac, bmac, strlen(arpmac)) == 0){
-			found = 1;
+			if(strncmp(port, "2", 1) == 0)
+				found = WIRELESS_2G;
+			else if(strncmp(port, "4", 1) == 0)
+				found = WIRELESS_5G;
+			else
+				found = WIRED;
 			break;
 		}
 	}
-	fclose(tfp);
+	pclose(tfp);
 	return found;
 }
 
@@ -482,7 +492,7 @@ void strupr(char *str)
 void show_arp_table(void)
 {
 	int i,j=0, fd_flag;
-	FILE *fp, *fw;
+	FILE *fp, *fw, *fp_wired, *fp_2g, *fp_5g;
 	char mac[32];
 	struct arp_struct *u;
 	struct arp_struct **pprev;
@@ -494,8 +504,13 @@ void show_arp_table(void)
 	lan_netmask = get_netmask(ARP_IFNAME);
 
 	fp = fopen(ARP_FILE, "w");
-	if (fp == 0) 
-		return;
+	if (fp == 0) return;
+	fp_2g = fopen(ARP_FILE_2G, "w");
+	if (fp_2g == 0) return;
+	fp_5g = fopen(ARP_FILE_5G, "w");
+	if (fp_5g == 0) return;
+	fp_wired = fopen(ARP_FILE_WIRED, "w");
+	if (fp_wired == 0) return;
 	
 	if (fw = fopen(WLAN_STA_FILE, "r")) {
 		while (fgets(buffer, sizeof(buffer), fw)) {
@@ -551,11 +566,32 @@ void show_arp_table(void)
 			if(memcmp(u->mac, arpreq.h_source, 6) != 0) {
 				get_host_cache(u->mac, u->host);
 				//strupr(u->host);
-				if (filter_ath1_mac(u->mac) == 1)
+				switch (get_device_type(u->mac))
 				{
-					fprintf(fp, "%s %s %s @#$&*!\n",
-						inet_ntoa(u->ip), ether_etoa(u->mac, mac),
-						u->host[0] == '\0' ? "&lt;unknown&gt;" : host_stod(u->host));
+					case WIRELESS_2G:
+						fprintf(fp_2g, "%s %s %s @#$&*!\n",
+							inet_ntoa(u->ip), ether_etoa(u->mac, mac),
+							u->host[0] == '\0' ? "&lt;unknown&gt;" : host_stod(u->host));
+						fprintf(fp, "%s %s %s @#$&*!\n",
+							inet_ntoa(u->ip), ether_etoa(u->mac, mac),
+							u->host[0] == '\0' ? "&lt;unknown&gt;" : host_stod(u->host));
+						break;
+					case WIRELESS_5G:
+						fprintf(fp_5g, "%s %s %s @#$&*!\n",
+							inet_ntoa(u->ip), ether_etoa(u->mac, mac),
+							u->host[0] == '\0' ? "&lt;unknown&gt;" : host_stod(u->host));
+						fprintf(fp, "%s %s %s @#$&*!\n",
+							inet_ntoa(u->ip), ether_etoa(u->mac, mac),
+							u->host[0] == '\0' ? "&lt;unknown&gt;" : host_stod(u->host));
+						break;
+					case WIRED:
+						fprintf(fp_wired, "%s %s %s @#$&*!\n",
+							inet_ntoa(u->ip), ether_etoa(u->mac, mac),
+							u->host[0] == '\0' ? "&lt;unknown&gt;" : host_stod(u->host));
+						fprintf(fp, "%s %s %s @#$&*!\n",
+							inet_ntoa(u->ip), ether_etoa(u->mac, mac),
+							u->host[0] == '\0' ? "&lt;unknown&gt;" : host_stod(u->host));
+						break;
 				}
 			}
 			
@@ -565,6 +601,9 @@ void show_arp_table(void)
 	}
 
 	fclose(fp);
+	fclose(fp_2g);
+	fclose(fp_5g);
+	fclose(fp_wired);
 	
 	/* for fix bug 31698,remove hosts which can't be found in the arp_tbl[] from dhcpd_hostlist*/
 	if (fp = fopen(DHCP_LIST_FILE,"r")) {
@@ -644,8 +683,8 @@ void scan_arp_table(int sock, struct sockaddr *me)
 			usleep(500000);
 	}
 	
-	/* show the result after 2s */
-	tv.it_value.tv_sec = 2;
+	/* show the result after 1s */
+	tv.it_value.tv_sec = 1;
 	tv.it_value.tv_usec = 0;
 	tv.it_interval.tv_sec = 0;
 	tv.it_interval.tv_usec = 0;
