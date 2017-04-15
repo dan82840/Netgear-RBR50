@@ -39,6 +39,7 @@ define Package/led-extender/install
 	install -m0755 ./files/set-countryregion $(1)/sbin/
 	install -m0755 ./files/rm_wps_link $(1)/sbin/
 	install -m0755 ./files/repeater_wps $(1)/sbin/
+	install -m0755 ./files/disable_dhcp $(1)/sbin/
 endef
 
 $(eval $(call BuildPackage,led-extender))

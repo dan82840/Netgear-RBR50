@@ -49,7 +49,7 @@ session_usage()
 
 flash_usage()
 {
-	echo "32MB/128MB" > $FLASH_INFO
+	echo "32MB/4GB" > $FLASH_INFO
 }
 
 dist_path=""

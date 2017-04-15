@@ -126,6 +126,11 @@ start_stage0() # $1: boot/start
 	[ "$change_ip_flag" = "1" ] &&  /etc/init.d/net-scan $1 # daemon for getting attached devices
 	$CONFIG unset change_ip_flag
 	$CONFIG commit
+	if [ "$changing_mode" = "1" ] && [ "$1" != "boot" ]; then
+	      	/etc/init.d/net-scan stop 
+		/etc/init.d/net-scan start
+	fi
+
 	/etc/init.d/lltd $1          # Link Layer Topology Discovery Daemon
 	/etc/init.d/telnet $1        # telnet daemon for Router Debugging Mode ...
 }
