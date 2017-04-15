@@ -22,9 +22,8 @@ var enable_block_device="<% cfg_get("enable_block_device") %>";
 var new_device_statue_by_default="<% cfg_get("new_device_statue_by_default") %>";
 var allow_no_con_sta="<% cfg_get("allow_no_connect_sta") %>";
 var block_no_con_sta="<% cfg_get("block_no_connect_sta") %>";
-<% list_access_control_device() %>
+<% list_access_control_device_new() %>
 <% list_access_no_connect_devices() %>
-<% orbi_list_devices() %>
 var have_connect=0;
 var an_router_flag = parent.an_router_flag;
 var show_edit_button = top.show_edit_button;
@@ -279,55 +278,22 @@ function loadvalue()
 					var str_name = eval ( 'access_control_device_name' + i );
 					str_name=str_name.replace(/&#38;/g,"&");
 					var each_info = str.split("*");
-					var flag=0;
-					
-					for(j=0;j<satellite_count;j++)
-					{
-						var satellite_mac=eval("satellite_name"+j);
-						if(satellite_mac==each_info[2])
-						{
-							flag =1;
-							break;
-						}
-					}
-					if(flag == 0)
-					{
-						dev_count++;
-						if( dev_count%2== 1 )  // add if else for bug 26608
-							document.write("<TR class=\"even_line\">");
-						else
-							document.write("<TR class=\"odd_line\">");
 
-						document.write("<td nowrap align=center><input type='checkbox' name='checkbox_index"+(i+1)+"'  id='checkbox_index"+(i+1)+"' value='"+each_info[2]+"' onClick='toggle_edit();'></td>");
-						if(each_info[0] == "Allowed")
-							document.write("<td nowrap><font color=green>$acc_allow</font></td>");
-						else
-							document.write("<td nowrap><font color=red>$acc_block</font></td>");
-						document.write("<td nowrap>"+str_name.replace(/\s/g, '&nbsp;')+"</td>");
-						document.write("<td nowrap>"+each_info[1]+"</td>");
-						document.write("<td nowrap>"+each_info[2]+"</td>");
-						var s_flag=0;
-						for(j=0;j<satellite_count;j++)
-						{
-							var s_count=eval("satellite_dev_count"+j);
-							for(k=0;k<s_count;k++)
-							{
-								var str1 = eval("satellite_dev"+j+"_"+k);
-								var s_info = str1.split(" ");
-								if(s_info[1] == each_info[2])
-								{
-									s_flag =1;
-									break;
-								}
-							}
-							if(s_flag == 1)
-								break;
-						}
-						if(s_flag ==1)
-							document.write("<td nowrap>"+s_info[2]+"</td></TR>");
-						else
-							document.write("<td nowrap>"+each_info[3]+"</td></TR>");
-					}
+					dev_count++;
+					if( dev_count%2== 1 )  // add if else for bug 26608
+						document.write("<TR class=\"even_line\">");
+					else
+						document.write("<TR class=\"odd_line\">");
+
+					document.write("<td nowrap align=center><input type='checkbox' name='checkbox_index"+(i+1)+"'  id='checkbox_index"+(i+1)+"' value='"+each_info[2]+"' onClick='toggle_edit();'></td>");
+					if(each_info[0] == "Allowed")
+						document.write("<td nowrap><font color=green>$acc_allow</font></td>");
+					else
+						document.write("<td nowrap><font color=red>$acc_block</font></td>");
+					document.write("<td nowrap>"+str_name.replace(/\s/g, '&nbsp;')+"</td>");
+					document.write("<td nowrap>"+each_info[1]+"</td>");
+					document.write("<td nowrap>"+each_info[2]+"</td>");
+					document.write("<td nowrap>"+each_info[3]+"</td></TR>");
 				}
 			}
 		</script>

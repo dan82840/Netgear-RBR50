@@ -20,7 +20,27 @@
 			<div class="desc-title"><script>document.write(bh_orbi_welcome);</script></div>
 			<div class="desc-text"><script>document.write(bh_orbi_welcome_msg1);</script></div>
 			<div class="desc-text text-block-child"><script>document.write(bh_orbi_welcome_msg2);</script></div>
-			<button class="waves-effect waves-light btn button-nav" onclick="location.href='BRS_tos.html';return true;">
+			<script>
+				var netgear_region="<% get_firmware_region() %>";
+				var browser_lang = "<% get_browser_language() %>";
+				if( netgear_region=="WW" || netgear_region=="PR" || netgear_region=="JP"){
+					if( browser_lang=="French"){
+						document.write('<button class="waves-effect waves-light btn button-nav" onclick="location.href=\'BRS_tos_eufr.html\';return true;">');
+					}else if( browser_lang=="German"){
+						document.write('<button class="waves-effect waves-light btn button-nav" onclick="location.href=\'BRS_tos_eugr.html\';return true;">');
+					}else if( browser_lang =="Italian"){
+						document.write('<button class="waves-effect waves-light btn button-nav" onclick="location.href=\'BRS_tos_euit.html\';return true;">');
+					}else if( browser_lang =="Chinese"){
+						document.write('<button class="waves-effect waves-light btn button-nav" onclick="location.href=\'BRS_tos_eusch.html\';return true;">');
+					}else if( browser_lang =="Spanish"){
+						document.write('<button class="waves-effect waves-light btn button-nav" onclick="location.href=\'BRS_tos_eusp.html\';return true;">');
+					}else{
+						document.write('<button class="waves-effect waves-light btn button-nav" onclick="location.href=\'BRS_tos.html\';return true;">');
+					}
+				}else{
+					document.write('<button class="waves-effect waves-light btn button-nav" onclick="location.href=\'BRS_tos_usau.html\';return true;">');
+				}
+			</script>
 				<span><script>document.write(bh_orbi_next_mark);</script></span>
 			</button>
 		</div>

@@ -479,7 +479,6 @@ function get_numkey(e)
 <input type="checkbox" name="allow_ipv6_ping" onClick="click_ipv6();"><b>Allow external IPv6 hosts ping internal IPv6 hosts</b>
 </form>
 <br/>
-<div style="display:none">
 <form method="post" action="/apply.cgi?/debug_detail.htm" target="formframe">
 <input type="hidden" name="submit_flag" value="debug_info" />
 <input type="hidden" name="hid_adv_attached" />
@@ -513,6 +512,9 @@ $bluebar
 <tr><td colspan="2">&nbsp;&nbsp;Debug Options:0x<input type="text" name="debug_option" value="<% cfg_get("wifi_debug_option") %>" /></td></tr>
 <tr><td colspan="2">&nbsp;&nbsp;Maximum log file size:<input type="text" name="max_size" value="<% cfg_get("wifi_debug_max_log_size") %>" />MB</td></tr>
 <tr><td colspan="2">&nbsp;</td></tr>
+</table>
+<div style="display:none">
+<% table_header() %>
 <tr><td colspan="2">&nbsp;<input type="checkbox" name="allow_band_steering" onClick="check_steering()"><b>Enable Band Steering</b></td></tr>
 <tr><td colspan="2">&nbsp;&nbsp;&nbsp;&nbsp;<b>Legacy Wi-Fi and 802.11k/v client steering enabled</b></td></tr>
 <tr><td colspan="2">&nbsp;</td></tr>
@@ -553,6 +555,9 @@ $bluebar
 <tr><td colspan="2">&nbsp;&nbsp;&nbsp;&nbsp;option SteeringProhibitTime: <input type="text" onKeyPress="return get_numkey(event)" name="lbd_SteeringProhibitTime" value="<% cfg_get("lbd_SteeringProhibitTime") %>" /></td></tr>
 <tr><td colspan="2">&nbsp;&nbsp;&nbsp;&nbsp;option RSSISteeringPoint_UG: <input type="text" onKeyPress="return get_numkey(event)" name="lbd_RSSISteeringPoint_UG" value="<% cfg_get("lbd_RSSISteeringPoint_UG") %>" /></td></tr>
 <tr><td colspan="2">&nbsp;&nbsp;&nbsp;&nbsp;option AgeLimit: <input type="text" onKeyPress="return get_numkey(event)" name="lbd_AgeLimit" value="<% cfg_get("lbd_AgeLimit") %>" /></td></tr>
+</table>
+</div>
+<% table_header() %>
 <tr><td colspan="2">&nbsp;</td></tr>
 <tr><td colspan="2"><input type="checkbox" name="bgn_implicitbf" ><b>Enable 2.4G implicitbf</b></td></tr>
 <tr><td colspan="2"><input type="checkbox" name="bgn_vhtsubfer" ><b>Enable 2.4G vhtsubfer</b></td></tr>
@@ -585,7 +590,6 @@ $bluebar
 <input type="hidden" name="submit_flag" value="clear_cache" />
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<input type="button" name="clear" class="common_bt" value="Clear Cache" onClick="click_clear_cache();"/>
 </form>
-</div>
 </div>
 </div>
 </body>

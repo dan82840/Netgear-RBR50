@@ -130,10 +130,28 @@ input[type="text"]:disabled {
 .add_bt{ width:135px; }
 .multi_yes_bt{ width:100px; text-align:center; }
 .multi_exit_bt{ width:100px; text-align:center;}
-.long_add_bt{ width: 280px; }
+.edit_bt,
+.long_common_bt,
+.long_add_bt{ 	padding: 5px;
+	font-size: 12px;
+	height: auto;
+	cursor: pointer;
+	margin-right: 2%;
+	word-wrap: break-word;
+	white-space: normal;
+	margin-top: 0px;
+	background-color: #666;
+	-webkit-border-radius: 0px;
+	border-radius: 0;
+	text-transform: uppercase;
+	background-image: none;
+
+	min-width: 215px;
+	min-height: 35px;
+	margin-bottom: 10px;
+}
 .middle_add_bt{ width: 206px; }
 .long_add_bt_little{ width: 280px; }
-.edit_bt{width:200px; }
 .middle_edit_bt{width:220px; }
 .edit_bt_little{width:200px; }
 .delete_bt{width:180px; }
@@ -142,7 +160,6 @@ input[type="text"]:disabled {
 .common_bt, .common_show_stat_bt,.ap_show_stat_bt, .common_el_bt, .common_hu_bt, .window_bt{width:147px; }
 .non_window_bt{width:180px; }
 .common_big_bt{width:230px; }
-.long_common_bt{width:320px; }
 .short_common_bt{width:100px; }
 .middle_common_bt, .middle_common_el_bt, .short_refresh_bt, .middle_common_hu_bt{width:128px; }
 .common_key_bt{width:192px; }
@@ -277,8 +294,6 @@ cursor:pointer;
 .multi_exit_bt,
 .middle_apply_bt,
 .common_gray_bt,
-.edit_bt,
-.long_common_bt,
 .common_key_bt,
 .overlength_bt,
 .common_big_bt,
@@ -291,7 +306,6 @@ input[name='delete_period_an'],
 .overlength_bt,
 .add_bt,
 .delete_bt,
-.long_add_bt,
 .non_window_bt,
 .long_common_gray_bt,
 .common_key_gray_bt,

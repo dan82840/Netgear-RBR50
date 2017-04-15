@@ -25,6 +25,7 @@ var gui_region="<% cfg_get("GUI_Region") %>";
 var vpn_flag="<% cfg_get("vpn_detect_ip_change_flag")%>";
 var netgear_region=(top.netgear_region == "") ? "WW" : top.netgear_region;
 var dns_third_flag=top.dns_third_flag;
+var parental_control="<% cfg_get("ParentalControl") %>";
 var wanproto_type="dhcp";
 var wan_mtu_now='<% wan_mtu() %>';
 if (ether_get_this_mac == "")

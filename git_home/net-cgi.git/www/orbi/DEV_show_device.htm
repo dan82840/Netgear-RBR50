@@ -167,7 +167,7 @@ for(i=0;i<satellite_count;i++)
 		else
 			document.write("<TR class=\"odd_line\">");
 		var str_name = eval("satellite_devname"+i+"_"+j);
-		str_name=str_name.replace(/&#38;/g,"&");
+		str_name=str_name.replace(/&#38;/g,"&").replace(/\s/g, "&nbsp;");
 		var str = eval("satellite_dev"+i+"_"+j);
 			each_info = str.split(" ");
 		if(enable_block_device == 0)

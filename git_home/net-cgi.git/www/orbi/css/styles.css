@@ -1702,6 +1702,7 @@ button.button-nav-skip-long span{
 }
 .tos-area p{
 	height:auto;
+	width:100%;
 }
 .tos-area b{
 	font-weight:600;

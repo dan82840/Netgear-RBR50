@@ -22,9 +22,9 @@
 					for ( i = 0; i < json.device.length; i++ ) {
 						newRow = '<tr>';
 						newRow += '<td><span class="tdLabel">'+lan_mark_ip+'</span>' + json.device[i].ip + '</td>';
-						newRow += '<td><span class="tdLabel">'+network_name+'</span>' + json.device[i].name + '</td>';
+						newRow += '<td><span class="tdLabel">'+lan_mark_name+'</span>' + json.device[i].name + '</td>';
 						newRow += '<td><span class="tdLabel">'+qos_mac+'</span>' + json.device[i].mac.toUpperCase() + '</td>';
-						newRow += '<td><span class="tdLabel">'+qos_mac+'</span>' + json.device[i].type + '</td>';
+						newRow += '<td><span class="tdLabel">'+trigger_contype+'</span>' + json.device[i].type + '</td>';
 						newRow += '</tr>';
 						$$('tbody','.wiredDevices:first').append(newRow);
 					}

@@ -5,7 +5,8 @@
 <TABLE width=100% border=0 cellpadding=0 cellspacing=2>
 <script>
 var master="<% cfg_get("http_loginname") %>";
-var dev_name = "<% cfg_get("orbi_hid_name") %>"
+var dev_name = "<% cfg_get("orbi_hid_name") %>";
+var ts="<% cfg_get("orbi_devname") %>";
 function loadvalue()
 {
 	var cf =  document.forms[0];
@@ -28,7 +29,10 @@ function check_dev_name(cf)
 			return false;
 		}
 	}
-
+	if("<% cfg_get("enable_adv_attached") %>" == "1")
+		cf.action="/apply.cgi?/DEV_show_device.htm timestamp="+ts;
+	else
+		cf.action="/apply.cgi?/DEV_show_device_basic.htm timestamp="+ts;
 	cf.submit();
 	return true;
 }
