@@ -479,14 +479,14 @@ function get_numkey(e)
 <input type="checkbox" name="allow_ipv6_ping" onClick="click_ipv6();"><b>Allow external IPv6 hosts ping internal IPv6 hosts</b>
 </form>
 <br/>
-<form method="post" action="/apply.cgi?/debug_detail.htm" target="formframe">
+<form method="post" action="/apply.cgi?/debug_detail.htm" target="formframe" style="display:none;">
 <input type="hidden" name="submit_flag" value="debug_info" />
 <input type="hidden" name="hid_adv_attached" />
 <input type="checkbox" name="adv_attached" onClick="click_adv_attached();"><b>Enable advanced view of Attached Devices page</b>
 </form>
 <br/>
 </div>
-<form method="post" action="/apply.cgi?/debug_detail.htm" target="formframe">
+<form method="post" action="/apply.cgi?/debug_detail.htm" target="formframe" style="display:none;">
 <input type="hidden" name="submit_flag" value="debug_orbi_info" />
 <input type="hidden" name="hid_wifi_debug" />
 <input type="hidden" name="hid_band_steering" />

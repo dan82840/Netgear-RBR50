@@ -7,6 +7,7 @@
 var jp_multiPPPoE = "<% cfg_get("jp_multiPPPoE") %>";
 var change_to_German = "<% cfg_get("change_to_German") %>";
 var language_change_status="<% lang_change_status() %>";
+var language_download_status="<% lang_download_status() %>";
 var netgear_region="<% get_firmware_region() %>";
 var gr_flag = (netgear_region.toUpperCase() == "GR" || ( (netgear_region.toUpperCase() == "" || netgear_region.toUpperCase()=="WW")&& change_to_German == "1"))? 1:0;
 function isCDLESS()
@@ -57,7 +58,7 @@ function loadvalue()
 	}
 	else if(language_change_status == "-1")
 		alert(getText(bh_serv_unreachable, "$serv_unreachable"));
-	else if(language_change_status == "2") // 2:download failed
+	else if(language_change_status == "2" || (language_download_status !="1100" && language_download_status !="1000")) // 2:download failed
 	{
 		alert(getText(bh_ml_failDownload, "$ml_failDownload"));
 	}
