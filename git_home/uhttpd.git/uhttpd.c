@@ -38,6 +38,21 @@
 static int run = 1;
 extern int https_download_flag;
 
+static void __nprintf(const char *fmt, ...)
+{
+	va_list ap;
+	static FILE *filp;
+
+	if ((filp == NULL) && (filp = fopen("/dev/console", "a")) == NULL)
+		return;
+
+	va_start(ap, fmt);
+	vfprintf(filp, fmt, ap);
+	fputs("\n", filp);
+	va_end(ap);
+}
+
+
 static void uh_sigterm(int sig)
 {
 	run = 0;
@@ -595,7 +610,11 @@ static void uh_mainloop(struct config *conf, fd_set serv_fds, int max_fd)
                                                         && config_invmatch("hijack_process", "3")
                                                         && is_router_domain_addr(httphost)==1)
                                                 {
-                                                        req->url="/change_domain.htm";
+							if( ( !(strncmp(httphost, "clients.google.com", 7)==0
+								&& strstr(httphost, ".google.com")!=NULL) || strncmp(req->url, "/generate_204",13))
+								&& (strcmp(httphost, "www.google.com") || strncmp(req->url, "/blank.html", 11)) ){
+									req->url="/change_domain.htm";
+								}
 						}	
 						
 						/* RFC1918 filtering required? */
@@ -768,7 +787,7 @@ void fw_checking()
         FILE *fw_fp=fopen("/tmp/fwcheck_status","r");
         if(fw_fp!= NULL )
         {
-            fprintf(stderr, "AUTO FW CHECK: power cycle\n");
+            __nprintf("AUTO FW CHECK: power cycle\n");
             system("net-cgi -p");
             fclose(fw_fp);
             unlink("/tmp/fwcheck_status");
@@ -776,7 +795,6 @@ void fw_checking()
         }
         sleep(15);
     }
-
 
 	/* 2 if continuing to be powered on, check once every week at 10:00 pm + 
 	   a random number of minutes between 0~59 on the week day determined 
@@ -834,44 +852,52 @@ void fw_checking()
 		case 15:
 		default:week_day=sunday;
 	}
-	fprintf(stderr, "week_day == %d\n", week_day);
+	__nprintf("week_day == %d\n", week_day);
 	//expect time is 01:00(am) + random number between 0-179
 	srand((int)time(0));
 	expect_time = 1*60*60+ (rand()%180)*60;
-
+	long c_time=0;
 	while(1)
 	{/* check current time every half hour. */
 		#define HALF_HOUR	30*60
 		#define TWO_HOUR	120*60
 		#define THREE_HOUR        180*60
+__nprintf("count time:%ld\n",c_time++);
 		sleep(HALF_HOUR);
+		if(access("/tmp/ntp_updated", F_OK) != 0)
+		{
+			__nprintf("FW cycle check--can not get ntp time!!!!!!!!\n");
+			continue;
+		}
+		else
+			__nprintf("get NTP time!\n");
 
 		p = config_get("time_zone");
 		time(&now);
 		setenv("TZ", p, 1);
 		tm = localtime(&now);
-		fprintf(stderr, "expect_week_day == %d, current_week_day == %d\n", week_day, tm->tm_wday);
+		__nprintf("expect_week_day == %d, current_week_day == %d\n", week_day, tm->tm_wday);
 		if(tm->tm_wday == week_day)
 		{
-			//fprintf(stderr, "tm_wday == week_day\n");
+			__nprintf("tm_wday == week_day\n");
 			current_time = (long)tm->tm_hour*60*60+(long)tm->tm_min*60+(long)tm->tm_sec;
 
 			diff_time = expect_time - current_time;
-			fprintf(stderr, "expect_time == %ld seconds, current_time == %ld seconds\n", expect_time, current_time);
+			__nprintf("expect_time == %ld seconds, current_time == %ld seconds\n", expect_time, current_time);
 			if(diff_time == 0)
 			{
-				fprintf(stderr, "AUTO FW checking: once a week\n");
+				__nprintf("AUTO FW checking: once a week\n");
 				system("net-cgi -c");
 			}
 			else if(diff_time < THREE_HOUR && diff_time > 0 )
 			{
-				fprintf(stderr, "AUTO FW will check after %ld seconds\n", diff_time);
+				__nprintf("AUTO FW will check after %ld seconds\n", diff_time);
 				sleep(diff_time);
-				fprintf(stderr, "AUTO FW checking: once a week\n");
+				__nprintf("AUTO FW checking: once a week\n");
 				system("net-cgi -c");
 			}
 			else
-				fprintf(stderr, "Wait another 30 minutes to generate a new expect_time\n");
+				__nprintf("Wait another 30 minutes to generate a new expect_time\n");
 		}
 	}
 }

@@ -13,9 +13,9 @@ uhttpd_stop()
 uhttpd_start()
 {
 	if [ "x$(cat /module_name)" = "xRBR50" ]; then
-		$UHTTPD_BIN -h /www -r ${REALM}  -x /cgi-bin -t 30 -p 0.0.0.0:80 -C /etc/uhttpd.crt -K /etc/uhttpd.key -s 0.0.0.0:443
+		$UHTTPD_BIN -h /www -r ${REALM}  -x /cgi-bin -t 60 -p 0.0.0.0:80 -C /etc/uhttpd.crt -K /etc/uhttpd.key -s 0.0.0.0:443
 	else
-		$UHTTPD_BIN -h /www.satellite -r ${REALM}  -x /cgi-bin -t 30 -p 0.0.0.0:80 -C /etc/uhttpd.crt -K /etc/uhttpd.key -s 0.0.0.0:443
+		$UHTTPD_BIN -h /www.satellite -r ${REALM}  -x /cgi-bin -t 60 -p 0.0.0.0:80 -C /etc/uhttpd.crt -K /etc/uhttpd.key -s 0.0.0.0:443
 	fi
 }
 
