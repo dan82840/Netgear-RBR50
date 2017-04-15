@@ -112,12 +112,10 @@ case "$LED_STATE" in
 		
 		echo "**********wps error***********" > /dev/console
 		#recover ledstatus
-                /sbin/led_ring stop
-		ledcontrol -n allcolor -c blue -s off
-		usleep 500000
-		ledcontrol -n all -c magenta -s on && sleep 3 && ledcontrol -n all -c magenta -s off 
-                #ledcontrol -n all -c recover
-                echo "wps_finish" > /var/run/repacd.pipe
+		/sbin/led_ring stop
+		board_id=`cat /tmp/board_model_id`
+
+                echo "wps_fail" > /var/run/repacd.pipe
 		killall ping-netgear 2> /dev/null 
 		/sbin/ping-netgear &
 		
@@ -132,11 +130,11 @@ case "$LED_STATE" in
 		
 		echo "**********wps success***********" > /dev/console
 		#recover ledstatus
-                /sbin/led_ring stop
-		ledcontrol -n allcolor -c blue -s off
-		usleep 500000
-		ledcontrol -n all -c blue -s on && sleep 3 && ledcontrol -n all -c blue -s off
-                #ledcontrol -n all -c recover
+		board_id=`cat /tmp/board_model_id`
+		if [ "$board_id" = "RBR50" ];then
+			/sbin/led_ring stop
+		fi
+
                 echo "wps_finish" > /var/run/repacd.pipe 
 		killall ping-netgear 2> /dev/null 
 		/sbin/ping-netgear &
