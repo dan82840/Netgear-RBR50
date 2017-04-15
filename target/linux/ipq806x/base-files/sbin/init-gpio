@@ -17,4 +17,4 @@ devmem2 0x103b000 w 0x4902 #59 i2c reset
 insmod atherosgpio
 mknod /dev/atherosgpio c 240 0
 
-#ledcontrol -n all -c white -s on
+/sbin/led_ring start white
