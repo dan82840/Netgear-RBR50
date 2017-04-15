@@ -378,7 +378,7 @@ generate_wps()
     wl_value=$wps_config_method
     [ -n "$wl_value" ] || {
         #default config method
-        wl_value="virtual_display virtual_push_button physical_push_button"
+        wl_value="virtual_push_button physical_push_button"
     }
 
     if [ "$1" = "wlg" -o "$1" = "wla" ]; then
@@ -1324,6 +1324,7 @@ if [ "$update_conf" = "wifi" -o "$update_conf" = "all" ]; then
         generate_ifname $wl_vap
         generate_wps $wl_vap
         generate_hostapd_debug_level $wl_vap
+        generate_protocol_setting $wl_vap
         generate_dyn_bw_rts $wl_vap
         generate_rps $wl_vap
     fi
@@ -1364,4 +1365,25 @@ if [ "$update_conf" = "wigig" -o "$update_conf" = "all" ]; then
     fi
 fi
 
-
+REGULATORY_DOMAIN=FCC_ETSI
+IPQ4019_BDF_DIR=/lib/firmware/IPQ4019/hw.1
+QCA9984_BDF_DIR=/lib/firmware/QCA9984/hw.1
+case "$country_code" in
+    5001)
+        REGULATORY_DOMAIN=Canada
+        ;;
+    5000)
+        REGULATORY_DOMAIN=AU
+        ;;
+    156)
+        REGULATORY_DOMAIN=SRRC
+        ;;
+esac
+if [ -d $IPQ4019_BDF_DIR/$REGULATORY_DOMAIN ]; then
+    /bin/cp -f $IPQ4019_BDF_DIR/$REGULATORY_DOMAIN/* $IPQ4019_BDF_DIR/
+    /bin/cp -f $QCA9984_BDF_DIR/$REGULATORY_DOMAIN/* $QCA9984_BDF_DIR/
+else
+    /bin/cp -f $IPQ4019_BDF_DIR/FCC_ETSI/* $IPQ4019_BDF_DIR/
+    /bin/cp -f $QCA9984_BDF_DIR/FCC_ETSI/* $QCA9984_BDF_DIR/
+fi
+sync

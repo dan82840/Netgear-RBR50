@@ -765,9 +765,9 @@ $bluebar
         <input type="text" name="sysDNSHost_Netgear" id="sys_dnshost" size="16" maxlength="128" onKeyPress="return getkey('hostname',event)" onKeyup="return keyup_check_host(this, event);" onchange="check_value('host', this);" >.mynetgear.com  <img id="right_png" style="display:none" src=/image/check.png width=25 height=25 /> <img  id="x_png" style="display:none" src=/image/x.png width=25 height=25  />
         </TD>
 </TR>
-<tr id="host_error" style="display: none; color:red">
+<tr id="host_error" style="display: none;">
 	<td></td>
-	<td>$ddns_ntg_err_host</td>
+	<td style="color:red">$ddns_ntg_err_host</td>
 </tr>
 <tr>
         <td nowrap>$ddns_ntg_email</td>
@@ -775,9 +775,9 @@ $bluebar
         <input type="text" name="sysDNSEmail_Netgear" id="sys_dnsmail" size="32" maxlength="48" onKeyPress="return getkey('ssid',event)" onchange="return check_value('email', this);" >
         </td>
 </tr>
-<tr id="email_error" style="display: none; color:red">
+<tr id="email_error" style="display: none;">
 	<td></td>
-	<td>$ddns_ntg_err_email </td>
+	<td style="color:red">$ddns_ntg_err_email </td>
 </tr>
 <TR>
         <TD nowrap>$ddns_ntg_password</TD>
@@ -785,33 +785,33 @@ $bluebar
         <input type="text" name="sysDNSPassword_Netgear" id="sys_dnspassword" size="32" maxlength="32" value="" onKeyPress="return getkey('ssid',event)" onKeyUp="return check_value('passwd', this);">
         </TD>
 </TR>
-<tr id="passwd_error" style="display: none; color:red">
+<tr id="passwd_error" style="display: none;">
 	<td></td>
-	<td>$ddns_ntg_err_passwd</td>
+	<td style="color:red">$ddns_ntg_err_passwd</td>
 </tr>
-<tr id="rg_err_1" style="display: none; color:red">
-        <td colspan=2>$ddns_ntg_err_no_conn</td>
+<tr id="rg_err_1" style="display: none;">
+        <td colspan=2 style="color:red">$ddns_ntg_err_no_conn</td>
 </tr>
-<tr id="rg_err_2" style="display: none; color:red">
-        <td colspan=2>$ddns_ntg_err_no_dns</td>
+<tr id="rg_err_2" style="display: none;">
+        <td colspan=2 style="color:red">$ddns_ntg_err_no_dns</td>
 </tr>
-<tr id="rg_err_3" style="display: none; color:red">
-        <td colspan=2>$ddns_ntg_err_100</td>
+<tr id="rg_err_3" style="display: none;">
+        <td colspan=2 style="color:red">$ddns_ntg_err_100</td>
 </tr>
-<tr id="rg_err_4" style="display: none; color:red">
-        <td colspan=2>$ddns_ntg_err_111</td>
+<tr id="rg_err_4" style="display: none;">
+        <td colspan=2 style="color:red">$ddns_ntg_err_111</td>
 </tr>
-<tr id="rg_err_5" style="display: none; color:red">
-        <td colspan=2>$ddns_ntg_err_112</td>
+<tr id="rg_err_5" style="display: none;">
+        <td colspan=2 style="color:red">$ddns_ntg_err_112</td>
 </tr>
-<tr id="rg_err_7" style="display: none; color:red">
-        <td colspan=2>$ddns_ntg_err_113</td>
+<tr id="rg_err_7" style="display: none;">
+        <td colspan=2 style="color:red">$ddns_ntg_err_113</td>
 </tr>
-<tr id="rg_err_8" style="display: none; color:red">
-        <td colspan=2>$ddns_ntg_err_115_1 <a class='linktype' href='https://www.noip.com/login/?oem=ntgr' target='_blank'>$ddns_ntg_click</a> $ddns_ntg_err_115_2</td>
+<tr id="rg_err_8" style="display: none;">
+        <td colspan=2 style="color:red">$ddns_ntg_err_115_1 <a class='linktype' href='https://www.noip.com/login/?oem=ntgr' target='_blank'>$ddns_ntg_click</a> $ddns_ntg_err_115_2</td>
 </tr>
-<tr id="rg_err_9" style="display: none; color:red">
-        <td colspan=2>$ddns_ntg_err_other</td>
+<tr id="rg_err_9" style="display: none;">
+        <td colspan=2 style="color:red">$ddns_ntg_err_other</td>
 </tr>
 </tbody>
 <tbody id="netgear_ddns_no">
@@ -828,8 +828,8 @@ $bluebar
 </tr>
 </tbody>
 <tbody id="netgear_ddns_yes" style="display: none;">
-<tr id="rg_err_6" style="display: none; color:red">
-        <td colspan=2>$ddns_ntg_cfg_err_112</td>
+<tr id="rg_err_6" style="display: none;">
+        <td style="color:red;" colspan=2>$ddns_ntg_cfg_err_112</td>
 </tr>
 <tr class="blue_a">
         <td nowrap colspan=2>$ddns_ntg_forget_pw <a class='linktype' href='https://www.noip.com/forgotPw.php?oem=ntgr' target='_blank'>$ddns_ntg_click</a>  </td>

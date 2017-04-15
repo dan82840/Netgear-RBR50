@@ -101,7 +101,7 @@ function change_size()
 function settingClass(obj, class_name)
 {
 	var height = obj.getElementsByTagName("span")[0].clientHeight;
-	if(height > 30)
+	if(height > 32)
 		obj.className = class_name + "_triple";
 	else if(height > 16)
 		obj.className = class_name + "_double";
@@ -148,6 +148,8 @@ function clickSubMenu(current_div, change_id)
 			top.old_div.className = "middle_name";
 		else if ( old_div_class == "sub_back_purple_triple")
 			top.old_div.className = "long_name";
+		else if ( old_div_class == "sub_back_purple_long")
+			top.old_div.className = "long_name";
 	}
 	if( current_div == "0" )
 	{
@@ -171,6 +173,13 @@ function clickSubMenu(current_div, change_id)
 	}
 	else if( current_class == "long_name")
 		current_div.className = "sub_back_purple_triple";
+		
+	if(change_id=="forwarding_triggering")
+	{
+		var words_height = current_div.getElementsByTagName("span")[0].clientHeight;
+		if(words_height >48)
+			current_div.className = "sub_back_purple_long";
+	}
 	top.old_div = current_div;
 }
 var array_name = ["wds_items", "ap_items", "bridge_items", "extender_items", "mapt_items", "devmode_items"];

@@ -90,32 +90,17 @@ dni_led_set_states() {
         "RE_MoveFarther")
             /sbin/led_ring stop
             /sbin/ledcontrol -n all -c blue -s on -l strong
-            sleep 10
-            /sbin/ledcontrol -n all -c red -s off -l off
-            /sbin/ledcontrol -n all -c green -s off -l off
-            /sbin/ledcontrol -n all -c blue -s off -l off
-            /sbin/ledcontrol -n all -c white -s off -l off
         ;;
 
 
         "RE_LocationSuitable")
             /sbin/led_ring stop
             /sbin/ledcontrol -n all -c blue -s on -l strong
-            sleep 10
-            /sbin/ledcontrol -n all -c red -s off -l off
-            /sbin/ledcontrol -n all -c green -s off -l off
-            /sbin/ledcontrol -n all -c blue -s off -l off
-            /sbin/ledcontrol -n all -c white -s off -l off
         ;;
 
         "RE_MoveCloser")
             /sbin/led_ring stop
             /sbin/ledcontrol -n all -c amber -s on -l strong
-            sleep 10
-            /sbin/ledcontrol -n all -c red -s off -l off
-            /sbin/ledcontrol -n all -c green -s off -l off
-            /sbin/ledcontrol -n all -c blue -s off -l off
-            /sbin/ledcontrol -n all -c white -s off -l off
         ;;
 
         "Measuring")
@@ -123,23 +108,20 @@ dni_led_set_states() {
         ;;
 
         "OneBackhaulWPSInProgress")
-            /sbin/led_ring start magenta
         ;;
 
 
         "AssocTimeout")
-            /sbin/led_ring stop
-            /sbin/ledcontrol -n all -c magenta -s on -l strong
-            sleep 10
-            /sbin/ledcontrol -n all -c red -s off -l off
-            /sbin/ledcontrol -n all -c green -s off -l off
-            /sbin/ledcontrol -n all -c blue -s off -l off
-            /sbin/ledcontrol -n all -c white -s off -l off
         ;;
 
 
         "NotAssociated")
-            /sbin/led_ring start magenta
+            /sbin/led_ring stop
+            /sbin/ledcontrol -n all -c magenta -s on -l strong
+        ;;
+
+        "Booting")
+            /sbin/led_ring start white
         ;;
 
         "OFF")

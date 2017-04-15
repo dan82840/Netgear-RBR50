@@ -20,6 +20,7 @@ EOF
 }
  
 start_dhcpd_success() {
+    [ -f /tmp/disable_satelite_dhcpd ] && return
     [ ! -f /tmp/udhcpd.leases ] && touch /tmp/udhcpd.leases
     start_ip=$($CONFIG get dhcp_start)
     end_ip=$($CONFIG get dhcp_end)

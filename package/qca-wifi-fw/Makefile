@@ -72,8 +72,8 @@ define WifiFirmware
 	$(INSTALL_DIR) $$(1)/lib/firmware/$(3)
 	$(HOST_TAR) jxvf $(DL_DIR)/$(PKG_SOURCE) -C $$(1)/lib/firmware/$(3) --strip-components=1
 	$(if $(findstring QCA9984,$(3)), cp -f $$(1)/lib/firmware/$(3)/boarddata_0.bin $$(1)/lib/firmware/$(3)/boarddata_2.bin,)
-	$(if $(findstring QCA9984,$(3)), cp -f ./files/QCA9984/hw.1/* $$(1)/lib/firmware/$(3)/,)
-	$(if $(findstring IPQ4019,$(3)), cp -f ./files/IPQ4019/hw.1/* $$(1)/lib/firmware/$(3)/,)
+	$(if $(findstring QCA9984,$(3)), cp -af ./files/QCA9984/hw.1/* $$(1)/lib/firmware/$(3)/,)
+	$(if $(findstring IPQ4019,$(3)), cp -af ./files/IPQ4019/hw.1/* $$(1)/lib/firmware/$(3)/,)
   endef
 
 

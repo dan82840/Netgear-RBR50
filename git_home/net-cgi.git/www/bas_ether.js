@@ -361,6 +361,16 @@ function check_ether(cf,check)
 			return false;
 		}
 	}
+	if(cf.DNSAssign[0].checked)
+	{
+		if( parental_control == 1)
+		{
+			if(confirm("$dis_opendns") == false)
+			{
+				return false;
+			}
+		}
+	}
 	if(check_wizard_dhcp(check,"bas")==false)
 		return false;
 	if (cf.MACAssign[2].checked )

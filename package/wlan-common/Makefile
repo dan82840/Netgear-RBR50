@@ -36,6 +36,7 @@ define Build/Compile
 endef
 
 define Package/wlan-common/install
+	$(CP) ./files/* $(1)/
 	$(INSTALL_DIR) $(1)/etc
 	cp -af $(PKG_BUILD_DIR)/etc/* $(1)/etc
 	if [ -f $(PKG_BUILD_DIR)/etc/ath/wifi.conf ]; then \

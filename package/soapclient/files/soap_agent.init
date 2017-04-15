@@ -4,11 +4,13 @@ START=90
 start()
 {
 	/usr/sbin/soap_agent
+	/usr/sbin/soap_check_fw
 }
 
 stop()
 {
 	killall soap_agent
+	killall soap_check_fw
 }
 
 boot()

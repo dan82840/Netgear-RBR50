@@ -635,6 +635,10 @@ if [ -n "$DNI_CONFIG" ]; then
             if [ "$wla2_channel" = "0" ]; then wla2_channel="auto"; fi
             wla2_chmode=`dniconfig get wla_2nd_simple_mode`
             wla2_cca_threshold=`dniconfig get wla_2nd_cca_threshold`
+            eval wla2_rts=`dniconfig get wla2_rts`
+            if [ -z "$wla2_rts" ]; then
+                wla2_rts=64
+            fi
 
             # wireless region is NA and mode is 1733M, when enable HT160, change mode to HT80_80
             # wireless region is EU and mode is 1733M, when enable HT160, change mode to HT160
@@ -759,10 +763,6 @@ if [ -n "$DNI_CONFIG" ]; then
             wla2_ap_bh_disablecoext=`dniconfig get wla_2nd_ap_bh_disablecoext`
             eval wla2_ap_bh_sectype=\$sectype_`dniconfig get wla_2nd_ap_bh_sectype`
             eval wla2_ap_bh_auth=`dniconfig get wla_2nd_ap_bh_auth`
-            eval wla2_rts=`dniconfig get wla2_rts`
-            if [ -z "$wla2_rts" ]; then
-                wla2_rts=64
-            fi
             eval wla2_ap_bh_dyn_bw_rts=`dniconfig get wla_2nd_ap_bh_dyn_bw_rts`
             eval wla2_ap_bh_rps=`dniconfig get wla_2nd_ap_bh_rps`
             get_ifname_section _ifname _section $a2_device

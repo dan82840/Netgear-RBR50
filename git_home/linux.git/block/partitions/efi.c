@@ -701,7 +701,8 @@ struct dni_partition dni_custom_part[] = {
 {"rootfs",  0x6422, 0xF600},
 {"firmware",0x4622, 0x11400},
 {"mtdoops", 0x15A22, 0x200},
-{"reserved",0x15C22, 0x2B70FF},
+{"cert", 0x15C22, 0x080},
+{"reserved",0x15CA2, 0x2B70FF},
 };
 
 int efi_partition(struct parsed_partitions *state)

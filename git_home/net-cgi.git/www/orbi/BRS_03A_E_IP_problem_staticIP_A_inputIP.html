@@ -98,9 +98,22 @@ function check_static_dns(wan_assign)
 		cf.third_dns.value = cf.TDAddr1.value+'.'+cf.TDAddr2.value+'.'+cf.TDAddr3.value+'.'+cf.TDAddr4.value;
 
 	if( dns_third_flag == 1 )
-		return check_three_DNS(cf.preferred_dns.value, cf.alternate_dns.value, cf.third_dns.value, wan_assign,cf.ip_address.value);
+	{
+		if(check_three_DNS(cf.preferred_dns.value, cf.alternate_dns.value, cf.third_dns.value, wan_assign,cf.ip_address.value)==false)
+			return false;
+	}
 	else
-		return check_DNS(cf.preferred_dns.value,cf.alternate_dns.value,wan_assign,cf.ip_address.value);
+	{
+	 	if(check_DNS(cf.preferred_dns.value,cf.alternate_dns.value,wan_assign,cf.ip_address.value)==false)
+			return false;
+	}
+	if(cf.preferred_dns.value == "...")
+		cf.preferred_dns.value ="";
+	if(cf.alternate_dns.value == "...")
+		cf.alternate_dns.value ="";
+	if(dns_third_flag == 1 && cf.third_dns.value == "...")
+		cf.third_dns.value = "";
+	return true;
 }
 </script>
 <% wizlog_problem_ck10("0") %>

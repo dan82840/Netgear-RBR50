@@ -55,6 +55,8 @@ function loadvalue()
 		else if(jp_multiPPPoE!="1")
 			alert(getText(bh_auto_upg_nowan_head, "$auto_upg_nowan_head"));
 	}
+	else if(language_change_status == "-1")
+		alert(getText(bh_serv_unreachable, "$serv_unreachable"));
 	else if(language_change_status == "2") // 2:download failed
 	{
 		alert(getText(bh_ml_failDownload, "$ml_failDownload"));

@@ -21,9 +21,11 @@
 
 #define ARP_IFNAME	"br0"
 #define ARP_FILE	"/tmp/netscan/attach_device"
+#define ARP_FILE_WIRED	"/tmp/netscan/attach_device_wired"
+#define ARP_FILE_2G	"/tmp/netscan/attach_device_2g"
+#define ARP_FILE_5G	"/tmp/netscan/attach_device_5g"
 #define DHCP_LIST_FILE	"/tmp/dhcpd_hostlist"
 #define WLAN_STA_FILE	"/tmp/sta_dev"
-#define BR0_MAC_INFO    "/tmp/br0_macinfo"
 
 /* The max length of NETBIOS name is 15, the max length of DHCP hostanme is 255 (BOOTP/DHCP option 12) */
 #define MAX_HOSTNAME_LEN	255

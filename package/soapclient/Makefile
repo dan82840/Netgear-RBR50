@@ -36,6 +36,7 @@ define Package/soapclient/install
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/soapclient $(1)/usr/sbin/
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/soap_agent $(1)/usr/sbin/
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/satelliteinfo $(1)/usr/sbin/
+	$(INSTALL_BIN) $(PKG_BUILD_DIR)/soap_check_fw $(1)/usr/sbin/
 	$(INSTALL_DIR) $(1)/etc/init.d
 	$(INSTALL_BIN) ./files/soap_agent.init $(1)/etc/init.d/soap_agent
 endef

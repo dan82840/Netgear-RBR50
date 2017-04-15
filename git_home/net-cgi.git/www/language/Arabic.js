@@ -727,3 +727,4 @@ bh_down_in_back="ﻲﺘﻣ ﺖﻧﺰﻴﻟ ﺎﻠﺑﺮﻧﺎﻤﺟ ﺎﻠﺛﺎ
 bh_unknown_error="Unknown error"
 bh_upg_failed="ﻒﺸﻟ ﺎﻠﺘﺣﺪﻴﺛ"
 bh_update_all="ﺖﺣﺪﻴﺛ ﺎﻠﻜﻟ"
+bh_orbi_sync="To add additional Orbi satellite (purchased separately not part of the Orbi Kit) to your existing Orbi WiFi network. Press the <b>Sync</b> button on the router and add-on satellite within two minutes of each other."

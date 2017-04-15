@@ -18,6 +18,9 @@
 
 #define ARP_IFNAME	"br0"
 #define ARP_FILE	"/tmp/netscan/attach_device"
+#define ARP_FILE_WIRED	"/tmp/netscan/attach_device_wired"
+#define ARP_FILE_2G	"/tmp/netscan/attach_device_2g"
+#define ARP_FILE_5G	"/tmp/netscan/attach_device_5g"
 #define DHCP_LIST_FILE	"/tmp/dhcpd_hostlist"
 #define WLAN_STA_FILE	"/tmp/sta_dev"
 

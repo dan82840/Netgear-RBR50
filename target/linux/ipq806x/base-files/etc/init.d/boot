@@ -8,6 +8,8 @@ STOP=98
 start() {
 
         /sbin/init-gpio
+	touch /tmp/led_time
+	echo 0 > /tmp/led_time && sleep 90 && echo 1 > /tmp/led_time &
 
 	local commit_flag=0
 	[ -f /proc/mounts ] || /sbin/mount_root
@@ -116,7 +118,7 @@ start() {
 		/bin/config set qos_list_default="0"
 		commit_flag=1
 	fi
-
+	/sbin/disable_dhcp &
         mtdn=`grep language /proc/mtd | awk -F ':' '{print $1}' | awk -F 'd' '{print $2}'`
 	/usr/sbin/nanddump /dev/mtd$mtdn -f /tmp/lang_file &
 	#read wpspin from flash to /tmp/wpspin
@@ -241,6 +243,8 @@ start() {
 		if [ "$region" = "CA" ];then
 			/bin/config set wla_country="3"
 			/bin/config set wl_country="3"
+			/bin/config set wla_hidden_channel="48"
+			/bin/config set wla_2nd_hidden_channel="157"
 			/bin/config set ntp_server="GMT+5"
 			/bin/config set ntpserver_select="GMT+5"
 			/bin/config set ntp_hidden_select="10"
