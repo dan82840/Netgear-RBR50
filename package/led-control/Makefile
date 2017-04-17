@@ -28,7 +28,9 @@ endef
 
 define Package/led-control/install
 	install -d -m0755 $(1)/sbin
+	install -d -m0755 $(1)/etc
 	install -m0755 $(PKG_BUILD_DIR)/ledcontrol $(1)/sbin/
+	install -m0755 ./files/led_status $(1)/etc/
 endef
 
 $(eval $(call BuildPackage,led-control))
