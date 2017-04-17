@@ -434,11 +434,6 @@ disable_qcawifi() {
 		echo "disable_qcawifi: Device: $device is set with keepalive" > /dev/console
 		return 0
 	fi
-	# If qrfs is disabled in enable_qcawifi(),need to enable it
-	if [ -f /var/qrfs_disabled_by_wifi ] && [ $(cat /var/qrfs_disabled_by_wifi) == 1 ]; then
-		echo "1" > /proc/qrfs/enable
-		echo "0" > /var/qrfs_disabled_by_wifi
-	fi
 
 	config_get phy "$device" phy
 
@@ -842,6 +837,9 @@ enable_qcawifi() {
 
         config_get cca_threshold "$device" cca_threshold
         [ -n "$cca_threshold" ] && iwpriv "$phy" cca_threshold "${cca_threshold}"
+
+        config_get no_vlan "$device" no_vlan
+        [ -n "$no_vlan" ] && iwpriv "$phy" no_vlan "${no_vlan}"
 
 	if [ -f /lib/wifi/wifi_nss_olcfg ]; then
 		nss_wifi_olcfg="$(cat /lib/wifi/wifi_nss_olcfg)"
@@ -1580,6 +1578,9 @@ enable_qcawifi() {
 		config_get osen "$vif" osen
 		[ -n "$osen" ] && iwpriv "$ifname" osen "$osen"
 
+		config_get re_scalingfactor "$vif" re_scalingfactor
+		[ -n "$re_scalingfactor" ] && iwpriv "$ifname" set_whc_sfactor "$re_scalingfactor"
+
 		config_get_bool ap_isolation_enabled $device ap_isolation_enabled 0
 		config_get_bool isolate "$vif" isolate 0
 
@@ -1601,6 +1602,9 @@ enable_qcawifi() {
 
 		config_get revsig160  "$vif" revsig160
 		[ -n "$revsig160" ] && iwpriv "$ifname" revsig160 "$revsig160"
+
+		config_get rept_spl  "$vif" rept_spl
+		[ -n "$rept_spl" ] && iwpriv "$ifname" rept_spl "$rept_spl"
 
 		if [ "$ODM" != "dni" ]; then
 			local net_cfg bridge
@@ -2250,20 +2254,22 @@ wifistainfo_qcawifi()
         config_get ifname "$vif" ifname
         _optype=`awk -v input_ifname=$ifname -v output_rule=optype -f /etc/search-wifi-interfaces.awk $wifi_topology_file`
         _opmode=`awk -v input_ifname=$ifname -v output_rule=opmode -f /etc/search-wifi-interfaces.awk $wifi_topology_file`
-        [ "$_optype" != "NORMAL" -o "$_opmode" != "AP" ] && continue
+	if [ "$_optype" != "NORMAL" -a "$_optype" != "GUEST" ]; then
+		continue
+	elif [ "$_opmode" != "AP" ]; then
+		continue
+	fi
 
         wlanconfig "$ifname" list sta >> $tmpfile
         band_type=`grep "^[ga]_device" /etc/ath/wifi.conf | grep $phy  | cut -d_ -f1`
         if [ "$band_type" = "g" ]; then
-            echo $vif | grep 'guest' > /dev/null 2>&1
-            if [ "$?" -eq "1" ]; then
+            if [ "$ifname" = "ath0" ]; then
                 echo "###2.4G###"
             else
                 echo "###2.4G Guest###"
             fi
         else
-            echo $vif | grep 'guest' > /dev/null 2>&1
-            if [ "$?" -eq "1" ]; then
+            if [ "$ifname" = "ath1" ]; then
                 echo "###5G###"
             else
                 echo "###5G Guest###"
@@ -2504,7 +2510,7 @@ wps_qcawifi()
                             [ -d $dir ] && {
                                 nopbn=`iwpriv $ifname get_nopbn | cut -d':' -f2`
                                 if [ $nopbn != 1 ]; then
-                                    echo "Activate PBC for $_optype:$_opmode - $ifname" > /dev/console
+                                    echo "Activate PBC for $optype:$opmode - $ifname" > /dev/console
                                     hostapd_cli -i $ifname -p "$dir" wps_cancel
                                     hostapd_cli -i $ifname -p "$dir" wps_pbc
                                 fi
@@ -2624,7 +2630,12 @@ connection_qcawifi()
 
             config_get ifname "$vif" ifname
             if [ "$status" != "deny" ];then
-                ifconfig $ifname up #iwpriv $ifname maccmd 0
+	    	if [ "$device" = "wifi0" -a "$(/bin/config get endis_wl_radio)" = "1" ] || 
+		[ "$device" = "wifi1" -a "$(/bin/config get endis_wla_radio)" = "1" ];then
+                	ifconfig $ifname up #iwpriv $ifname maccmd 0
+		else
+			echo "radio $device is off,so shoule not enable $ifname interface" > /dev/console
+		fi 
 	    else
                 ifconfig $ifname down #iwpriv $ifname maccmd 1
             fi
@@ -2904,7 +2915,10 @@ lan_restricted_access_qcawifi()
             if [ "$lan_restricted" = "1" ]; then
                 config_get ifname "$vif" ifname
                 config_get lan_ipaddr "$vif" lan_ipaddr
-                ebtables -A INPUT -i "$ifname" -j DROP
+                ebtables -A INPUT -i "$ifname" -p $ETH_P_IP --ip-proto tcp --ip-dport 22 -j DROP
+                ebtables -A INPUT -i "$ifname" -p $ETH_P_IP --ip-proto tcp --ip-dport 23 -j DROP
+                ebtables -A INPUT -i "$ifname" -p $ETH_P_IP --ip-proto tcp --ip-dport 80 -j DROP
+                ebtables -A INPUT -i "$ifname" -p $ETH_P_IP --ip-proto icmp -j DROP
                 ebtables -A FORWARD -p $ETH_P_IPv6 -i "$ifname" --ip6-proto "$IPPROTO_UDP" --ip6-dport "$PORT_DNS" -j ACCEPT
                 ebtables -A FORWARD -p $ETH_P_IPv6 -i "$ifname" --ip6-proto "$IPPROTO_UDP" --ip6-dport "$DHCP6S_DHCP6C" -j ACCEPT
                 ebtables -A FORWARD -p $ETH_P_IP -i "$ifname" --ip-proto "$IPPROTO_UDP" --ip-dport "$PORT_DNS" -j ACCEPT
