@@ -1605,7 +1605,7 @@ CONFIG_MINIUPNPD_MODELURL="http://www.netgear.com/home/products/wirelessrouters"
 CONFIG_MINIUPNPD_SUPPORT_PNPX=y
 CONFIG_MINIUPNPD_PNPX_HWID="VEN_01f2&DEV_002b&REV_01 VEN_01f2&DEV_8000&SUBSYS_01&REV_01 VEN_01f2&DEV_8000&REV_01 VEN_0033&DEV_0008&REV_01"
 CONFIG_MINIUPNPD_PATCH_GEN_UUID=y
-CONFIG_WAN_IFNAME="eth0"
+CONFIG_WAN_IFNAME="brwan"
 CONFIG_MINIUPNPD_DEVUPC="606449084528"
 CONFIG_PACKAGE_net-dump=y
 CONFIG_PACKAGE_net-scan=y
@@ -1633,7 +1633,7 @@ CONFIG_PACKAGE_qsdk-wifi-script=y
 #
 CONFIG_QSDK_WIFI_SCRIPT_GIT_REPOSITORY="qsdk-wifi-script.git"
 CONFIG_QSDK_WIFI_SCRIPT_GIT_URL="ssh://dniserver/scm/dnigit/common/apps/qsdk-wifi-script.git"
-CONFIG_QSDK_WIFI_SCRIPT_GIT_TREEISH="7bc14eb6a5ca9264fca6dd0cb9e2ff8336cbc280"
+CONFIG_QSDK_WIFI_SCRIPT_GIT_TREEISH="ac2351c7dcb23546c7e4f610eef56d8e1b412f70"
 CONFIG_PACKAGE_radardetect=y
 
 #
@@ -1746,7 +1746,7 @@ CONFIG_HYD_WIFI_LOAD_BALANCING=y
 CONFIG_HYD_SUPPORT_VHT160=y
 # CONFIG_PACKAGE_qca-hyd-plc is not set
 CONFIG_PACKAGE_qca-libhyfi-bridge=y
-CONFIG_WIFISON_HIFY_GIT_TREEISH="95f1a2cce92b70e834bd63b266fe0ddd24316301"
+CONFIG_WIFISON_HIFY_GIT_TREEISH="f8f7503070f2aa8643afb3bac85997f322ad70e1"
 CONFIG_WIFISON_HIFY_KMOD_GIT_TREEISH="7ed166aa0b322c7aa347df483afd5a662c2ca957"
 
 
@@ -1767,7 +1767,7 @@ CONFIG_PACKAGE_libwpa2=y
 # CONFIG_PACKAGE_luci-wsplc-advanced is not set
 CONFIG_PACKAGE_qca-ieee1905-init=y
 
-CONFIG_WIFISON_IEEE1905_GIT_TREEISH="b4cb01899a57e8b6aeba48f36490884ce841b090"
+CONFIG_WIFISON_IEEE1905_GIT_TREEISH="df1e8889582ae465ffe27305f647ff1f8056ffec"
 
 #
 # Configuration
@@ -1777,10 +1777,10 @@ CONFIG_PACKAGE_qca-wsplcd=y
 
 #
 # Whole Home Coverage features
-#
-#CONFIG_PACKAGE_luci-whc is not set 
+
+#CONFIG_PACKAGE_luci-whc is not set
 #CONFIG_PACKAGE_luci-whc-lbd is not set
-#CONFIG_PACKAGE_luci-whc-lbd-advanced is not set 
+#CONFIG_PACKAGE_luci-whc-lbd-advanced is not set
 #CONFIG_PACKAGE_luci-whc-lbd-diaglog is not set
 #CONFIG_PACKAGE_luci-whc-repacd is not set
 #CONFIG_PACKAGE_luci-whc-repacd-advanced is not set
@@ -1793,7 +1793,7 @@ CONFIG_QCA_WHC_USE_DNI_GIT=y
 CONFIG_PACKAGE_qca-whc-lbd=y
 CONFIG_LBD_SUPPORT_VHT160=y
 
-CONFIG_WIFISON_WHC_GIT_TREEISH="569a2e4acbdb18cd6f6f69dd1c6be9ec3d90e359"
+CONFIG_WIFISON_WHC_GIT_TREEISH="8f6a1c009bd7d06d76c35704bc7f37a268982f5a"
 
 #
 # overwrite package version
@@ -2230,6 +2230,7 @@ CONFIG_PACKAGE_kmod-conenat=y
 CONFIG_PACKAGE_kmod-dni-qos=y
 # CONFIG_PACKAGE_kmod-dnistarcraft-alg is not set
 CONFIG_PACKAGE_kmod-dnshijack=y
+CONFIG_PACKAGE_kmod-iparray-match=y
 # CONFIG_PACKAGE_kmod-eeprom-93cx6 is not set
 # CONFIG_PACKAGE_kmod-eeprom-at24 is not set
 # CONFIG_PACKAGE_kmod-eeprom-at25 is not set
