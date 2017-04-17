@@ -120,8 +120,18 @@ dni_led_set_states() {
             /sbin/ledcontrol -n all -c magenta -s on -l strong
         ;;
 
+        "IPLeaseFail")
+            /sbin/led_ring stop
+            /sbin/ledcontrol -n all -c magenta -s on -l strong
+        ;;
+
         "Booting")
             /sbin/led_ring start white
+        ;;
+
+        "ADD-ON-default")
+            /sbin/led_ring stop
+            /sbin/ledcontrol -n all -c white -s on -l strong
         ;;
 
         "OFF")

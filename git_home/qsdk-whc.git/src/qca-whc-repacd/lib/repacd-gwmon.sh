@@ -136,7 +136,7 @@ __gwmon_check_gateway() {
     gw_ip=`route -n | grep ^0.0.0.0 | grep br$1 | awk '{print $2}'`
     [ -z "$gw_ip" ] && return 0
 
-    ping $gw_ip -c1 >/dev/null
+    ping -c 2 $gw_ip -c1 >/dev/null
 
     gw_mac=`cat /proc/net/arp | grep $gw_ip | awk '{print $4}'`
     [ -z "$gw_mac" ] && return 0

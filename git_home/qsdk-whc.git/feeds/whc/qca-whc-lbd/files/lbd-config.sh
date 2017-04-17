@@ -171,6 +171,7 @@ lbd_create_config() {
 	__lbd_cfg_add_str_new_key	IdleSteer	NormalInactTimeout	InactIdleThreshold $filename
 	__lbd_cfg_add_str_new_key	IdleSteer	OverloadInactTimeout	InactOverloadThreshold $filename
 	__lbd_cfg_add_str	IdleSteer	InactCheckInterval $filename
+	__lbd_cfg_add_str   IdleSteer   AuthAllow $filename
 	__lbd_cfg_add_rssi_est_str	IdleSteer	RSSISteeringPoint_UG	Estimator_Adv	RSSIDiff_EstW5FromW2	InactRSSIXingHighThreshold $filename
 	__lbd_cfg_add_str	SteerExec_Adv	LowRSSIXingThreshold $filename
 	__lbd_cfg_add_str	Estimator_Adv	BcnrptActiveDuration $filename
@@ -189,11 +190,15 @@ lbd_create_config() {
 		__lbd_cfg_add_str_new_key	BandMonitor_Adv	MUCheckInterval_W2	MUCheckInterval $filename
 		__lbd_cfg_add_str	Offload		MUAvgPeriod $filename
 	fi
+	__lbd_cfg_add_str	SteerExec_Adv	Delay24GProbeRSSIThreshold $filename
+	__lbd_cfg_add_str	SteerExec_Adv	Delay24GProbeTimeWindow $filename
+	__lbd_cfg_add_str	SteerExec_Adv	Delay24GProbeMinReqCount $filename
 
 	 __lbd_cfg_nl_append '[WLANIF5G]' $filename
 	__lbd_cfg_add_str_new_key	IdleSteer	NormalInactTimeout	InactIdleThreshold $filename
 	__lbd_cfg_add_str_new_key	IdleSteer	OverloadInactTimeout	InactOverloadThreshold $filename
 	__lbd_cfg_add_str	IdleSteer	InactCheckInterval $filename
+	__lbd_cfg_add_str   IdleSteer   AuthAllow $filename
 	__lbd_cfg_add_str_new_key	IdleSteer	RSSISteeringPoint_UG	InactRSSIXingHighThreshold $filename
 	__lbd_cfg_add_rssi_est_str	IdleSteer	RSSISteeringPoint_DG	Estimator_Adv	RSSIDiff_EstW2FromW5	InactRSSIXingLowThreshold $filename
 	__lbd_cfg_add_str	SteerExec_Adv	LowRSSIXingThreshold $filename
