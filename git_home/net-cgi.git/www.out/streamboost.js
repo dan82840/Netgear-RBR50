@@ -14,7 +14,7 @@ function select_lable(num)
 		if(top.have_advanced_qos == "1")
 			goto_formframe("QOS_wait.htm");
 		else
-			goto_formframe("QOS_dynamic.htm");
+			goto_formframe("QOS_speedtest.htm");
 	}
 	else// if(select_num==1)
 		this.location.href="QOS_wmm.htm";
@@ -35,12 +35,12 @@ function qos_advanced()
 		if(top.have_advanced_qos == "1")
 			check_confirm(cf, "QOS_basic_dynamic.htm", ts);
 		else
-			check_confirm(cf, "QOS_dynamic.htm", ts);
+			check_confirm(cf, "QOS_speedtest.htm", ts);
 			
 	}else{
 		 if(parent.ookla_speedtest_flag == 1)
 			parent.ookla_speedtest_flag = 0;
-		location.href = "QOS_dynamic.htm";
+		location.href = "QOS_speedtest.htm";
 	}
 		
 		
@@ -233,7 +233,7 @@ function check_wmm_apply(cf)
 function check_confirm(cf, url)
 {
 	cf.hid_bandwidth_type.value=0;
-	if(cf.uplink_value.value == "")
+	/*if(cf.uplink_value.value == "")
 		cf.hid_streamboost_uplink.value="";
 	else
 		cf.hid_streamboost_uplink.value=parseInt((cf.uplink_value.value)*1000000/8);
@@ -248,7 +248,7 @@ function check_confirm(cf, url)
 	if(cf.help_improve.checked == true)
 		cf.hid_improve_service.value=1;
 	else
-		cf.hid_improve_service.value=0;
+		cf.hid_improve_service.value=0;*/
 	cf.submit_flag.value="apply_streamboost";
 	cf.action="/apply.cgi?/" + url + " timestamp=" + ts;
 	cf.submit();
@@ -284,6 +284,11 @@ function check_ookla_speedtest(form)
 		form.action="/func.cgi?/QOS_basic_setting.htm timestamp="+ts;
 		parent.basic_qos_ookla_speedtest_flag = 1;
 	}
+	else if(location.href.indexOf("QOS_speedtest.htm") > 0){
+                form.submit_flag.value="ookla_speedtest";
+                form.action="/func.cgi?/QOS_speedtest.htm timestamp="+ts;
+                parent.ookla_speedtest_flag = 1;
+        }
 	form.submit();
 	return true;
 }

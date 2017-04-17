@@ -12,9 +12,9 @@
 	<script>
 		var master="<% cfg_get("http_loginname") %>";
 		if( master=="admin" )
-			document.write('<input class="new_cancel_bt ui-corner-all" type="reset" name="Cancel" value="$cancel_mark" onClick="location.href=\'rae_main.htm\';"><input class="new_apply_bt ui-corner-all" type="submit" name="Apply" value="$apply_mark" onClick="check_ap();return false;">');
+			document.write('<input class="cancel_bt" type="reset" name="Cancel" value="$cancel_mark" onClick="location.href=\'rae_main.htm\';"><input class="apply_bt" type="submit" name="Apply" value="$apply_mark" onClick="check_ap();return false;">');
 		else
-			document.write('<input class="new_greycancel_bt ui-corner-all" type="reset" name="Cancel" value="$cancel_mark" disabled><input class="new_greyapply_bt ui-corner-all" type="submit" name="Apply" value="$apply_mark" disabled>');
+			document.write('<input class="cancel1_bt" type="reset" name="Cancel" value="$cancel_mark" disabled><input class="apply1_bt" type="submit" name="Apply" value="$apply_mark" disabled>');
 	</script>
 	</TD>
 </TR>
@@ -26,7 +26,6 @@ var ts = "<% cfg_get("edit_devname") %>";
 var ed_action= "/apply.cgi?/rae_ap.htm timestamp="+ts;
 var wl_sectype = "<% cfg_get("wl_sectype") %>";
 var wla_sectype = "<% cfg_get("wla_sectype") %>";
-var wig_sectype = "<% cfg_get("wig_sectype") %>";
 var key1 = "<% cfg_get("wl_key1") %>";
 var key2 = "<% cfg_get("wl_key2") %>";
 var key3 = "<% cfg_get("wl_key3") %>";
@@ -38,7 +37,6 @@ var password1= "<% cfg_sed_passphrase("wl_wpa2_psk") %>";
 var password2= "<% cfg_sed_passphrase("wl_wpas_psk") %>";
 var wla_password1= "<% cfg_sed_passphrase("wla_wpa2_psk") %>";
 var wla_password2= "<% cfg_sed_passphrase("wla_wpas_psk") %>";
-var wig_password= "<% cfg_sed_passphrase("wig_wpa2_psk") %>";
 var wl_wpaemode ="<% cfg_get("wl_wpae_mode") %>";
 var wl_radiusSerIp ="<% cfg_get("wl_radiusSerIp") %>";
 var wl_radiusPort="<% cfg_get("wl_radiusPort") %>";
@@ -361,19 +359,6 @@ if(parent.an_router_flag == 1)
 }
 </script>
 
-<script>
-if(parent.ad_router_flag == 1)
-{
-	document.write('<TR><TD height="15px"></TD></TR>');
-	document.write('<TR><TD nowrap colspan=3 style="font-size:12px;color:#702b86"><b>60G $guest_table_ssid</b></TD></TR>');
-	document.write('<TR><TD nowrap colspan=3><% cfg_get_ssid_html("wig_ssid") %></TD></TR>');
-
-	if (wig_sectype == 1)
-		document.write('<TR><TD nowrap colspan=3>NULL</TD></TR>');
-	else if (wig_sectype == 4)
-		document.write('<TR><TD nowrap colspan=3>'+wig_password+'</TD></TR>');
-}
-</script>
 <TR><TD height="15px"></TD></TR>
 <TR>
 	<td nowrap colspan=3>$ap_tochange:</td>

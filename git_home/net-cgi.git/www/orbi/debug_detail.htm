@@ -44,74 +44,82 @@ function loadvalue()
 		document.forms[8].adv_attached.checked = true;
 	else
 		document.forms[8].adv_attached.checked = false;
-		
-	if("<% cfg_get("enable_wifi_debug") %>"=="1")
-		document.forms[9].allow_wifi_debug.checked = true;
+	
+	if("<% cfg_get("enable_jumbo_frame") %>"=="1")
+		document.forms[9].jumbo_frame.checked = true;
 	else
-		document.forms[9].allow_wifi_debug.checked = false;
+		document.forms[9].jumbo_frame.checked = false;
+	if("<% cfg_get("enable_soap_debug") %>"=="1")
+		document.forms[10].soap_debug.checked = true;
+	else
+		document.forms[10].soap_debug.checked = false;
+	if("<% cfg_get("enable_wifi_debug") %>"=="1")
+		document.forms[11].allow_wifi_debug.checked = true;
+	else
+		document.forms[11].allow_wifi_debug.checked = false;
 		
 	if("<% cfg_get("enable_band_steering") %>"=="1")
-		document.forms[9].allow_band_steering.checked = true;
+		document.forms[11].allow_band_steering.checked = true;
 	else
-		document.forms[9].allow_band_steering.checked = false;
+		document.forms[11].allow_band_steering.checked = false;
 	
 		
 	if("<% cfg_get("multi_ap_disablesteering") %>"=="0")
-		document.forms[9].allow_multi_ap.checked = true;
+		document.forms[11].allow_multi_ap.checked = true;
 	else
-		document.forms[9].allow_multi_ap.checked = false;
+		document.forms[11].allow_multi_ap.checked = false;
 		
 		
 	if("<% cfg_get("wlg_implicit_bf") %>"=="1")
-		document.forms[9].bgn_implicitbf.checked = true;
+		document.forms[11].bgn_implicitbf.checked = true;
 	else
-		document.forms[9].bgn_implicitbf.checked = false;
+		document.forms[11].bgn_implicitbf.checked = false;
 	if("<% cfg_get("wlg_bf") %>"=="1")
-		document.forms[9].bgn_vhtsubfer.checked = true;
+		document.forms[11].bgn_vhtsubfer.checked = true;
 	else
-		document.forms[9].bgn_vhtsubfer.checked = false;
+		document.forms[11].bgn_vhtsubfer.checked = false;
 	if("<% cfg_get("wlg_mu_mimo") %>"=="1")
-		document.forms[9].bgn_vhtmubfee.checked = true;
+		document.forms[11].bgn_vhtmubfee.checked = true;
 	else
-		document.forms[9].bgn_vhtmubfee.checked = false;
+		document.forms[11].bgn_vhtmubfee.checked = false;
 	if("<% cfg_get("wla_implicit_bf") %>"=="1")
-		document.forms[9].an_implicitbf.checked = true;
+		document.forms[11].an_implicitbf.checked = true;
 	else
-		document.forms[9].an_implicitbf.checked = false;
+		document.forms[11].an_implicitbf.checked = false;
 	if("<% cfg_get("wla_bf") %>"=="1")
-		document.forms[9].an_vhtsubfer.checked = true;
+		document.forms[11].an_vhtsubfer.checked = true;
 	else
-		document.forms[9].an_vhtsubfer.checked = false;
+		document.forms[11].an_vhtsubfer.checked = false;
 	if("<% cfg_get("wla_mu_mimo") %>"=="1")
-		document.forms[9].an_vhtmubfee.checked = true;
+		document.forms[11].an_vhtmubfee.checked = true;
 	else
-		document.forms[9].an_vhtmubfee.checked = false;
+		document.forms[11].an_vhtmubfee.checked = false;
 	if("<% cfg_get("wla_2nd_implicit_bf") %>"=="1")
-		document.forms[9].bh_implicitbf.checked = true;
+		document.forms[11].bh_implicitbf.checked = true;
 	else
-		document.forms[9].bh_implicitbf.checked = false;
+		document.forms[11].bh_implicitbf.checked = false;
 	if("<% cfg_get("wla_2nd_bf") %>"=="1")
-		document.forms[9].bh_vhtsubfer.checked = true;
+		document.forms[11].bh_vhtsubfer.checked = true;
 	else
-		document.forms[9].bh_vhtsubfer.checked = false;
+		document.forms[11].bh_vhtsubfer.checked = false;
 	if("<% cfg_get("wla_2nd_mu_mimo") %>"=="1")
-		document.forms[9].bh_vhtmubfee.checked = true;
+		document.forms[11].bh_vhtmubfee.checked = true;
 	else
-		document.forms[9].bh_vhtmubfee.checked = false;
+		document.forms[11].bh_vhtmubfee.checked = false;
 	if("<% cfg_get("wla_2nd_ap_bh_backhaul") %>"=="1")
-		document.forms[9].second_backhaul.checked = true;
+		document.forms[11].second_backhaul.checked = true;
 	else
-		document.forms[9].second_backhaul.checked = false;
+		document.forms[11].second_backhaul.checked = false;
 		
 	if("<% cfg_get("wl_dyn_bw_rts") %>" == "1")
-		document.forms[9].wl_dyn_bw_rts.checked = true;
+		document.forms[11].wl_dyn_bw_rts.checked = true;
 	else
-		document.forms[9].wl_dyn_bw_rts.checked = false;
+		document.forms[11].wl_dyn_bw_rts.checked = false;
 	
 	if("<% cfg_get("wla_dyn_bw_rts") %>" == "1")
-		document.forms[9].wla_dyn_bw_rts.checked = true;
+		document.forms[11].wla_dyn_bw_rts.checked = true;
 	else
-		document.forms[9].wla_dyn_bw_rts.checked = false;
+		document.forms[11].wla_dyn_bw_rts.checked = false;
 
 	refresh_start();
 }
@@ -199,9 +207,31 @@ function click_adv_attached()
 	cf.action="/apply.cgi?/debug_detail.htm timestamp="+ts;
 	cf.submit();
 }
-function check_steering()
+function click_jumbo_frame()
 {
 	var cf = document.forms[9];
+	if(cf.jumbo_frame.checked == true)
+		cf.hid_jumbo_frame.value = "1";
+	else
+		cf.hid_jumbo_frame.value = "0";
+	cf.action="/apply.cgi?/debug_detail.htm timestamp="+ts;
+	cf.submit();
+}
+
+function click_soap_debug()
+{
+        var cf = document.forms[10];
+	if(cf.soap_debug.checked == true)
+		cf.hid_soap_debug.value = "1";
+	else
+		cf.hid_soap_debug.value = "0";
+	cf.action="/apply.cgi?/debug_detail.htm timestamp="+ts;
+	cf.submit();
+}
+
+function check_steering()
+{
+	var cf = document.forms[11];
 	if(cf.allow_band_steering.checked == true)
 	{
 //		cf.allow_80211kv.checked =true;
@@ -216,7 +246,7 @@ function check_steering()
 
 function check_wlan_debug()
 {
-	var cf = document.forms[9];
+	var cf = document.forms[11];
 	if(cf.allow_wifi_debug.checked == true)
 	{
 		cf.allow_band_steering.checked =true;
@@ -249,7 +279,7 @@ function check_cca(val)
 
 function save_orbi_info()
 {
-	var cf = document.forms[9];
+	var cf = document.forms[11];
 
 	if(cf.allow_wifi_debug.checked == true)
 		cf.hid_wifi_debug.value = "1";
@@ -349,7 +379,7 @@ function save_orbi_info()
 
 function click_clear_cache()
 {
-	var cf = document.forms[10];
+	var cf = document.forms[12];
 	cf.action="/apply.cgi?/debug_detail.htm timestamp="+ts;
 	cf.submit();
 }
@@ -483,6 +513,18 @@ function get_numkey(e)
 <input type="hidden" name="submit_flag" value="debug_info" />
 <input type="hidden" name="hid_adv_attached" />
 <input type="checkbox" name="adv_attached" onClick="click_adv_attached();"><b>Enable advanced view of Attached Devices page</b>
+</form>
+<br/>
+<form method="post" action="/apply.cgi?/debug_detail.htm" target="formframe">
+<input type="hidden" name="submit_flag" value="debug_info" />
+<input type="hidden" name="hid_jumbo_frame" />
+<input type="checkbox" name="jumbo_frame" onClick="click_jumbo_frame();"><b>Enable jumbo frame</b>
+</form>
+<br/>
+<form method="post" action="/apply.cgi?/debug_detail.htm" target="formframe">
+<input type="hidden" name="submit_flag" value="debug_info" />
+<input type="hidden" name="hid_soap_debug" />
+<input type="checkbox" name="soap_debug" onClick="click_soap_debug();"><b>Save SOAP log between APP and Router</b>
 </form>
 <br/>
 </div>

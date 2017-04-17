@@ -1,22 +1,36 @@
-<% http_header("style/form.min.css", "/funcs_min.js") %>
+<% http_header("style/form2.css", "/funcs.js", "/streamboost.js") %>
 <% body_header("_wmm", "QOS_wmm.htm", "apply_wmm") %>
-<div class="page_title">$home_net</div>
-<div class="fix_button">
+<div class="qospage_title">$home_net</div>
+<div class="fix_adv_button">
 <TABLE width=100% border=0 cellpadding=0 cellspacing=2>
 <TR>
     <TD nowrap colspan=2 align=center>
     <script>
         var master="<% cfg_get("http_loginname") %>";
 	if( master=="admin" )
-		document.write('<input class="cancel_bt" type="button" name="Cancel" id="cancel" value="$cancel_mark" onClick="location.href=\'QOS_wmm.htm\';"> &nbsp;&nbsp; <input class="apply_bt" type="button" name="Apply" id="apply" value="$apply_mark" onClick="return check_wmm_apply(document.forms[0]);">');
+		document.write('<input class="new_cancel_bt ui-corner-all" type="button" name="Cancel" id="Cancel" value="$cancel_mark" onClick="wmmMain();"> &nbsp;&nbsp; <input class="new_apply_bt ui-corner-all" type="button" name="Apply" id="apply" value="$apply_mark" onClick="return check_wmm_apply(document.forms[0]);">');
 	else
-		document.write('<input class="cancel1_bt" type="button" name="Cancel" id="cancel" value="$cancel_mark" disabled> &nbsp;&nbsp; <input class="apply1_bt" type="button" name="Apply" id="apply" value="$apply_mark" disabled>');
+		document.write('<input class="new_cancel_bt ui-corner-all" type="button" name="Cancel" id="Cancel" value="$cancel_mark" disabled> &nbsp;&nbsp; <input class="new_apply_bt ui-corner-all" type="button" name="Apply" id="apply" value="$apply_mark" disabled>');
     </script>
     </TD>
 </TR>
+<tr id="labels"><td colspan=2>
+        <div id="streamboost_qos" class="label_unclick" onclick="select_lable(0)">
+                <div class="label_left"></div>
+                <div class="label_middle"><b><span> &nbsp;&nbsp; &nbsp;&nbsp; &nbsp;Speedtest &nbsp;&nbsp; &nbsp;&nbsp; &nbsp;</span></b></div>
+                <div class="label_right"></div>
+        </div>
+        <div id="wmm" class="label_unclick" onclick="select_lable(1)">
+                <div class="label_left"></div>
+                <div class="label_middle"><b><span>  &nbsp;&nbsp; &nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;$wmm_mark  &nbsp;&nbsp; &nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;</span></b></div>
+                <div class="label_right"></div>
+        </div>
+</td>
+</tr>
+</table>
 
 </div>
-<div id="main" class="main_top_button">
+<div id="main" class="main_top_button" style="top: 105px;">
 <% table_header() %>
 
 <script>
@@ -32,6 +46,24 @@ var wps_alert="<% cfg_get("wps_alert") %>";
 
 var select_num=0;
 
+function select_lable(num)
+{
+        if(num==0)
+                document.getElementById("streamboost_qos").className="label_click";
+        else
+                document.getElementById("streamboost_qos").className="label_unclick";
+        if(num==1)
+                document.getElementById("wmm").className="label_click";
+        else
+                document.getElementById("wmm").className="label_unclick";
+
+        select_num=num;
+        if(select_num==0)
+                this.location.href="QOS_speedtest.htm";
+        else if(select_num==1)
+                this.location.href="QOS_wmm.htm";
+}
+
 function change_web_format()
 {
 	if( an_router_flag == 1 )
@@ -44,7 +76,8 @@ function change_web_format()
 function loadvalue()
 {
 	var cf=document.forms[0];
-	
+	document.getElementById("wmm").className="label_click";
+        document.getElementById("streamboost_qos").className="label_unclick";	
 	change_web_format();
 
 	if( endis_wl_wmm == "1" )

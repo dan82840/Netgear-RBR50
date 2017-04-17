@@ -5,7 +5,7 @@
 include $(NETCGI_CONF)
 
 FILES = main.o httpd.o lang.o apply.o asp.o auth.o action.o print.o
-FILES += upgrade.o util.o detwan.o ftp.o resolv.o unicode.o
+FILES += upgrade.o util.o detwan.o ftp.o resolv.o unicode.o curl.o
 FILES += wireless.o
 FILES += basic_home_asp.o menu_asp.o adv_index_asp.o
 FILES += sw_soap.o sw_devconfig.o sw_devinfo.o sw_wanip.o \
@@ -446,7 +446,7 @@ CFLAGS += -DSECOND_EMAIL_ADDR
 endif
 
 ifeq ($(IS_ORBI), 1)
-FILES += orbi_upgrade.o orbi_apply.o orbi_asp.o satellite_asp.o cJSON.o
+FILES += orbi_apply.o orbi_asp.o satellite_asp.o cJSON.o
 CFLAGS += -DIS_ORBI
 endif
 
@@ -471,7 +471,7 @@ LDFLAGS += -L$(STAGING_DIR)/usr/lib/libiconv/lib
 all : net-cgi usb_cfg inetd detplc remote_smb_conf remote_user_conf remote_share_conf readycloud_unregister
 
 net-cgi : $(FILES)
-	$(CC) $(CFLAGS) $^ -o $@ $(EXTRA_LDFLAGS) $(LDFLAGS) -lconfig -lpthread -liconv -lm
+	$(CC) $(CFLAGS) $^ -o $@ $(EXTRA_LDFLAGS) $(LDFLAGS) -lconfig -lpthread -liconv -lm -lcurl
 	@echo "make $@ finished on `date`"
 
 usb_cfg : usbdisk.o usb_cfg.o print.o

@@ -297,16 +297,22 @@
 				netgear_num=parseInt(numc_array[i])+netgear_num*100;
 
 			var upgMsg = "";
-			if(netgear_num<file_num)
-			{
-				$$('#localUpgradeYesBt').trigger('click');
-				$$('.formButtons').hide();
-			}
-			else if( netgear_num > file_num )
-			{
-				upgMsg += upg_2_old;
-			} else {
-				upgMsg += upg_2_same;
+			if(cfg_allow_upgrade == "0" && file_num < "1040000"){//when cfg_allow_upgrade is 0,and version lower than V1.40.0.0,can't allow user upgrade fw.
+				$$('#localUpgradeForm').hide();
+				$$('#pageMsg').html(incorrect_firmware);
+				$$('#fwUpdateMsg').show();
+			}else{
+				if(netgear_num<file_num)
+				{
+					$$('#localUpgradeYesBt').trigger('click');
+					$$('.formButtons').hide();
+				}
+				else if( netgear_num > file_num )
+				{
+					upgMsg += upg_2_old;
+				} else {
+					upgMsg += upg_2_same;
+				}
 			}
 
 			if(current_region == "NA")

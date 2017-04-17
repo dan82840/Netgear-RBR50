@@ -64,15 +64,11 @@ function loadvalue()
 		cf.vlan_iptv_select[0].checked=true;
 	
 	var wired_port=parseInt(iptv_mask,10);
-	if(wired_port>=8 && wired_port<=15)
-		cf.iptv_ports_3.checked=true;
-	else
-		cf.iptv_ports_3.checked=false;
-	if((wired_port>=12 && wired_port<=15) || (wired_port>=4 && wired_port<=7))
+	if(wired_port>=4 && wired_port<=7)
 		cf.iptv_ports_2.checked=true;
 	else
 		cf.iptv_ports_2.checked=false;
-	if(wired_port==15 ||wired_port==14 ||wired_port==11 ||wired_port==10 ||wired_port==7 ||wired_port==6 ||wired_port==3 ||wired_port==2)
+	if(wired_port==7 ||wired_port==6 ||wired_port==3 ||wired_port==2)
 		cf.iptv_ports_1.checked=true;
 	else
 		cf.iptv_ports_1.checked=false;
@@ -89,14 +85,14 @@ function loadvalue()
 		cf.iptv_ports_11.checked=true;
 	else
 		cf.iptv_ports_11.checked=false;
-	if(wan_brig_guest_ssid1 =="1")
+	/*if(wan_brig_guest_ssid1 =="1")
 		cf.iptv_ports_12.checked=true;
 	else
 		cf.iptv_ports_12.checked=false;
 	if(wan_brig_guest_ssid2 =="1")
 		cf.iptv_ports_13.checked=true;
 	else
-		cf.iptv_ports_13.checked=false;
+		cf.iptv_ports_13.checked=false;*/
 	if(con_endis_wl_radio=="1")
 		cf.iptv_ports_10.disabled=false;
 	else
@@ -105,14 +101,14 @@ function loadvalue()
 		cf.iptv_ports_11.disabled=false;
 	else
 		cf.iptv_ports_11.disabled=true;
-	if(get_endis_guestNet=="1")
+	/*if(get_endis_guestNet=="1")
 		cf.iptv_ports_12.disabled=false;
 	else
 		cf.iptv_ports_12.disabled=true;
 	if(get_endis_guestNet_an=="1")
 		cf.iptv_ports_13.disabled=false;
 	else
-		cf.iptv_ports_13.disabled=true;
+		cf.iptv_ports_13.disabled=true;*/
 	
 	if(master == "guest"){
 		cf.Add.className = "add_gray_bt";
@@ -169,11 +165,9 @@ function change_vlan_type(cf)
 <input type="hidden" name="hid_bri_lan1" value="0" />
 <input type="hidden" name="hid_bri_lan2" value="0" />
 <input type="hidden" name="hid_bri_lan3" value="0" />
-<input type="hidden" name="hid_bri_lan4" value="0" />
 <input type="hidden" name="hid_inter_lan1" value="0" />
 <input type="hidden" name="hid_inter_lan2" value="0" />
 <input type="hidden" name="hid_inter_lan3" value="0" />
-<input type="hidden" name="hid_inter_lan4" value="0" />
 <input type="hidden" name="hid_inter_wireless1" value="0" />
 <input type="hidden" name="hid_inter_wireless2" value="0" />
 
@@ -199,7 +193,7 @@ function change_vlan_type(cf)
 	<tr class="odd_line">
 		<TD nowrap align=center>
 			<input type="checkbox" id="iptv_ports_0" name="iptv_ports_0">Port1 &nbsp;&nbsp;
-			<input type="checkbox" id="iptv_ports_1" name="iptv_ports_1">Port2</TD>
+			<input type="checkbox" id="iptv_ports_1" name="iptv_ports_1">Port2
 		</TD>
 		<TD nowrap align=center>
 			<input type="checkbox" id="iptv_ports_10" name="iptv_ports_10">WiFi2.4G &nbsp;&nbsp;
@@ -209,11 +203,10 @@ function change_vlan_type(cf)
 	<tr class="odd_line">
 		<TD nowrap align=center>
 			<input type="checkbox" id="iptv_ports_2" name="iptv_ports_2">Port3 &nbsp;&nbsp;
-			<input type="checkbox" id="iptv_ports_3" name="iptv_ports_3">Port4</TD>
 		</TD>
-		<TD style="display:none" nowrap align=center>
-			<input type="checkbox" id="iptv_ports_12" name="iptv_ports_12">Guest-2.4G &nbsp;&nbsp;
-			<input type="checkbox" id="iptv_ports_13" name="iptv_ports_13">Guest-5G
+		<TD nowrap align=center>
+			<!--input type="checkbox" id="iptv_ports_12" name="iptv_ports_12">Guest-2.4G &nbsp;&nbsp;
+			<input type="checkbox" id="iptv_ports_13" name="iptv_ports_13">Guest-5G -->&nbsp;
 		</TD>
 	</tr>
 </table>
@@ -228,7 +221,7 @@ function change_vlan_type(cf)
 </table>
 </div>
 <div id="by_vlan_checked" style="display:none">
-<table class="tables" cellpadding="6" cellspacing="0" width="100%">
+<table class="tables" cellpadding="6" cellspacing="0" width="100%" id="vlan_table">
 	<tr class="table_header">
 		<TD nowrap align=center width="6%">&nbsp;               </TD>
 		<TD nowrap align=center width="6%"><span class="subhead">$r_enable </span></TD>
@@ -241,7 +234,7 @@ function change_vlan_type(cf)
 	<script>
 	if (array_num > 1)
 	{	
-		var port1_flag=port2_flag=port3_flag=port4_flag=port5_flag=port6_flag=port7_flag=port8_flag=0;
+		var port1_flag=port2_flag=port3_flag=port5_flag=port6_flag=port7_flag=port8_flag=0;
 		var form = document.forms[0];
 		for((is_for_RU == 1)? i=0: i=1; i<=array_num; i++)
 		{
@@ -250,11 +243,9 @@ function change_vlan_type(cf)
 			var lan_port=parseInt(each_info_1[4],10);
 			var wlan_port=parseInt(each_info_1[5],10);
 			
-			if(lan_port>=8 && lan_port<=15)
-						port4_flag++;
-			if((lan_port>=12 && lan_port<=15) || (lan_port>=4 && lan_port<=7))
+			if(lan_port>=4 && lan_port<=7)
 						port3_flag++;
-			if(lan_port==15 ||lan_port==14 ||lan_port==11 ||lan_port==10 ||lan_port==7 ||lan_port==6 ||lan_port==3 ||lan_port==2)
+			if(lan_port==7 ||lan_port==6 ||lan_port==3 ||lan_port==2)
 						port2_flag++;
 			if(lan_port%2 ==1)
 						port1_flag++;
@@ -322,17 +313,11 @@ function change_vlan_type(cf)
 				else
 					document.write("<TR class=\"odd_line\">");	
 				if(port3_flag==0){
-					document.write('<TD nowrap align=center><input type="checkbox" checked disabled>Port3 &nbsp;&nbsp;');
+					document.write('<TD nowrap align=center class="vlan_td"><input type="checkbox" checked disabled>Port3 &nbsp;&nbsp;');
 					form.hid_inter_lan3.value="1";
 				}
 				else
-					document.write('<TD nowrap align=center><input type="checkbox" disabled>Port3 &nbsp;&nbsp;');
-				if(port4_flag==0){
-					document.write('<input type="checkbox" checked disabled>Port4</TD>');
-					form.hid_inter_lan4.value="1";
-				}
-				else
-					document.write('<input type="checkbox" disabled>Port4</TD>');
+					document.write('<TD nowrap align=center class="vlan_td"><input type="checkbox" disabled>Port3 &nbsp;&nbsp;');
 				document.write("<TD nowrap align=center></TD>");
 				document.write("</TR>");
 			}
@@ -356,7 +341,7 @@ function change_vlan_type(cf)
 					document.write('<TD nowrap align=center><input type="checkbox" checked disabled>Port1 &nbsp;&nbsp;');
 				else
 					document.write('<TD nowrap align=center><input type="checkbox" disabled>Port1 &nbsp;&nbsp;');
-				if(wired_port==15 ||wired_port==14 ||wired_port==11 ||wired_port==10 ||wired_port==7 ||wired_port==6 ||wired_port==3 ||wired_port==2)
+				if(wired_port==7 ||wired_port==6 ||wired_port==3 ||wired_port==2)
 					document.write('<input type="checkbox" checked disabled>Port2</TD>');
 				else
 					document.write('<input type="checkbox" disabled>Port2</TD>');
@@ -373,14 +358,10 @@ function change_vlan_type(cf)
 					document.write("<TR class=\"even_line\">");
 				else
 					document.write("<TR class=\"odd_line\">");
-				if((wired_port>=12 && wired_port<=15) || (wired_port>=4 && wired_port<=7))
-					document.write('<TD nowrap align=center><input type="checkbox" checked disabled>Port3 &nbsp;&nbsp;');
+				if(wired_port>=4 && wired_port<=7)
+					document.write('<TD nowrap align=center class="vlan_td"><input type="checkbox" checked disabled>Port3 &nbsp;&nbsp;');
 				else
-					document.write('<TD nowrap align=center><input type="checkbox" disabled>Port3 &nbsp;&nbsp;');
-				if(wired_port>=8 && wired_port<=15)
-					document.write('<input type="checkbox" checked disabled>Port4</TD>');
-				else
-					document.write('<input type="checkbox" disabled>Port4</TD>');
+					document.write('<TD nowrap align=center class="vlan_td"><input type="checkbox" disabled>Port3 &nbsp;&nbsp;');
 				document.write("<TD nowrap align=center></TD>");
 				document.write('</TR>');
 			}

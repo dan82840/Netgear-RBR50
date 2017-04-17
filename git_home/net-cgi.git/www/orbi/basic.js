@@ -403,6 +403,11 @@ function click_action(id)
 			basic_menu_color_change('internet');
 			goto_formframe('check_mobile_internet_wait.htm');
 		}
+		else if( id == "satellite" )
+		{
+			basic_menu_color_change('satellite');
+			goto_formframe('Place_satellite.htm');
+		}
 
         }
 }

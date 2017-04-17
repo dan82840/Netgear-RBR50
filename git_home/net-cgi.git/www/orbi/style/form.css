@@ -583,3 +583,9 @@ textarea{
 .indent_50{padding-left:50px;}
 .indent_60{padding-left:60px;}
 
+#vlan_table tr.even_line td.vlan_td,
+#vlan_table tr.odd_line td.vlan_td {
+    border-left: 1px solid #ccc;
+    border-bottom-left-radius: 0px;
+}
+

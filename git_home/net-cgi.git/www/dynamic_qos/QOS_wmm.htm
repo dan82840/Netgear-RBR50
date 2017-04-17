@@ -17,7 +17,7 @@
 <tr id="labels"><td colspan=2>
         <div id="streamboost_qos" class="label_unclick" onclick="select_lable(0)">
                 <div class="label_left"></div>
-                <div class="label_middle"><b><span>$home_net</span></b></div>
+                <div class="label_middle"><b><span> &nbsp;&nbsp; &nbsp;&nbsp; &nbsp;Speedtest &nbsp;&nbsp; &nbsp;&nbsp; &nbsp;</span></b></div>
                 <div class="label_right"></div>
         </div>
         <div id="wmm" class="label_unclick" onclick="select_lable(1)">
@@ -45,7 +45,7 @@ var wps_alert="<% cfg_get("wps_alert") %>";
 <% cfg_set("wps_alert", "0") %>
 
 var select_num=0;
-/*function select_lable(num)
+function select_lable(num)
 {
         if(num==0)
                 document.getElementById("streamboost_qos").className="label_click";
@@ -58,11 +58,11 @@ var select_num=0;
 
         select_num=num;
         if(select_num==0)
-                this.location.href="QOS_dynamic.htm";
+                this.location.href="QOS_speedtest.htm";
         else if(select_num==1)
                 this.location.href="QOS_wmm.htm";
 }
-*/
+
 function change_web_format()
 {
 	if( an_router_flag == 1 )

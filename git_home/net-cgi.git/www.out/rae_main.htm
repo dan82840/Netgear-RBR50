@@ -17,9 +17,9 @@
 	<script>
 		var master="<% cfg_get("http_loginname") %>";
 		if( master=="admin" )
-			document.write('<input class="new_cancel_bt ui-corner-all" type="reset" name="Cancel" value="$cancel_mark" onClick="location.href=\'rae_main.htm\';"><input class="new_apply_bt ui-corner-all" type="button" name="Apply" value="$apply_mark" onClick="return select_type();">');
+			document.write('<input class="cancel_bt" type="reset" name="Cancel" value="$cancel_mark" onClick="location.href=\'rae_main.htm\';"><input class="apply_bt" type="button" name="Apply" value="$apply_mark" onClick="return select_type();">');
 		else
-			document.write('<input class="new_greycancel_bt ui-corner-all" type="reset" name="Cancel" value="$cancel_mark" disabled><input class="new_greyapply_bt ui-corner-all" type="submit" name="Apply" value="$apply_mark" disabled>');
+			document.write('<input class="cancel1_bt" type="reset" name="Cancel" value="$cancel_mark" disabled><input class="apply1_bt" type="submit" name="Apply" value="$apply_mark" disabled>');
 	</script>
 	</TD>
 </TR>
