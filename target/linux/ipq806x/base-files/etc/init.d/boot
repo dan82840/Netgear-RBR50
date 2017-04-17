@@ -145,6 +145,7 @@ start() {
 			/bin/config set time_zone="GMT-4"
 			/bin/config set email_ntpserver="GMT-4"
 			/bin/config set region_flag="DISABLED"
+			/bin/config set wla_2nd_hidden_channel="157"
 		fi
 
 		#when region setting on flash's board data area is GR
@@ -167,8 +168,7 @@ start() {
 			/bin/config set ntp_hidden_select="33"
 			/bin/config set time_zone="GMT-8"
 			/bin/config set email_ntpserver="GMT-8"
-			/bin/config set wla_hidden_channel="153"
-			/bin/config set wla_channel="153"
+			/bin/config set wla_2nd_hidden_channel="157"
 		fi
 
 		#when region setting on flash's board data area is BZ
@@ -191,6 +191,7 @@ start() {
 			/bin/config set ntp_hidden_select="30"
 			/bin/config set time_zone="GMT-5:30"
 			/bin/config set email_ntpserver="GMT-5:30"
+			/bin/config set wla_2nd_hidden_channel="157"
 		fi
 
 		#when region setting on flash's board data area is KO
@@ -238,6 +239,7 @@ start() {
 			/bin/config set ntp_hidden_select="37"
 			/bin/config set time_zone="GMT-10"
 			/bin/config set email_ntpserver="GMT-10"
+			/bin/config set wla_2nd_hidden_channel="157"
 		fi
 		#when region setting on flash's board data area is CA
 		if [ "$region" = "CA" ];then
