@@ -109,6 +109,38 @@ sw_init()
 	# workaround of switch hw issue on r7500                                                      
 	#$ssdk_sh debug reg set 0x04 0x07700000 4 >/dev/null                                           
 	#$ssdk_sh debug reg set 0xe4 0x0006a545 4 >/dev/null                                           
+
+	#Fix Orbi TD1050 PC Lan link rate and Internet speed slow down when connect to TP SG1024D switch.
+	# it is due to EEE mode. here disable EEE mode.
+	$ssdk_sh debug phy set 0x0 0xd 0x7
+	$ssdk_sh debug phy set 0x0 0xe 0x3c
+	$ssdk_sh debug phy set 0x0 0xd 0x4007
+	$ssdk_sh debug phy set 0x0 0xe 0x00
+	$ssdk_sh debug phy set 0x0 0x00 0x1200
+
+	$ssdk_sh debug phy set 0x1 0xd 0x7
+	$ssdk_sh debug phy set 0x1 0xe 0x3c
+	$ssdk_sh debug phy set 0x1 0xd 0x4007
+	$ssdk_sh debug phy set 0x1 0xe 0x00
+	$ssdk_sh debug phy set 0x1 0x00 0x1200
+
+	$ssdk_sh debug phy set 0x2 0xd 0x7
+	$ssdk_sh debug phy set 0x2 0xe 0x3c
+	$ssdk_sh debug phy set 0x2 0xd 0x4007
+	$ssdk_sh debug phy set 0x2 0xe 0x00
+	$ssdk_sh debug phy set 0x2 0x00 0x1200
+	
+	$ssdk_sh debug phy set 0x3 0xd 0x7
+	$ssdk_sh debug phy set 0x3 0xe 0x3c
+	$ssdk_sh debug phy set 0x3 0xd 0x4007
+	$ssdk_sh debug phy set 0x3 0xe 0x00
+	$ssdk_sh debug phy set 0x3 0x00 0x1200
+
+	$ssdk_sh debug phy set 0x4 0xd 0x7
+	$ssdk_sh debug phy set 0x4 0xe 0x3c
+	$ssdk_sh debug phy set 0x4 0xd 0x4007
+	$ssdk_sh debug phy set 0x4 0xe 0x00
+	$ssdk_sh debug phy set 0x4 0x00 0x1200
 }                                                                                                    
 
 sw_printconf_add_switch()
@@ -196,6 +228,58 @@ EOF
 	done
 }
 
+sw_print_ssdk_cmds_add_vlan_for_wan() # $1: vid
+{
+	cat <<EOF
+$ssdk_sh vlan entry create $1
+$ssdk_sh vlan entry append $1 $1 0,1 0,1 null null no no
+EOF
+}
+
+sw_print_ssdk_cmds_add_vlan_for_wan_with_untag() # $1: vid
+{
+	cat <<EOF
+$ssdk_sh vlan entry create $1
+$ssdk_sh vlan entry append $1 $1 0,1 0 1 null no no
+$ssdk_sh portvlan defaultcvid set 1 $1
+EOF
+}
+
+sw_print_ssdk_cmds_add_vlan_for_lan() # $1: ports $2 vid
+{
+	local p
+	cat <<EOF
+$ssdk_sh vlan entry create $2
+$ssdk_sh vlan member add $2 0 tagged
+EOF
+	for p in $1; do
+		echo $p |grep -q "t" && continue
+	cat <<EOF
+$ssdk_sh vlan member add $2 $p untagged
+EOF
+	done
+}
+
+sw_print_ssdk_cmds_set_ports_default_cvid() #$1: ports, $2: vid
+{
+	local p
+
+	for p in $1; do
+		echo $p | grep -q "t" && continue
+
+		cat <<EOF
+$ssdk_sh portvlan defaultcvid set $p $2
+EOF
+	done
+}
+
+sw_print_ssdk_cmds_set_cpu_port_vid()
+{
+	cat <<EOF
+$ssdk_sh misc cpuvid set enable
+EOF
+}
+
 sw_configvlan_factory()
 {
 	sw_printconf_add_switch > $swconf
@@ -205,6 +289,13 @@ sw_configvlan_factory()
 		sw_printconf_add_vlan "switch0" "1" "1" "6 1 2 3 4 5" >> $swconf
 	fi
 	$swconfig dev switch0 load $swconf
+}
+
+sw_configvlan_apmode()
+{
+	[ "$enable_bond" = "1" ] && bond_switch_set && return
+	sw_printconf_add_switch > $swconf
+	sw_printconf_add_vlan "switch0" "1" "1" "0 1 2 3 4" >> $swconf
 }
 
 sw_configvlan_normal()
@@ -274,12 +365,18 @@ sw_configvlan_vlan()
 			g_vlanindex=$(($g_vlanindex + 1))
 			sw_tmpconf_add_vlan "$g_vlanindex" "$vid" "$ports"
 		}
+		[ "$2" == "br" -o "$2" == "vlan" ] && sw_print_ssdk_cmds_add_vlan_for_wan "$vid" >> $ssdk_cmds_file
+		[ "$2" == "wan" ]  && sw_print_ssdk_cmds_add_vlan_for_wan_with_untag "$vid"  >> $ssdk_cmds_file
+		if [ "$2" == "lan" ]; then
+			sw_print_ssdk_cmds_add_vlan_for_lan "$ports" "$vid" >> $ssdk_cmds_file
+			sw_print_ssdk_cmds_set_ports_default_cvid "$ports" "$vid" >> $ssdk_cmds_file
+		fi
 		sw_print_ssdk_cmds_set_ports_pri "$ports" "$pri" >> $ssdk_cmds_file
-
 		;;
 	end)
 		sw_tmpconf_generate_swconf $g_vlanindex > $swconf
-		$swconfig dev switch0 load $swconf
+		#$swconfig dev switch0 load $swconf
+		sw_print_ssdk_cmds_set_cpu_port_vid >> $ssdk_cmds_file
 		qt sh $ssdk_cmds_file
 		;;
 	esac
@@ -293,6 +390,7 @@ sw_configvlan() # $1 : normal/iptv/vlan/apmode/brmode
 	shift
 	case "$opmode" in
 	normal) sw_configvlan_normal "$@" ;;
+	apmode) sw_configvlan_apmode "$@" ;;
 	iptv) sw_configvlan_iptv "$@" ;;
 	vlan) sw_configvlan_vlan "$@" ;;
 	factory) sw_configvlan_factory "$@" ;;

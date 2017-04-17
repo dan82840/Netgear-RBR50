@@ -149,7 +149,7 @@ function refresh_content(type)
 						}
 						else if(fw_sta === "004")
 							discription = upg_failed;
-						else if(wait_time >= MAX_CHK_TRIES || fw_sta == "0" && wait_time>20 && check_satellite_times > 10) { //This satellite lost connection to base
+						else if(wait_time >= MAX_CHK_TRIES || fw_sta == "0" && wait_time>30 && check_satellite_times > 20) { //This satellite lost connection to base
 							discription = "No response";
 							dropped_num ++;
 						}

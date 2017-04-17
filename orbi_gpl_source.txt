@@ -33,6 +33,16 @@ User application
         http://avahi.org/download/
         GPL
         Source Code
+[aws-iot]
+	aws-iot
+	DNI
+	DNI
+	Binary
+[aws-iot-device-sdk]
+	aws-iot-device-sdk
+	https://github.com/aws/aws-iot-device-sdk-embedded-C
+	GPL
+	Source Code
 [base-files]
         base-files
         DNI
@@ -191,11 +201,6 @@ User application
 [hotplug2]
         hotplug2-201
         http://isteve.bofh.cz/~isteve/hotplug2
-        GPL
-        Source Code
-[igmpproxy]
-        N/A
-        DNI
         GPL
         Source Code
 [ipp]
@@ -373,6 +378,11 @@ User application
         http://www.minixml.org/
         GPL
         Source Code
+[mcproxy]
+	mcproxy
+	git://github.com/mcproxy/mcproxy.git
+	GPL
+	Source Code
 [ncurses]
         ncurses-5.7
         http://www.gnu.org/software/ncurses

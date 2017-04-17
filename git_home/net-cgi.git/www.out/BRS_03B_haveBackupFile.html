@@ -6,6 +6,8 @@
 <% hijack_language() %>
 </head>
 <script>
+<% refresh_timestamp("backup_restore") %>
+var ts = "<% cfg_get("backup_restore") %>"
 function goBack()
 {
 	this.location.href = "BRS_02_genieHelp.html";
@@ -34,7 +36,7 @@ function retoreSettings()
 
 	if(confirm(bh_ask_for_restore))
 	{
-		cf.action="/restore.cgi?/BRS_03B_haveBackupFile_fileRestore.html";
+		cf.action="/restore.cgi?/BRS_03B_haveBackupFile_fileRestore.html timestamp="+ts;
 		cf.submit();
 	}
 	else

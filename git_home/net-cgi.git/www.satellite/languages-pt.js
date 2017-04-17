@@ -2,7 +2,7 @@
 edit_devname="Nome do dispositivo"
 devame_note="O Nome do dispositivo identifica este router. É utilizado por várias funcionalidades no router."
 devname_long="name too long"
-devname_warning="Utilize até 16 caracteres alfanuméricos"
+devname_warning="Utilize até 15 caracteres alfanuméricos"
 h_device_name_page="<body bgcolor=#0099cc><p><font size=4><b>Ajuda do Nome do dispositivo</b></font></p><p><b>Nome do dispositivo:</b> o nome do dispositivo identifica este router. É fornecido para dispositivos cliente ligados ao router para reconhecer este dispositivo. </p><p>Deve começar com uma letra e conter apenas letras, números e os símbolos ‘-‘ e ‘_’, [a-zA-Z]+[a-zA-Z0-9\-\_]. O comprimento máximo é 16 caracteres</p></body>"
 release_note="Notas de versão"
 link_aggregation="Link Aggregation"

@@ -2,7 +2,7 @@
 edit_devname="Gerätename"
 devame_note="Der Gerätename identifiziert diesen Router. Er wird von vielen verschiedenen Funktionen auf dem Router verwendet."
 devname_long="name too long"
-devname_warning="Verwenden Sie bis zu 16 alphanumerische Ziffern"
+devname_warning="Verwenden Sie bis zu 15 alphanumerische Ziffern"
 h_device_name_page="<body bgcolor=#0099cc><p><font size=4><b>Hilfe: Gerätename</b></font></p><p><b>Gerätename:</b> Der Gerätename identifiziert diesen Router. Er wird auf Client-Geräten angegeben, die an den Router angeschlossen sind, damit sie dieses Gerät erkennen können. </p><p>Er sollte mit einem Buchstaben beginnen und nur Buchstaben, Ziffern, die Symbole "-" und "_", [a-zA-Z]+[a-zA-Z0-9\-\_] enthalten. Die maximale Länge beträgt 16 Zeichen</p></body>"
 release_note="Versionshinweise"
 link_aggregation="Link Aggregation"

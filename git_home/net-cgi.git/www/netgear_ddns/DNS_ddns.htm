@@ -190,7 +190,7 @@ function changemode()
            		 cf.sysDNSPassword.value = old_sysDNSPassword_2;
         	if( password_click ==1 )
             		cf.sysDNSPassword.type = "password";
-		if(top.is_ru_version == 1)
+		if(top.is_ru_version == 1 || gui_region=="Greek")
 			show_status.className="common_key_gray_bt";
 		else
 			show_status.className="common_gray_bt"; //37036
@@ -202,7 +202,7 @@ function changemode()
 		cf.sysDNSHost.disabled = false;
 		username.maxLength = 64;
 		passwd.maxLength = 64;
-		if(top.is_ru_version == 1)
+		if(top.is_ru_version == 1 || gui_region=="Greek")
 			show_status.className="common_key_bt";
 		else
 			show_status.className="common_bt";

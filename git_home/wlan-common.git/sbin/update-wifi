@@ -311,7 +311,14 @@ generate_mode()
 #EOF
 #    fi
 
-    eval operation_type=\$`echo $1`_operation_type
+    #the origin design maybe have some error,for ap mode,it less ap at operation_type,so for 
+    #ap we should use eval operation_type=\$`echo $1`_ap_operation_type,if neccessary,
+    #i think we maybe need modify the origin desin,now i follows the origin design first
+    if [ "$1" = "wlg" -o "$1" = "wla" -o "$1" = "wla2" ]; then
+        eval operation_type=\$`echo $1`_ap_operation_type
+    else
+        eval operation_type=\$`echo $1`_operation_type
+    fi
     [ -z "$operation_type" ] && operation_type="normal_ap"
     if [ "$1" = "wig" ]; then
         # TODO: support station mode
@@ -323,6 +330,11 @@ generate_mode()
         uci set wireless.${wl_section}.cb=dni
         uci set wireless.${wl_section}.athnewind=1
         uci set wireless.${wl_section}.vap_ind=0
+    elif [ "$operation_type" = "qwrap_sta" ]; then
+        uci set wireless.${wl_section}.mode=sta
+        uci set wireless.${wl_section}.scanband=1
+        uci set wireless.${wl_section}.periodicScan=180000
+        uci set wireless.${wl_section}.athnewind=1
     elif [ "$operation_type" = "backhaul_sta" ]; then
         uci set wireless.${wl_section}.mode=sta
         uci set wireless.${wl_section}.wds=1
@@ -335,12 +347,17 @@ generate_mode()
         uci set wireless.${wl_section}.mode=ap
         uci set wireless.${wl_section}.athnewind=1
         uci set wireless.${wl_section}.vap_ind=0
-        if [ "$1" != "wla2_ap_bh" -o "x$wla2_ap_bh_backhaul" = "x1" ]; then
-            uci set wireless.${wl_section}.wds=1
-            uci set wireless.${wl_section}.backhaul=1
-            uci set wireless.${wl_section}.wsplcd_unmanaged=1
-            uci set wireless.${wl_section}.repacd_security_unmanaged=1
-        fi
+        uci set wireless.${wl_section}.wds=1
+        uci set wireless.${wl_section}.backhaul=1
+        uci set wireless.${wl_section}.wsplcd_unmanaged=1
+        uci set wireless.${wl_section}.repacd_security_unmanaged=1
+    elif [ "$operation_type" = "qwrap_ap" ];then
+        uci set wireless.${wl_section}.mode=wrap
+        uci set wireless.${wl_section}.qwrap=wrap
+        uci set wireless.${wl_section}.scanband=1
+        uci set wireless.${wl_section}.periodicScan=180000
+        uci set wireless.${wl_section}.athnewind=1
+        uci set wireless.${wl_section}.maxsta=18	
     else
         uci set wireless.${wl_section}.mode=ap
         local radio=`echo $1 | awk -F_ '{print $1}'`
@@ -349,7 +366,7 @@ generate_mode()
             uci set wireless.${wl_section}.athnewind=1
         fi
         case "$1" in
-            wlg_guest | wla_guest)
+            wlg_guest | wla_guest | wla2_guest)
                 uci set wireless.${wl_section}.wsplcd_unmanaged=1
                 uci set wireless.${wl_section}.repacd_security_unmanaged=1
             ;;
@@ -399,13 +416,13 @@ generate_wps()
         wl_value="virtual_push_button physical_push_button"
     }
 
-    if [ "$1" = "wlg" -o "$1" = "wla" ]; then
+    if [ "$1" = "wlg" -o "$1" = "wla" -o "$1" = "wla2" ]; then
         eval operation_type=\$`echo $1`_ap_operation_type
     else
         eval operation_type=\$`echo $1`_operation_type
     fi
 
-    if [ "$operation_type" = "normal_ap" -o "$operation_type" = "backhaul_ap" ]; then
+    if [ "$operation_type" = "normal_ap" -o "$operation_type" = "backhaul_ap" -o "$operation_type" = "qwrap_ap" ]; then
         uci set wireless.${wl_section}.ap_setup_locked=${wl_wps_ap_setup_locked}
         uci set wireless.${wl_section}.wps_state=${wl_wps_enable_onoff}
     fi
@@ -573,49 +590,41 @@ generate_security()
             
 }
 
+generate_rts()
+{
+    eval wl_rts_value=\$`echo $1`_rts
+    if [ -n "$wl_rts_value" ]; then
+        uci set wireless.${wl_section}.rts=${wl_rts_value}
+    fi
+}
+
 generate_protocol_setting()
 {
     parent_radio=`echo $1 | awk -F _ '{print $1}'`
-    eval wl_rts_value=\$`echo $parent_radio`_rts
     eval wl_frag_value=\$`echo $parent_radio`_frag
     eval wl_wmm_value=\$`echo $parent_radio`_wmm_onoff
     eval wl_preamble_value=\$`echo $parent_radio`_preamble
     eval wl_country_ie_value=\$`echo $parent_radio`_country_ie_onoff
 
-    if [ -n "$wl_rts_value" ]; then
-        uci set wireless.${wl_section}.rts=${wl_rts_value}
+    uci set wireless.${wl_section}.frag=${wl_frag_value}
+    if [ "$wl_wmm_value" = "on" ]; then
+        uci set wireless.${wl_section}.wmm=1
+    else
+        uci set wireless.${wl_section}.wmm=0
     fi
-
-    if [ -n "$wl_frag_value" ]; then
-        uci set wireless.${wl_section}.frag=${wl_frag_value}
+    if [ "$wl_country_ie_value" = "on" ]; then
+        uci set wireless.${wl_section}.countryie=1
+    else
+        uci set wireless.${wl_section}.countryie=0
     fi
-
-    if [ -n "$wl_wmm_value" ]; then
-        if [ "$wl_wmm_value" = "on" ]; then
-            uci set wireless.${wl_section}.wmm=1
-        else
-            uci set wireless.${wl_section}.wmm=0
-        fi
-    fi
-
-    if [ -n "$wl_country_ie_value" ]; then
-        if [ "$wl_country_ie_value" = "on" ]; then
-            uci set wireless.${wl_section}.countryie=1
-        else
-            uci set wireless.${wl_section}.countryie=0
-        fi
-    fi
-
-    if [ -n "$wl_preamble_value" ]; then
-        case "$wl_preamble_value" in
-            *long*)
-                uci set wireless.${wl_section}.short_preamble=0
-                ;;
-            *)
-                uci set wireless.${wl_section}.short_preamble=1
-                ;;
-        esac
-    fi
+    case "$wl_preamble_value" in
+        *long*)
+            uci set wireless.${wl_section}.short_preamble=0
+            ;;
+        *)
+            uci set wireless.${wl_section}.short_preamble=1
+            ;;
+    esac
 }
 
 generate_acl()
@@ -623,7 +632,7 @@ generate_acl()
     parent_radio=`echo $1 | awk -F _ '{print $1}'`
 
     eval wl_acl_onoff=\$`echo $parent_radio`_acl_onoff
-    if [ "$wl_acl_onoff" = "off" ]; then
+    if [ "$wl_acl_onoff" != "on" ]; then
         return;
     fi
 
@@ -723,10 +732,13 @@ generate_bintval()
         wla)
             uci set wireless.${wl_section}.bintval=100
             ;;
+        wla2)
+            uci set wireless.${wl_section}.bintval=100
+            ;;
         wlg_guest)
             uci set wireless.${wl_section}.bintval=200
             ;;
-        wla_guest)
+        wla_guest | wla2_guest)
             uci set wireless.${wl_section}.bintval=200
             ;;
     esac
@@ -735,7 +747,7 @@ generate_bintval()
 generate_dtim()
 {
     case "$1" in
-        wlg | wla)
+        wlg | wla | wla2)
             eval guest_if_onoff=\$`echo $1`_guest_if_onoff
             # guest network is disabled
             if [ "$guest_if_onoff" = "off" ]; then
@@ -744,10 +756,33 @@ generate_dtim()
                 uci set wireless.${wl_section}.dtim_period=${wl_dtim_w_guest}
             fi
             ;;
-        wlg_guest | wla_guest)
+        wlg_guest | wla_guest | wla2_guest)
             uci set wireless.${wl_section}.dtim_period=${wl_guest_dtim}
             ;;
     esac
+}
+
+generate_chainmask()
+{
+    eval wl_txchainmask=\$`echo $1`_txchainmask
+    eval wl_rxchainmask=\$`echo $1`_rxchainmask
+    if [ "$1" = "wlg" ]; then
+        uci set wireless.${g_device}.txchainmask=${wl_txchainmask}
+        uci set wireless.${g_device}.rxchainmask=${wl_rxchainmask}
+    elif [ "$1" = "wla" ];then
+        uci set wireless.${a_device}.txchainmask=${wl_txchainmask}
+        uci set wireless.${a_device}.rxchainmask=${wl_rxchainmask}
+    else
+        uci set wireless.${a2_device}.txchainmask=${wl_txchainmask}
+	uci set wireless.${a2_device}.rxchainmask=${wl_rxchainmask}
+    fi
+}
+
+generate_model()
+{
+    uci set wireless.${wl_section}.model_name=${model_name}
+    uci set wireless.${wl_section}.model_number=${model_number}
+    uci set wireless.${wl_section}.serial_number=${serial_number}
 }
 
 generate_PIN()
@@ -773,7 +808,8 @@ generate_lan_restricted_access()
 
     wl_guest_iptv_on=`config get wan_brig_guest_ssid1`
     wla_guest_iptv_on=`config get wan_brig_guest_ssid2`
-    if [ "$1" = "wlg_guest" -a "${wl_guest_iptv_on}" = "1" ] || [ "$1" = "wla_guest" -a "${wla_guest_iptv_on}" = "1" ]; then
+	# TODO -Too long condition check. Give me a fix.
+    if [ "$1" = "wlg_guest" -a "${wl_guest_iptv_on}" = "1" ] || [ "$1" = "wla_guest" -a "${wla_guest_iptv_on}" = "1" ] || [ "$1" = "wla2_guest" -a "x${wla_guest_iptv_on}" = "x1" ]; then
         gui_region=`config get GUI_Region`
         [ -f /tmp/firmware_region ] && firmware_region=`cat /tmp/firmware_region | awk '{print $1}'`
         if [ "$firmware_region" = "" ] || [ "$firmware_region" = "WW" ]; then
@@ -898,13 +934,13 @@ generate_hostapd_debug_level()
 
 generate_wifi_topology_file()
 {
-    if [ "$1" = "wlg" -o "$1" = "wla" ]; then
+    if [ "$1" = "wlg" -o "$1" = "wla" -o "$1" = "wla2" ]; then
         eval operation_type=\$`echo $1`_ap_operation_type
     else
         eval operation_type=\$`echo $1`_operation_type
     fi
     case "$operation_type" in
-        normal_ap)
+        normal_ap|qwrap_ap)
             if_type="NORMAL"
             if_mode="AP"
             ;;
@@ -1013,6 +1049,23 @@ if [ "$update_conf" = "wifi" -o "$update_conf" = "all" ]; then
             uci set wireless.${g_device}.obss_rssi_th=${wlg_obss_rssi_th}
             uci set wireless.${g_device}.obss_rx_rssi_th=${wlg_obss_rx_rssi_th}
         fi
+
+	if [ "$DEVICE_TYPE" = "extender" ];then
+            uci set wireless.${g_device}.burst=1
+            uci set wireless.${g_device}.burst_mode=1
+            uci set wireless.${g_device}.aggr_burst_LENGTH=4
+            uci set wireless.${g_device}.aggr_burst_ITEM1="0 20000"
+            uci set wireless.${g_device}.aggr_burst_ITEM2="1 20000"
+            uci set wireless.${g_device}.aggr_burst_ITEM3="2 20000"
+            uci set wireless.${g_device}.aggr_burst_ITEM4="3 20000"
+            uci set wireless.${g_device}.client_mcast=0
+            uci set wireless.${g_device}.qwrap_enable=1
+            uci set wireless.qcawifi.qwrap_oui_enable=1
+            uci set wireless.qcawifi.alwaysprimary=1
+            uci set wireless.qcawifi.qwrap_eth_sta_del_en=0
+            [ "x$primaryradio" = "x5G"  ] && uci set wireless.${g_device}.primaryradio=0
+        fi
+	 
         generate_wifi_hw_button_state "$g_device"
         generate_mac "wlg"
         generate_channel "wlg"
@@ -1020,6 +1073,7 @@ if [ "$update_conf" = "wifi" -o "$update_conf" = "all" ]; then
         generate_htmode "wlg"
         generate_tpscale "wlg"
         generate_bf "wlg"
+        generate_chainmask "wlg"
         generate_implicitbf "wlg"
         generate_mu_mimo "wlg"
         generate_keepalive "wlg"
@@ -1037,6 +1091,27 @@ if [ "$update_conf" = "wifi" -o "$update_conf" = "all" ]; then
         uci set wireless.${a_device}.repacd_auto_create_vaps=0
         uci set wireless.${a_device}.dbdc_enable=${DBDC_ENABLE:-0}
         uci set wireless.${a_device}.nf_baseline=-104
+        if [ "$DEVICE_TYPE" = "extender" ];then
+            uci set wireless.${a_device}.burst=1
+            uci set wireless.${a_device}.burst_mode=1
+            uci set wireless.${a_device}.aggr_burst_LENGTH=4
+            uci set wireless.${a_device}.aggr_burst_ITEM1="0 20000"
+            uci set wireless.${a_device}.aggr_burst_ITEM2="1 20000"
+            uci set wireless.${a_device}.aggr_burst_ITEM3="2 20000"
+            uci set wireless.${a_device}.aggr_burst_ITEM4="3 20000"
+            uci set wireless.${a_device}.client_mcast=0
+            uci set wireless.${a_device}.qwrap_enable=1
+            uci set wireless.qcawifi.qwrap_oui_enable=1
+            uci set wireless.qcawifi.alwaysprimary=1
+            uci set wireless.qcawifi.qwrap_eth_sta_del_en=0
+
+            if [ "x$primaryradio" = "x5G" -a $(/bin/config get 5g_sta) -eq 1 ]; then
+                uci set wireless.${a_device}.primaryradio=1
+            else
+                uci set wireless.${a_device}.primaryradio=0
+            fi
+        fi
+
         generate_wifi_hw_button_state "$a_device"
         generate_mac "wla"
         generate_channel "wla"
@@ -1044,6 +1119,7 @@ if [ "$update_conf" = "wifi" -o "$update_conf" = "all" ]; then
         generate_htmode "wla"
         generate_tpscale "wla"
         generate_bf "wla"
+        generate_chainmask "wla"
         generate_implicitbf "wla"
         generate_mu_mimo "wla"
         generate_keepalive "wla"
@@ -1061,12 +1137,34 @@ if [ "$update_conf" = "wifi" -o "$update_conf" = "all" ]; then
         uci set wireless.${a2_device}.repacd_auto_create_vaps=0
         uci set wireless.${a2_device}.dbdc_enable=${DBDC_ENABLE:-0}
         uci set wireless.${a2_device}.nf_baseline=-104
+        if [ "$DEVICE_TYPE" = "extender" ];then
+            uci set wireless.${a2_device}.burst=1
+            uci set wireless.${a2_device}.burst_mode=1
+            uci set wireless.${a2_device}.aggr_burst_LENGTH=4
+            uci set wireless.${a2_device}.aggr_burst_ITEM1="0 20000"
+            uci set wireless.${a2_device}.aggr_burst_ITEM2="1 20000"
+            uci set wireless.${a2_device}.aggr_burst_ITEM3="2 20000"
+            uci set wireless.${a2_device}.aggr_burst_ITEM4="3 20000"
+            uci set wireless.${a2_device}.client_mcast=0
+            uci set wireless.${a2_device}.qwrap_enable=1
+            uci set wireless.qcawifi.qwrap_oui_enable=1
+            uci set wireless.qcawifi.alwaysprimary=1
+            uci set wireless.qcawifi.qwrap_eth_sta_del_en=0
+
+            if [ "x$primaryradio" = "x5G" -a $(/bin/config get 5g_sta) -eq 2 ]; then
+                uci set wireless.${a2_device}.primaryradio=1
+            else
+                uci set wireless.${a2_device}.primaryradio=0
+            fi
+        fi
+
         generate_mac "wla2"
         generate_channel "wla2"
         generate_hwmode "wla2"
         generate_htmode "wla2"
         generate_tpscale "wla2"
         generate_bf "wla2"
+        generate_chainmask "wla2"
         generate_implicitbf "wla2"
         generate_mu_mimo "wla2"
         generate_keepalive "wla2"
@@ -1096,6 +1194,7 @@ if [ "$update_conf" = "wifi" -o "$update_conf" = "all" ]; then
         generate_rrm $wl_vap
         generate_mcastenhance $wl_vap
         generate_security $wl_vap
+        generate_rts $wl_vap
         generate_protocol_setting $wl_vap
         generate_acl $wl_vap
         generate_wds $wl_vap
@@ -1107,6 +1206,40 @@ if [ "$update_conf" = "wifi" -o "$update_conf" = "all" ]; then
         generate_rps $wl_vap
         generate_ifname $wl_vap
         uci set wireless.${wl_section}.acsmindwell=500
+    fi
+
+    if [ "$_tmp_wlg_onoff" = "on" -a "$wlg_ap_operation_type" = "qwrap_ap" ]; then
+        wl_vap="wlg"
+        get_wl_section $wl_vap
+        create_new_iface
+        uci set wireless.${wl_section}.device=${g_device}
+        uci set wireless.${wl_section}.network="lan"
+        uci set wireless.${wl_section}.bridge=${wlg_bridge}
+        uci set wireless.${wl_section}.vlan_pri=${wlg_priority}
+        assign_vap_option $wl_vap
+        generate_mode $wl_vap
+        generate_vhtng $wl_vap
+        generate_wps $wl_vap
+        generate_wps_device_name $wl_vap
+        generate_ssid $wl_vap
+        generate_hide_ssid $wl_vap
+        generate_puren $wl_vap
+        generate_doth $wl_vap
+        generate_disablecoext $wl_vap
+        #generate_rrm $wl_vap
+        #generate_mcastenhance $wl_vap
+        generate_security $wl_vap
+        generate_protocol_setting $wl_vap
+        generate_acl $wl_vap
+        generate_wds $wl_vap
+        generate_bintval $wl_vap
+        generate_dtim $wl_vap
+        generate_PIN $wl_vap
+        generate_model $wl_vap
+        generate_hostapd_debug_level $wl_vap
+        #generate_dyn_bw_rts $wl_vap
+        generate_rps $wl_vap
+        generate_ifname $wl_vap
     fi
 
     if [ "$wlg_ap_bh_operation_type" != "none" ]; then
@@ -1124,6 +1257,7 @@ if [ "$update_conf" = "wifi" -o "$update_conf" = "all" ]; then
         generate_wps $wl_vap
         generate_hide_ssid $wl_vap
         generate_disablecoext $wl_vap
+        generate_rts $wl_vap
         # generate_protocol_setting $wl_vap
         generate_bintval $wl_vap
         # generate_PIN $wl_vap
@@ -1145,8 +1279,8 @@ if [ "$update_conf" = "wifi" -o "$update_conf" = "all" ]; then
         generate_security $wl_vap
         generate_ifname $wl_vap
         generate_wps $wl_vap
+        generate_rts $wl_vap
         generate_hostapd_debug_level $wl_vap
-        generate_protocol_setting $wl_vap
         generate_dyn_bw_rts $wl_vap
         generate_rps $wl_vap
     fi
@@ -1173,6 +1307,7 @@ if [ "$update_conf" = "wifi" -o "$update_conf" = "all" ]; then
         generate_rrm $wl_vap
         generate_mcastenhance $wl_vap
         generate_security $wl_vap
+        generate_rts $wl_vap
         generate_protocol_setting $wl_vap
         generate_acl $wl_vap
         generate_wds $wl_vap
@@ -1182,6 +1317,37 @@ if [ "$update_conf" = "wifi" -o "$update_conf" = "all" ]; then
         generate_hostapd_debug_level $wl_vap
         generate_ifname $wl_vap
         generate_dyn_bw_rts $wl_vap
+        generate_rps $wl_vap
+    fi
+
+    if [ "$_tmp_wla_onoff" = "on" -a "$wla_ap_operation_type" = "qwrap_ap" ]; then
+        wl_vap="wla"
+        get_wl_section $wl_vap
+        create_new_iface
+        uci set wireless.${wl_section}.device=${a_device}
+        uci set wireless.${wl_section}.network=lan
+        uci set wireless.${wl_section}.bridge=${wla_bridge}
+        uci set wireless.${wl_section}.vlan_pri=${wla_priority}
+        assign_vap_option $wl_vap
+        generate_cfreq2 $wl_vap
+        generate_mode $wl_vap
+        generate_wps $wl_vap
+        generate_wps_device_name $wl_vap
+        generate_ssid $wl_vap
+        generate_hide_ssid $wl_vap
+        generate_puren $wl_vap
+        generate_doth $wl_vap
+        generate_disablecoext $wl_vap
+        generate_security $wl_vap
+        generate_protocol_setting $wl_vap
+        generate_acl $wl_vap
+        generate_wds $wl_vap
+        generate_bintval $wl_vap
+        generate_dtim $wl_vap
+        generate_PIN $wl_vap
+        generate_model $wl_vap
+        generate_hostapd_debug_level $wl_vap
+        generate_ifname $wl_vap
         generate_rps $wl_vap
     fi
 
@@ -1199,10 +1365,12 @@ if [ "$update_conf" = "wifi" -o "$update_conf" = "all" ]; then
         generate_wps $wl_vap
         generate_hide_ssid $wl_vap
         generate_disablecoext $wl_vap
-        generate_protocol_setting $wl_vap
+        generate_rts $wl_vap
+        # generate_protocol_setting $wl_vap
         generate_bintval $wl_vap
         # generate_PIN $wl_vap
         generate_ifname $wl_vap
+	generate_doth $wl_vap
         generate_dyn_bw_rts $wl_vap
         generate_rps $wl_vap
         generate_hostapd_debug_level $wl_vap
@@ -1220,8 +1388,10 @@ if [ "$update_conf" = "wifi" -o "$update_conf" = "all" ]; then
         generate_ssid $wl_vap
         generate_security $wl_vap
         generate_ifname $wl_vap
+	generate_doth $wl_vap	
         generate_wps $wl_vap
         generate_dyn_bw_rts $wl_vap
+        generate_rts $wl_vap
         generate_rps $wl_vap
         generate_hostapd_debug_level $wl_vap
         generate_wps $wl_vap
@@ -1244,6 +1414,7 @@ if [ "$update_conf" = "wifi" -o "$update_conf" = "all" ]; then
         generate_security $wl_vap
         generate_vhtng $wl_vap
         generate_hide_ssid $wl_vap
+        generate_rts $wl_vap
         generate_protocol_setting $wl_vap
         generate_acl $wl_vap
         generate_lan_restricted_access $wl_vap
@@ -1274,6 +1445,7 @@ if [ "$update_conf" = "wifi" -o "$update_conf" = "all" ]; then
         generate_ssid $wl_vap
         generate_security $wl_vap
         generate_hide_ssid $wl_vap
+        generate_rts $wl_vap
         generate_protocol_setting $wl_vap
         generate_acl $wl_vap
         generate_lan_restricted_access $wl_vap
@@ -1310,6 +1482,7 @@ if [ "$update_conf" = "wifi" -o "$update_conf" = "all" ]; then
         generate_rrm $wl_vap
         generate_mcastenhance $wl_vap
         generate_security $wl_vap
+        generate_rts $wl_vap
         generate_protocol_setting $wl_vap
         generate_acl $wl_vap
         generate_wds $wl_vap
@@ -1320,6 +1493,39 @@ if [ "$update_conf" = "wifi" -o "$update_conf" = "all" ]; then
         generate_ifname $wl_vap
         generate_dyn_bw_rts $wl_vap
         generate_rps $wl_vap
+    fi
+
+    if [ "$wla2_ap_operation_type" = "qwrap_ap" ]; then
+        wl_vap="wla2"
+        get_wl_section $wl_vap
+        create_new_iface
+        uci set wireless.${wl_section}.device=${a2_device}
+        uci set wireless.${wl_section}.network=${local_network}
+        uci set wireless.${wl_section}.bridge=${wla2_bridge:-${lan_ifname}}
+        uci set wireless.${wl_section}.vlan_pri=${wla2_priority}
+        assign_vap_option $wl_vap
+        generate_cfreq2 $wl_vap
+        generate_mode $wl_vap
+        generate_vhtng $wl_vap
+        generate_wps $wl_vap
+        generate_wps_device_name $wl_vap
+        generate_ssid $wl_vap
+        generate_hide_ssid $wl_vap
+        generate_puren $wl_vap
+        generate_doth $wl_vap
+        generate_disablecoext $wl_vap
+        generate_security $wl_vap
+        generate_protocol_setting $wl_vap
+        generate_acl $wl_vap
+        generate_wds $wl_vap
+        generate_bintval $wl_vap
+        generate_dtim $wl_vap
+        generate_PIN $wl_vap
+        generate_hostapd_debug_level $wl_vap
+        generate_model $wl_vap
+        generate_ifname $wl_vap
+        generate_rps $wl_vap
+
     fi
 
     if [ "$wla2_ap_bh_operation_type" != "none" ]; then
@@ -1338,7 +1544,8 @@ if [ "$update_conf" = "wifi" -o "$update_conf" = "all" ]; then
         generate_wps $wl_vap
         generate_hide_ssid $wl_vap
         generate_disablecoext $wl_vap
-        generate_protocol_setting $wl_vap
+        generate_rts $wl_vap
+        # generate_protocol_setting $wl_vap
         generate_bintval $wl_vap
         # generate_PIN $wl_vap
         generate_ifname $wl_vap
@@ -1362,6 +1569,8 @@ if [ "$update_conf" = "wifi" -o "$update_conf" = "all" ]; then
         generate_security $wl_vap
         generate_ifname $wl_vap
         generate_wps $wl_vap
+        generate_rts $wl_vap
+        generate_rrm $wl_vap
         generate_doth $wl_vap
         generate_hostapd_debug_level $wl_vap
         generate_dyn_bw_rts $wl_vap

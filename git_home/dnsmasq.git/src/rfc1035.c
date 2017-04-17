@@ -1607,6 +1607,7 @@ size_t answer_request(HEADER *header, char *limit, size_t qlen, struct daemon *d
 		"tgs.xboxlive.com.local",
 		"macs.xboxlive.com.local",
 
+		"http.fw.updates1.netgear.com",
 		"updates1.netgear.com",
 		"captive.apple.com",
 		"www.appleiphonecell.com",

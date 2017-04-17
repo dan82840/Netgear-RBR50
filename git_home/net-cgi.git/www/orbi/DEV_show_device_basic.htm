@@ -215,7 +215,10 @@ function edit_satellite_dev(mac,num1,num2,ip)
 					document.write('<td nowrap><a class=linktype style="cursor:pointer" onclick=edit_satellite_dev("'+each_info[1]+'","'+i+'","'+j+'","'+each_info[0]+'");>'+str_name+'</a></td>');
 					document.write("<td nowrap>"+each_info[0]+"</td>");
 					document.write("<td nowrap>"+each_info[1]+"</td>");
-					document.write("<td nowrap>"+each_info[2]+"</td></TR>");
+					if(each_info[2] == "wireless")
+						document.write("<td nowrap>$wireless</td></TR>");
+					else
+						document.write("<td nowrap>$acc_wired</td></TR>");
 				}
 			}
 		</script>

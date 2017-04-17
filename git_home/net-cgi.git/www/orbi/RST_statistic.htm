@@ -273,7 +273,6 @@ else
 	</script>
 	</TD>
 </TR>
-
 </TABLE>
 <script>
 function reset_time(th)
@@ -290,6 +289,7 @@ function reset_time(th)
 		return false;
 	}
 	th.disabled = true;
+	document.getElementById("stop").disabled = true;
 	cf.submit();
 }
 

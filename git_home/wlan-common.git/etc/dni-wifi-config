@@ -43,7 +43,7 @@ if [ "$wla_exist" = "on" ]; then
     country_code_2=5000             # Australi
     country_code_3=5001             # Canada
     country_code_4=276              # Europe Germany
-    country_code_5=276              # Israel is 376, but we use EU for wifi support
+    country_code_5=376              # Israel
     country_code_6=4015             # Japan
     country_code_7=412              # Korea
     country_code_8=484              # Mexica
@@ -53,7 +53,7 @@ if [ "$wla_exist" = "on" ]; then
     country_code_12=356             # India
     country_code_13=458             # Malaysia
     country_code_14=12              # Middle East (Algeria/Syria/Yemen), use Algeria
-    country_code_15=276             # Middle East (Iran/Lebanon/Qatar), use Iran(364), but we use EU for wifi support
+    country_code_15=364             # Middle East (Iran/Lebanon/Qatar), use Iran
     country_code_16=792             # Middle East (Turkey/Egypt/Tunisia/Kuwait), use Turkey
     country_code_17=682             # Middle East (Saudi Arabia)
     country_code_18=784             # Middle East (United Arab Emirates)
@@ -121,6 +121,7 @@ operation_mode_6="backhaul_ap+backhaul_sta"
 operation_mode_7="normal_ap+backhaul_sta"
 operation_mode_8="normal_ap+backhaul_ap+backhaul_sta"
 operation_mode_9="normal_ap+backhaul_ap"
+operation_mode_10="qwrap_ap+qwrap_sta"
 
 dniconfig()
 {
@@ -168,6 +169,7 @@ if [ -n "$DNI_CONFIG" ]; then
         FORCE_CREATE_wla_guest_VAP="off"
     fi
 
+    primaryradio=`dniconfig get primaryradio`
     lan_ipaddr=`dniconfig get lan_ipaddr`
     lan_ifname=`dniconfig get lan_ifname`
 
@@ -187,7 +189,7 @@ if [ -n "$DNI_CONFIG" ]; then
     wsc_lock_down=`dniconfig get wps_lock_down`
     wsc_pin_attack_check=`dniconfig get wps_pin_attack_check`
     wsc_pin_attack_num=`dniconfig get wps_pin_attack_num`
-    failure_num=`cat /tmp/ap_pin_failure_num_file 2>/dev/null`
+    [ -f /tmp/ap_pin_failure_num_file  ] && failure_num=`cat /tmp/ap_pin_failure_num_file 2>/dev/null` || failure_num=0
     if [ "$wsc_pin_attack_check" = "1" -a  "$failure_num" -ge "$wsc_pin_attack_num" ]; then
         echo 0 > /tmp/ap_pin_failure_num_file
     fi
@@ -210,10 +212,10 @@ if [ -n "$DNI_CONFIG" ]; then
         eval wlg_operation_mode=\$operation_mode_`config get wlg_operation_mode`
         for op_mode in `echo $wlg_operation_mode | sed -e 's/+/ /g'`; do
             case "$op_mode" in
-                ex_sta|backhaul_sta)
+                ex_sta|backhaul_sta|qwrap_sta)
                     wlg_sta_operation_type=$op_mode
                     ;;
-                normal_ap)
+                normal_ap|qwrap_ap)
                     wlg_ap_operation_type=$op_mode
                     ;;
                 backhaul_ap)
@@ -276,7 +278,7 @@ if [ -n "$DNI_CONFIG" ]; then
         eval wlg_mu_mimo_onoff=\$onoff_`dniconfig get wlg_mu_mimo`
 
     # Read the setting for 2.4G Normal AP mode
-    if [ "$wlg_if_onoff" = "on" -o "$FORCE_CREATE_wlg_VAP" = "on" ] && [ "$wlg_ap_operation_type" = "normal_ap" ]; then
+    if [ "$wlg_if_onoff" = "on" -o "$FORCE_CREATE_wlg_VAP" = "on" ] && [ "$wlg_ap_operation_type" = "normal_ap" -o "$wlg_ap_operation_type" = "qwrap_ap" ]; then
         eval wlg_wps_onoff=\$onoff_`dniconfig get endis_wl_wps`
         eval wlg_wps_configured=\$wps_status_`dniconfig get wps_status`
         wlg_ssid=`dniconfig get wl_ssid`
@@ -321,6 +323,7 @@ if [ -n "$DNI_CONFIG" ]; then
         wlg_ap_bh_disablecoext=`dniconfig get wl_disablecoext`
         eval wlg_ap_bh_sectype=\$sectype_`dniconfig get wlg_ap_bh_sectype`
         eval wlg_ap_bh_auth=`dniconfig get wlg_ap_bh_auth`
+        eval wlg_ap_bh_rts=`dniconfig get wlg_ap_bh_rts`
         eval wlg_ap_bh_dyn_bw_rts=`dniconfig get wlg_ap_bh_dyn_bw_rts`
         eval wlg_ap_bh_rps=`dniconfig get wlg_ap_bh_rps`
         wlg_2nd_bridge=`dniconfig get i_wlg_2nd_br`
@@ -338,6 +341,7 @@ if [ -n "$DNI_CONFIG" ]; then
         wlg_sta_ssid=`dniconfig get wlg_sta_ssid`
         eval wlg_sta_sectype=\$sectype_`dniconfig get wlg_sta_sectype`
         eval wlg_sta_auth=`dniconfig get wlg_sta_auth`
+        eval wlg_sta_rts=`dniconfig get wlg_sta_rts`
         eval wlg_sta_dyn_bw_rts=`dniconfig get wlg_sta_dyn_bw_rts`
         eval wlg_sta_rps=`dniconfig get wlg_sta_rps`
         wlg_2nd_bridge=`dniconfig get i_wlg_2nd_br`
@@ -354,10 +358,10 @@ if [ -n "$DNI_CONFIG" ]; then
         eval wla_operation_mode=\$operation_mode_`config get wla_operation_mode`
         for op_mode in `echo $wla_operation_mode | sed -e 's/+/ /g'`; do
             case "$op_mode" in
-                ex_sta|backhaul_sta)
+                ex_sta|backhaul_sta|qwrap_sta)
                     wla_sta_operation_type=$op_mode
                     ;;
-                normal_ap)
+                normal_ap|qwrap_ap)
                     wla_ap_operation_type=$op_mode
                     ;;
                 backhaul_ap)
@@ -369,7 +373,6 @@ if [ -n "$DNI_CONFIG" ]; then
         done
     fi
 
-    if [ "$wla_if_onoff" = "on" ]; then
         # Read 1st 5G dependent settings.
         if [ "$wla_ap_operation_type" != "none" -o "$wla_ap_bh_operation_type" != "none" -o "$wla_sta_operation_type" != "none" ]; then
             wla_channel=`dniconfig get wla_hidden_channel`
@@ -464,10 +467,9 @@ if [ -n "$DNI_CONFIG" ]; then
             eval wla_implicit_bf_onoff=\$onoff_`dniconfig get wla_implicit_bf`
             eval wla_mu_mimo_onoff=\$onoff_`dniconfig get wla_mu_mimo`
         fi
-    fi
 
     # Read the setting for 1st 5G Normal AP mode
-    if [ "$wla_if_onoff" = "on" -o "$FORCE_CREATE_wla_VAP" = "on" ] && [ "$wla_ap_operation_type" = "normal_ap" ]; then
+    if [ "$wla_if_onoff" = "on" -o "$FORCE_CREATE_wla_VAP" = "on" ] && [ "$wla_ap_operation_type" = "normal_ap" -o "$wla_ap_operation_type" = "qwrap_ap"  ]; then
         eval wla_wps_onoff=\$onoff_`dniconfig get endis_wla_wps`
         eval wla_wps_configured=\$wps_status_`dniconfig get wla_wps_status`
         wla_ssid=`dniconfig get wla_ssid`
@@ -511,6 +513,7 @@ if [ -n "$DNI_CONFIG" ]; then
         wla_ap_bh_disablecoext=`dniconfig get wla_ap_bh_disablecoext`
         eval wla_ap_bh_sectype=\$sectype_`dniconfig get wla_ap_bh_sectype`
         eval wla_ap_bh_auth=`dniconfig get wla_ap_bh_auth`
+        eval wla_ap_bh_rts=`dniconfig get wla_ap_bh_rts`
         eval wla_ap_bh_dyn_bw_rts=`dniconfig get wla_ap_bh_dyn_bw_rts`
         eval wla_ap_bh_rps=`dniconfig get wla_ap_bh_rps`
         get_ifname_section _ifname _section $a_device
@@ -529,6 +532,7 @@ if [ -n "$DNI_CONFIG" ]; then
         wla_sta_ssid=`dniconfig get wla_sta_ssid`
         eval wla_sta_sectype=\$sectype_`dniconfig get wla_sta_sectype`
         eval wla_sta_auth=`dniconfig get wla_sta_auth`
+        eval wla_sta_rts=`dniconfig get wla_sta_rts`
         eval wla_sta_dyn_bw_rts=`dniconfig get wla_sta_dyn_bw_rts`
         eval wla_sta_rps=`dniconfig get wla_sta_rps`
         get_ifname_section _ifname _section $a_device
@@ -577,6 +581,7 @@ if [ -n "$DNI_CONFIG" ]; then
         wlg_guest_ssid=`dniconfig get wlg1_ssid`
         eval wlg_guest_sectype=\$sectype_`dniconfig get wlg1_sectype`
         eval wlg_guest_auth=`dniconfig get wlg1_auth`
+        eval wlg_guest_rts=`dniconfig get wlg_guest_rts`
         eval wlg_guest_hide_ssid_onoff=\$onoff_inv_`dniconfig get wlg1_endis_guestSSIDbro`
         eval wlg_guest_wps_onoff="off"
         eval wlg_guest_dyn_bw_rts=`dniconfig get wlg1_dyn_bw_rts`
@@ -603,6 +608,7 @@ if [ -n "$DNI_CONFIG" ]; then
         wla_guest_ssid=`dniconfig get wla1_ssid`
         eval wla_guest_sectype=\$sectype_`dniconfig get wla1_sectype`
         eval wla_guest_auth=`dniconfig get wla1_auth`
+        eval wla_guest_rts=`dniconfig get wla_guest_rts`
         eval wla_guest_hide_ssid_onoff=\$onoff_inv_`dniconfig get wla1_endis_guestSSIDbro`
         eval wla_guest_wps_onoff="off"
         eval wla_guest_dyn_bw_rts=`dniconfig get wla1_dyn_bw_rts`
@@ -629,10 +635,10 @@ if [ -n "$DNI_CONFIG" ]; then
         eval wla2_operation_mode=\$operation_mode_`config get wla_2nd_operation_mode`
         for op_mode in `echo $wla2_operation_mode | sed -e 's/+/ /g'`; do
             case "$op_mode" in
-                ex_sta|backhaul_sta)
+                ex_sta|backhaul_sta|qwrap_sta)
                     wla2_sta_operation_type=$op_mode
                     ;;
-                normal_ap)
+                normal_ap|qwrap_ap)
                     wla2_ap_operation_type=$op_mode
                     ;;
                 backhaul_ap)
@@ -651,10 +657,6 @@ if [ -n "$DNI_CONFIG" ]; then
             if [ "$wla2_channel" = "0" ]; then wla2_channel="auto"; fi
             wla2_chmode=`dniconfig get wla_2nd_simple_mode`
             wla2_cca_threshold=`dniconfig get wla_2nd_cca_threshold`
-            eval wla2_rts=`dniconfig get wla2_rts`
-            if [ -z "$wla2_rts" ]; then
-                wla2_rts=64
-            fi
 
             # wireless region is NA and mode is 1733M, when enable HT160, change mode to HT80_80
             # wireless region is EU and mode is 1733M, when enable HT160, change mode to HT160
@@ -738,25 +740,27 @@ if [ -n "$DNI_CONFIG" ]; then
                     wla2_htmode=HT40-;
                     ;;
             esac
-            wla2_keepalive=`dniconfig get wla2_keepalive`
-            wla2_sta_dfs_en=`dniconfig get wla2_sta_dfs_en`
+            wla2_keepalive=`dniconfig get wla_2nd_keepalive`
+            wla2_sta_dfs_en=`dniconfig get wla_2nd_sta_dfs_en`
             eval wla2_bf_onoff=\$onoff_no_default_`dniconfig get wla_2nd_bf`
             eval wla2_implicit_bf_onoff=\$onoff_`dniconfig get wla_2nd_implicit_bf`
             eval wla2_mu_mimo_onoff=\$onoff_`dniconfig get wla_2nd_mu_mimo`
         fi
         # Read the setting for 2nd 5G Normal AP mode
-        if [ "$wla2_ap_operation_type" = "normal_ap" ]; then
+        if [ "$wla2_ap_operation_type" = "normal_ap" -o "$wla2_ap_operation_type" = "qwrap_ap" ]; then
             eval wla2_wps_onoff=\$onoff_`dniconfig get endis_wla_2nd_wps`
             eval wla2_wps_configured=\$wps_status_`dniconfig get wla_2nd_wps_status`
             wla2_ssid=`dniconfig get wla_2nd_ssid`
             eval wla2_hide_ssid_onoff=\$onoff_inv_`dniconfig get wla_2nd_endis_ssid_broadcast`
             wla2_disablecoext=1
-            wla2_rrm=`dniconfig get wla2_rrm`
-            wla2_mcastenhance=`dniconfig get wla2_mcastenhance`
+            wla2_rrm=`dniconfig get wla_2nd_rrm`
+            wla2_mcastenhance=`dniconfig get wla_2nd_mcastenhance`
             eval wla2_sectype=\$sectype_`dniconfig get wla_2nd_sectype`
             eval wla2_auth=`dniconfig get wla_2nd_auth`
+            eval wla2_rts=`dniconfig get wla_2nd_rts`
             eval wla2_wmm_onoff=\$onoff_`dniconfig get endis_wla_2nd_wmm`
             eval wla2_country_ie_onoff=\$onoff_`dniconfig get wla_2nd_endis_country_ie`
+            eval wla2_preamble=\$preamble_`dniconfig get wla_2nd_plcphdr`
             eval wla2_tpscale=\$tpscale_`dniconfig get wla_2nd_tpscale`
             wla2_wps_ap_setup_locked=`dniconfig get wla_2nd_endis_pin`
             eval wla2_dyn_bw_rts=`dniconfig get wla_2nd_dyn_bw_rts`
@@ -765,7 +769,7 @@ if [ -n "$DNI_CONFIG" ]; then
             wla2_priority=`dniconfig get i_wla_2nd_pri`
             [ -z "$wla2_bridge" ] && wla_2nd_bridge=$lan_ifname
             get_ifname_section _ifname _section $a2_device
-            wla2_doth=`dniconfig get wla2_doth`
+            wla2_doth=`dniconfig get wla_2nd_doth`
             wla2_ifname=$_ifname
             wla2_section=$_section
         fi
@@ -777,22 +781,21 @@ if [ -n "$DNI_CONFIG" ]; then
             wla2_ap_bh_wps_onoff="on"
             wla2_ap_bh_wps_configured="configured"
             wla2_ap_bh_ssid=`dniconfig get wla_2nd_ap_bh_ssid`
-            wla2_ap_bh_wps_ap_setup_locked=`dniconfig get wla2_ap_bh_endis_pin`
+            wla2_ap_bh_wps_ap_setup_locked=`dniconfig get wla_2nd_ap_bh_endis_pin`
             eval wla2_ap_bh_hide_ssid_onoff=\$onoff_inv_`dniconfig get wla_2nd_ap_bh_endis_ssid_broadcast`
             wla2_ap_bh_disablecoext=`dniconfig get wla_2nd_ap_bh_disablecoext`
             eval wla2_ap_bh_sectype=\$sectype_`dniconfig get wla_2nd_ap_bh_sectype`
             eval wla2_ap_bh_auth=`dniconfig get wla_2nd_ap_bh_auth`
+            eval wla2_ap_bh_rts=`dniconfig get wla_2nd_ap_bh_rts`
             eval wla2_ap_bh_dyn_bw_rts=`dniconfig get wla_2nd_ap_bh_dyn_bw_rts`
             eval wla2_ap_bh_rps=`dniconfig get wla_2nd_ap_bh_rps`
             get_ifname_section _ifname _section $a2_device
-            wla2_ap_bh_doth=`dniconfig get wla2_ap_bh_doth`
+            wla2_ap_bh_doth=`dniconfig get wla_2nd_ap_bh_doth`
             wla2_ap_bh_ifname=$_ifname
             wla2_ap_bh_section=$_section
             wla2_bridge=`dniconfig get i_wla_2nd_br`
             wla2_priority=`dniconfig get i_wla_2nd_pri`
             [ -z "$wla2_bridge" ] && wla_2nd_bridge=$lan_ifname
-            wla2_ap_bh_backhaul=`dniconfig get wla_2nd_ap_bh_backhaul`
-            [ "x$wla2_ap_bh_backhaul" != "x1" -a "x$wla2_ap_bh_backhaul" != "x0" ] && wla2_ap_bh_backhaul=1
         fi
 
         # Read the setting for 2nd 5G station mode
@@ -802,10 +805,11 @@ if [ -n "$DNI_CONFIG" ]; then
             wla2_sta_ssid=`dniconfig get wla_2nd_sta_ssid`
             eval wla2_sta_sectype=\$sectype_`dniconfig get wla_2nd_sta_sectype`
             eval wla2_sta_auth=`dniconfig get wla_2nd_sta_auth`
+            eval wla2_sta_rts=`dniconfig get wla_2nd_sta_rts`
             eval wla2_sta_dyn_bw_rts=`dniconfig get wla_2nd_sta_dyn_bw_rts`
             eval wla2_sta_rps=`dniconfig get wla_2nd_sta_rps`
             get_ifname_section _ifname _section $a2_device
-            wla2_sta_doth=`dniconfig get wla2_sta_doth`
+            wla2_sta_doth=`dniconfig get wla_2nd_sta_doth`
             wla2_sta_ifname=$_ifname
             wla2_sta_section=$_section
             wla2_bridge=`dniconfig get i_wla_2nd_br`
@@ -818,6 +822,9 @@ if [ -n "$DNI_CONFIG" ]; then
     eval country_code=\$country_code_`dniconfig get wl_country`
 
     wps_device_name=`dniconfig get netbiosname`
+    model_name=`dniconfig get device_name`
+    model_number=`dniconfig get model_number`
+    serial_number=`dniconfig get serial_number`
     wl_dtim_wo_guest=`dniconfig get wl_dtim_wo_guest`
     wl_dtim_w_guest=`dniconfig get wl_dtim_w_guest`
     wl_guest_dtim=`dniconfig get wl_guest_dtim`

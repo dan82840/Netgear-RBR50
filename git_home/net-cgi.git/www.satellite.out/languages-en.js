@@ -2,7 +2,7 @@
 edit_devname="Device Name"
 devame_note="Device Name identifies this router. It is used by many different features on the router."
 devname_long="name too long"
-devname_warning="Please use alpha numericals up to 16 characters"
+devname_warning="Please use alpha numericals up to 15 characters"
 h_device_name_page="<body bgcolor=#0099cc><p><font size=4><b>Device Name Help</b></font></p><p><b>Device Name:</b> device name identifies this router. It is provided to client devices connected to the router to recognize this device. </p><p>It should start with letter and should contain only letters, number, ‘-‘ and ‘_’ symbols, [a-zA-Z]+[a-zA-Z0-9\-\_].The maximum length is 16 characters</p></body>"
 release_note="Release Notes"
 link_aggregation="Link Aggregation"

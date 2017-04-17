@@ -3,6 +3,7 @@
 append CONFIGS "dniconfig"
 
 . /etc/dni-wifi-config
+. /etc/ath/wifi.conf
 
 config_get_dniconfig()
 {

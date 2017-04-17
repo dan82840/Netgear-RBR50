@@ -68,9 +68,10 @@ local config_re_mode=$2
 local current_re_mode=$3
 local current_re_submode=$4
 local re_mode_change=0
+local adjustment=6/10
 
-local led_solid_times=$((180/$link_check_delay))
-local boot_time=$((150/$link_check_delay))
+local led_solid_times=$((180/$link_check_delay*$adjustment))
+local boot_time=$((150/$link_check_delay*$adjustment))
 local wps_guardinterval_times=0
 
 local solid_times=0
@@ -82,7 +83,7 @@ local wps_progress=0
 local last_associated=0
 local wps_fh_improgress=0
 local IPLease_time=0
-local IPLease_timeout=$((30/$link_check_delay))
+local IPLease_timeout=$((30/$link_check_delay*$adjustment))
 local board_data=`/sbin/artmtd -r board_data | awk '{print $3}'`
 local dns_hijack=`/bin/config get dns_hijack`
 local ADD_ON_default=0
@@ -237,7 +238,7 @@ while true; do
                     fi
 
                     if [ "$led_solid_times" -gt 0 ]; then
-                        led_solid_times=$(($led_solid_times - $link_check_delay))
+                        led_solid_times=$(($led_solid_times - 1))
 
                        if [ "$led_solid_times" -eq 0 ]; then
                            dni_led_set_states "OFF"
@@ -273,7 +274,7 @@ while true; do
                     fi
 
                     if [ "$led_solid_times" -gt 0 ]; then
-                        led_solid_times=$(($led_solid_times - $link_check_delay))
+                        led_solid_times=$(($led_solid_times - 1))
 
                         __repacd_info "LED SOLID TIMES--$led_solid_times"
                        if [ "$led_solid_times" -eq 0 ]; then
@@ -310,7 +311,7 @@ while true; do
                     fi
 
                     if [ "$led_solid_times" -gt 0 ]; then
-                        led_solid_times=$(($led_solid_times - $link_check_delay))
+                        led_solid_times=$(($led_solid_times - 1))
 
                        if [ "$led_solid_times" -eq 0 ]; then
                            dni_led_set_states "OFF"
@@ -415,6 +416,7 @@ while true; do
                         if [ "$IPLease_time" -eq "$IPLease_timeout" ]; then
                             __repacd_info "IPLease TIMEOUT"
                             dni_led_set_states "IPLeaseFail"
+                            last_associated=0
                         fi
                     fi
 
@@ -474,7 +476,7 @@ while true; do
         boot_time=$(($boot_time - $link_check_delay))
     fi
     if [ $wps_guardinterval_times -gt 0 ]; then
-        wps_guardinterval_times=$(($wps_guardinterval_times - $link_check_delay))
+        wps_guardinterval_times=$(($wps_guardinterval_times - 1))
     fi
 
     __repacd_info "Boot time count=$boot_time"
