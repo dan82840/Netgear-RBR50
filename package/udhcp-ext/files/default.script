@@ -311,29 +311,19 @@ case "$1" in
 		[ -f $RESOLV_CONF ] && rm -f $RESOLV_CONF
 		#fi
 		$ECHO 0 >/tmp/ip_status
+		if [ "$(cat /tmp/link_status)" = "0" -a "$(cat /tmp/link_status_5g)" = "0" ]; then
 		[ `ps | grep [u]dhcpd | wc -l` -eq 0 ] && {
-			# pull down wireless
-			if [ ! -f /tmp/client_wps_pbc -a ! -f /tmp/client_wps_succ ]; then
-			    vap_status=`ifconfig  | grep ath0[\ ]`
-			    if [ "x$vap_status" != "x" ]; then
-			          ifconfig ath0 down 2> /dev/null
-			          vap_radio=0
-			    fi
-			fi
-			[ "$(cat /tmp/link_status)" = "0" ] && [ "$(cat /tmp/link_status_5g)" = "0" ] && start_dhcpd 
+			 start_dhcpd 
 			#echo -n 5 > /proc/switch_phy
 		if [ "$(/bin/config get factory_mode)" = "1" ]; then
 			echo "not restart eth_handle in factory_mode"
+		elif [ -f /tmp/disable_satelite_dhcpd ]; then
+			echo "not restart eth_handle when /tmp/disable_satelite_dhcpd existed"
 		else
             		/sbin/eth_handle restart &
 		fi
-			# pull up wireless
-            if [ "x$vap_radio" = "x0" ]; then
-			      ifconfig ath0 up 2> /dev/null
-			fi
-			[ -f /tmp/client_wps_succ ] && rm -rf /tmp/client_wps_succ
 		}
-
+		fi
 		fi
 		
 		;;
