@@ -20,9 +20,12 @@ net_detect ()
         fi
 
     else
-        echo 1 > /tmp/led_time
-        ping_previous_status=0
-        /sbin/led_ring stop 
+	wanport_status=`cat /tmp/port_status`
+	if [ "$wanport_status" = "1" ];then
+	    echo 1 > /tmp/led_time
+            ping_previous_status=0
+            /sbin/led_ring stop 
+	fi
     fi
 }
 
@@ -61,7 +64,14 @@ do
             fi
         fi
     
-    elif [ "$wanport_status" = "0" -o "$dod_connect_status" = "0" ];then
+    elif [ "$wanport_status" != "1" ];then
+        timeup=`cat /tmp/led_time`
+        if [ "$ping_previous_status" = "0" -a "$timeup" = "1" ];then
+            traffic_previous_status=0
+            ping_previous_status=1
+        fi
+
+    elif [ "$dod_connect_status" = "0" ];then
         timeup=`cat /tmp/led_time`
         if [ "$ping_previous_status" = "0" -a "$timeup" = "1" ];then
             traffic_previous_status=0

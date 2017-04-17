@@ -65,6 +65,8 @@ start() {
 	/etc/init.d/watchdog start &
 	load_modules /etc/modules.d/*
 
+	/etc/init.d/switch.init boot
+
 	# start SIP ALG module
 	/sbin/cmd_sipalg
 
@@ -324,8 +326,38 @@ start() {
 		do_load_ipq4019_board_bin
 	}
 	
-	/bin/config set lbd_MUOverloadThreshold_W2="80"
-	/bin/config set lbd_MUSafetyThreshold_W2="50"
+	if [ "$(/bin/config get overwrite_14010)" = "0" ]; then
+		echo "not need do overwrite lbd"
+	else
+		/bin/config set lbd_LowRSSIAPSteerThreshold_CAP_W2="35"
+		/bin/config set lbd_LowRSSIAPSteerThreshold_CAP_W5="20"
+		/bin/config set lbd_LowRSSIAPSteerThreshold_RE_W2="35"
+		/bin/config set lbd_LowRSSIAPSteerThreshold_RE_W5="20"
+		/bin/config set lbd_TxRateXingThreshold_UG="20000"
+		/bin/config set lbd_MUReportPeriod="15"
+		/bin/config set lbd_LoadBalancingAllowedMaxPeriod="10"
+		/bin/config set lbd_NormalInactTimeout="5"
+		/bin/config set lbd_OverloadInactTimeout="5"
+		/bin/config set lbd_MaxBTMUnfriendly="120"
+		/bin/config set lbd_MaxBTMActiveUnfriendly="120"
+		/bin/config set lbd_MaxSteeringUnfriendly="86400"
+		/bin/config set lbd_11kProhibitTimeShort="15"
+		/bin/config set lbd_11kProhibitTimeLong="15"
+		/bin/config set lbd_BTMSteeringProhibitShortTime="15"
+		/bin/config set lbd_BTMUnfriendlyTime="30"
+		/bin/config set lbd_SteeringProhibitTime="120"
+		/bin/config set lbd_RSSISteeringPoint_UG="10"
+		/bin/config set lbd_RateRSSIXingThreshold_UG="20"
+		/bin/config set lbd_MUOverloadThreshold_W2="80"
+		/bin/config set lbd_MUOverloadThreshold_W5="99"
+		/bin/config set lbd_MUSafetyThreshold_W2="50"
+		/bin/config set lbd_MUSafetyThreshold_W5="90"
+		/bin/config set lbd_APSteerToRootMinRSSIIncThreshold="10"
+		/bin/config set lbd_DownlinkRSSIThreshold_W5="-70"
+		/bin/config set overwrite_14010="0"
+		/bin/config commit
+	fi
+
 
 	#For debug page pre setting
 	local wifi_debug_option=$(/bin/config get wifi_debug_option)
@@ -346,6 +378,14 @@ start() {
 	local rssi_move_far5g=$(/bin/config get rssi_move_far5g)
 	local rssi_prefer_2g_bh=$(/bin/config get rssi_prefer_2g_bh)
 	
+	local Product_Name=`cat /sys/bus/mmc/devices/mmc0:0001/cid | cut -c 7-18`
+	# KSI EMMC is 4d3632373034, Samsung flash is 344650443352
+	if [ "$Product_Name" = "4d3632373034" ]; then
+		echo 0 > /tmp/cfg_allow_upgrade_fw
+	elif [ "$Product_Name" = "344650443352" ]; then
+		echo 1 > /tmp/cfg_allow_upgrade_fw
+	fi
+
 #	if [  "$rssi_move_far2g" = "" ];then
 #		/bin/config set rssi_move_far2g="0"
 #	else

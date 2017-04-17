@@ -41,6 +41,7 @@ MAGENTA=6
 run_state=10
 color_state=20
 recover_state=30
+wanportledlock=0
 
 echo -n "" > /tmp/usb_state
 
@@ -87,8 +88,13 @@ do
 	resetbutton=$(/bin/echo ${buttonstate} | cut -c 6)
 
 	if [ ${PUSH} -eq ${pushbutton} ]; then
+                echo "********wps button pushed**********" > /dev/console
+                echo "wps_pbc" > /var/run/repacd.pipe
+
 		# WPS is enabled
                 echo "start" > /tmp/wps_process_state
+		killall ping-netgear 2> /dev/null 
+		/sbin/led_ring start white
                 wlan wps --pbc_start 
 		echo ${free_pushbut} > ${buttonfile}
 	fi
@@ -111,6 +117,8 @@ do
 	runstate=$(/bin/echo ${ledstate} | cut -c 2)
 	colorstate=$(/bin/echo ${ledstate} | cut -c 4)
 	recoverstate=$(/bin/echo ${ledstate} | cut -c 6)
+	wanportstate=`cat /tmp/port_status`
+	timeupstate=`cat /tmp/led_time`
 	ledringnum=`ps | grep led_ring_action | grep -v grep | awk '{printf("%s\n",$1)}' | wc -l`
 	
 	i=0
@@ -122,7 +130,16 @@ do
 	    fi
 	done
 
-	
+	if [ "$wanportstate" = "0" -a "$timeupstate" = "1" ]; then
+		if [ "$wanportledlock" = "0" ];then
+			wanportledlock=1
+			/sbin/led_ring stop 
+			ledcontrol -n all -c magenta -s on
+		fi
+	elif [ "$wanportstate" = "1" ]; then
+		wanportledlock=0
+	fi
+
 	# recover led state
 	if [ ${ON} -eq ${recoverstate} ]; then
 	    echo ${recover_state} > ${ledfile}
