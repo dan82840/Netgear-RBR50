@@ -172,7 +172,7 @@ start() {
 	if [ "$($CONFIG get endis_ddns)" = "0" ] && [ "$($CONFIG get wan_proto)" != "static" ] && [ "$($CONFIG get wan_pppoe_wan_assign)" = "0" ]; then
 		exit 1
 	fi
-	if [ "$($CONFIG get ap-mode)" = "1" ]; then
+	if [ "$($CONFIG get ap_mode)" = "1" ]; then
 		exit 1
 	fi
 
