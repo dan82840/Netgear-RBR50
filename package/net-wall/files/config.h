@@ -4,9 +4,17 @@
 
 #define NETWALL_VERSION		"v2.0"
 
+#ifndef ORBI
+#define ORBI
+#endif
+
+#ifdef ORBI
+#define FILEHYTR "/tmp/hyt_result"
+#define MAXSATELLITE 16
+#endif
 
 /******************** Interface Definition ***************************/
-#define NET_IPC_IFNAME	"eth0" 	/* dhcp, static iface names, such as 'eth0' */
+#define NET_IPC_IFNAME	"brwan" 	/* dhcp, static iface names, such as 'brwan' */
 #define NET_PPP_IFNAME	"ppp0"		/* pppoe, l2tp, pptp iface names */
 #define NET_LOC_IFNAME	"br0"		/* lan interface names, such as 'br0' */
 #define NET_PPP3_IFNAME  "ppp3"      /* used for IPv6 l2tp */
