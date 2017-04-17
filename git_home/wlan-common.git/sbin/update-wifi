@@ -1031,6 +1031,10 @@ if [ "$update_conf" = "wifi" -o "$update_conf" = "all" ]; then
             uci set wireless.qcawifi.wl_super_wifi=1
             uci set wireless.qcawifi.wla_super_wifi=1
             ;;
+        412)
+            uci set wireless.qcawifi.wl_super_wifi=1
+            uci set wireless.qcawifi.wla_super_wifi=1
+            ;;
         *)
             [ "$wlg_super_wifi" != "0" ] && uci set wireless.qcawifi.wl_super_wifi=${wlg_super_wifi}
             [ "$wla_super_wifi" != "0" ] && uci set wireless.qcawifi.wla_super_wifi=${wla_super_wifi}
@@ -1622,6 +1626,9 @@ case "$country_code" in
         ;;
     5000)
         REGULATORY_DOMAIN=AU
+        ;;
+    412)
+        REGULATORY_DOMAIN=Korea
         ;;
     458)
         REGULATORY_DOMAIN=SRRC
