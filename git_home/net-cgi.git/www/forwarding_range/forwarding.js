@@ -172,11 +172,16 @@ function Check_add(cf)
 				var int_bigger_port = parseInt(int_endport)>parseInt(int_startport)?parseInt(int_endport):parseInt(int_startport);
 				var int_smaller_port = parseInt(int_endport)>parseInt(int_startport)?parseInt(int_startport):parseInt(int_endport);
 				
-			if( forwardingip == input_ip && !(ext_bigger_port<parseInt(input_external_start_port)||parseInt(input_external_end_port)<ext_smaller_port))
- 			{
+			if(!(ext_bigger_port<parseInt(input_external_start_port)||parseInt(input_external_end_port)<ext_smaller_port))
+ 			{//ext ports range must have no intersection, no matter the ip
 				alert("$ports_error_conflict");
 				return false;
-			}		
+			}
+			if(forwardingip == input_ip && !(int_bigger_port < parseInt(input_internal_start_port) || parseInt(input_internal_end_port) < int_smaller_port))
+			{//the same ip, int ports range must have no intersection.
+				alert("$ports_error_conflict");
+				return false;
+			}
 		}
 	}	
 	//port_triggering	
@@ -635,16 +640,30 @@ function check_forwarding_add_range(cf,flag)
 
 				if(flag == 'edit')
 				{//bug 41501, in edit case, the ports should compare with itself. so jump the case:!(select_editnum<=i && i<parseInt(select_editnum)+parseInt(edit_num))
-					if(!(select_editnum<=i && i<parseInt(select_editnum)+parseInt(edit_num)) && (forwardingip == input_ip && !(ext_bigger_port<input_ext_smaller_port||input_ext_bigger_port<ext_smaller_port)))
-					{
+					if(!(select_editnum<=i && i<parseInt(select_editnum)+parseInt(edit_num)) && (!(ext_bigger_port<input_ext_smaller_port||input_ext_bigger_port<ext_smaller_port)))
+					{//ext ports range must have no intersection, no matter the ip
+						alert("$ports_error_conflict");
+						return false;		
+					}
+					if(!(select_editnum<=i && i<parseInt(select_editnum)+parseInt(edit_num)) && forwardingip == input_ip &&
+					!(int_bigger_port < input_int_smaller_port || int_smaller_port > input_int_bigger_port))
+					{//the same ip, int ports range must have no intersection.
+						alert("$ports_error_conflict");
+						return  false;
+					}
+				}
+				else if(flag == 'add') // for add 
+				{
+					if(!(ext_bigger_port<input_ext_smaller_port||input_ext_bigger_port<ext_smaller_port))
+					{//ext ports range must have no intersection, no matter the ip
 						alert("$ports_error_conflict");
 						return false;
 					}
-				}
-				else if(forwardingip == input_ip && !(ext_bigger_port<input_ext_smaller_port||input_ext_bigger_port<ext_smaller_port)) // for add 
-				{
-					alert("$ports_error_conflict");
-					return false;
+					if(forwardingip == input_ip && !(int_bigger_port < input_int_smaller_port || int_smaller_port > input_int_bigger_port))
+					{//the same ip, int ports range must have no intersection.
+						alert("$ports_error_conflict");
+						return false;
+					}
 				}
 			}
 		}

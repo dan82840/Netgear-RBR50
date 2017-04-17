@@ -338,7 +338,12 @@ function loadvalue()
 					each_info[0]=each_info[0].replace(/&#38;/g,"&");
 					document.write('<TD>'+each_info[0]+'</TD>');
 					document.write('<TD>'+each_info[1]+'</TD>');
-					document.write('<TD>'+each_info[2]+'</TD>');
+					if(each_info[2]=="wireless")
+						document.write('<TD>$wireless</TD>');
+					else if (each_info[2]=="wired")
+						document.write('<TD>$acc_wired</TD>');
+					else
+						document.write('<TD>'+each_info[2]+'</TD>');
 					document.write('</TR>');
 				}
 
@@ -385,7 +390,12 @@ function loadvalue()
 					each_info[0]=each_info[0].replace(/&#38;/g,"&");
 					document.write('<TD>'+each_info[0]+'</TD>');
 					document.write('<TD>'+each_info[1]+'</TD>');
-					document.write('<TD>'+each_info[2]+'</TD>');
+					if(each_info[2]=="wireless")
+						document.write('<TD>$wireless</TD>');
+					else if (each_info[2]=="wired")
+						document.write('<TD>$acc_wired</TD>');
+					else
+						document.write('<TD>'+each_info[2]+'</TD>');
 					document.write('</TR>');	
 				}
 			</script>

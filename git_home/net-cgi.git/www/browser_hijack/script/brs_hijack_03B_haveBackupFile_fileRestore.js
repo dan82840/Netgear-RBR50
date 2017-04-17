@@ -44,7 +44,7 @@ function statusChecking()
 		var forms = document.getElementsByTagName("form");
 		var cf = forms[0];
 
-		cf.submit();
+		setTimeout("cf.submit()", 10000);
 	}
 }
 

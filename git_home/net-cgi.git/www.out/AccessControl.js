@@ -476,7 +476,7 @@ function check_acc_add(cf,flag)
     {
         if(access_mac.toLowerCase() == cf.hidden_edit_mac.value.toLowerCase())
         {
-            var str=document.getElementById("allow_or_block_connect_device")
+            var str=document.getElementById("allow_or_block_connect_device");
             if(str.options[1].selected==true)
             {
                 alert("$not_block_device_msg");
@@ -499,6 +499,21 @@ function check_acc_add(cf,flag)
 		}
         }
     }
+	if(cf.dev_name.value=="")
+       {
+                alert("$device_name_null");
+                return false;
+        }
+        var name_str=cf.dev_name.value;
+        for(i=0;i<name_str.length;i++)
+        {
+                var c = name_str.charCodeAt(i);
+                if(c == 64 || c == 59)
+                {
+                        alert("$device_name_error");
+                        return false;
+		}
+        }
     	cf.submit();
 	return true;
 }

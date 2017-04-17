@@ -7,7 +7,7 @@ var master="<% cfg_get("http_loginname") %>";
 var timereset="<% cfg_sed_xss("show_traffic_timereset") %>";
 if (timereset == "")
 	timereset="5";
-if( timereset != "0")
+if( timereset != "0" && (!isNaN(timereset)))
 {
 	if(get_browser() == "IE")
 	{

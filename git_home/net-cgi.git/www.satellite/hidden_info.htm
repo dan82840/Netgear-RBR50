@@ -154,20 +154,6 @@ if(an_router_flag == 1)
         <TD nowrap><B>WAN speed : </B></TD>
         <TD nowrap> &nbsp;<% cat_file("/tmp/WAN_status")%> &nbsp;</TD>
 </TR>
-<tbody id=vpn_info>
-<TR>
-        <TD nowrap><B>VPN Cert : </B></TD>
-        <TD nowrap> &nbsp;<% cat_file("/tmp/openvpn/cert.info")%> &nbsp;</TD>
-</TR>
-<TR>
-        <TD nowrap><B>VPN Cert begin time : </B></TD>
-	<TD nowrap> &nbsp;<% show_vpn_expire_time("1")%>&nbsp;</TD>
-</TR>
-<TR>
-        <TD nowrap><B>VPN Cert end time : </B></TD>
-	<TD nowrap> &nbsp;<% show_vpn_expire_time("2")%> &nbsp;</TD>
-</TR>
-</tbody>
 <TR id=dsl_upspeed style="display:none"><TD nowrap><B>DSL Link Upsteam Speed : </B></TD><TD nowrap> &nbsp;<% dsl_info("1")%>&nbsp;</TD></TR>
 <TR id=dsl_downspeed style="display:none"><TD nowrap><B>DSL Link Downsteam Speed : </B></TD><TD nowrap> &nbsp;<% dsl_info("2")%>&nbsp;</TD></TR>
 <TR id=dsl_mode style="display:none"><TD nowrap><B>WAN mode : </B></TD><TD nowrap> &nbsp;<% wan_mode_type("")%>&nbsp;</TD></TR>
@@ -192,10 +178,6 @@ else
 	document.getElementById("pin_code").style.display="";
 	document.getElementById("factory_mode").style.display="none";
 }
-if(vpn_show_flag == 0)
-	document.getElementById("vpn_info").style.display="none";
-else
-	document.getElementById("vpn_info").style.display="";
 
 if(have_ethernet_wan_flag == "0")
 	document.getElementById("ethernet_wan_speed").style.display="none";

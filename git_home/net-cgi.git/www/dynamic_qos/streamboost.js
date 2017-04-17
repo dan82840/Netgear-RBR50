@@ -28,6 +28,7 @@ function wmmMain()
 function qos_advanced()
 {
 	var cf = document.forms[0];
+	var refresh_url = window.location.href;
 	if(first_flag == "1"){
 		cf.hid_streamboost_enable.value = 0;
 		cf.hid_first_flag.value = "0";
@@ -35,12 +36,12 @@ function qos_advanced()
 		if(top.have_advanced_qos == "1")
 			check_confirm(cf, "QOS_basic_dynamic.htm", ts);
 		else
-			check_confirm(cf, "QOS_speedtest.htm", ts);
+			check_confirm(cf, refresh_url, ts);
 			
 	}else{
 		 if(parent.ookla_speedtest_flag == 1)
 			parent.ookla_speedtest_flag = 0;
-		location.href = "QOS_speedtest.htm";
+		location.href = refresh_url;
 	}
 		
 		
