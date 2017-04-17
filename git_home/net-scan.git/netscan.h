@@ -27,6 +27,14 @@
 /* The max length of NETBIOS name is 15, the max length of DHCP hostanme is 255 (BOOTP/DHCP option 12) */
 #define MAX_HOSTNAME_LEN	255
 
+//#define DEBUG_SWITCH 0
+#ifdef DEBUG_SWITCH
+#define DEBUGP(fmt,args...) fprintf(stderr, fmt, ##args)
+#else
+#define DEBUGP(fmt,args...) /* do nothing*/
+#endif
+
+
 typedef unsigned int	uint32;
 typedef unsigned short	uint16;
 typedef unsigned char	uint8;

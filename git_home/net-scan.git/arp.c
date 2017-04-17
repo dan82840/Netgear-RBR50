@@ -7,6 +7,25 @@
 #define SB_INFO_STATE_1 1
 #define SB_INFO_STATE_2 2
 
+#define INTERFACENUM 8
+
+enum interface_num {
+	BR0,
+	ATH0,
+	ATH01,
+	ATH1,
+	ATH2,
+	ETH0,
+	ATH02,
+	ATH11
+};
+
+struct interface_element{
+	char *name;
+	char mac[18];
+	int port;
+};
+
 enum device_type{
 	NONETYPE,
 	WIRELESS_2G,
@@ -946,68 +965,106 @@ char *get_mac(char *ifname, char *eabuf)
 
 static int get_device_type(uint8 *mac)
 {
-	FILE *tfp;
-	int found = NONETYPE, portnum, ath2_portnum;
-	char buff[512],arpmac[32], ath2_port[2]={0}, ath2_mac[18]={0};
-	char *port,*bmac,*other, *p;
-//    char *mode, *isFastlane, *fastlaneType;
-	if ((tfp = popen("brctl showmacs br0","r")) == NULL)
-	{
-		return found;
-	}
-	
-	//get ath2 mac
-	p = get_mac("ath2", ath2_mac);
-	if(*p == '\0')
-		return 0;
+	FILE *fd;
+	int found = NONETYPE, i = 0, num, apmode;
+	char buff[512], arpmac[32], *port, *bmac, *other;
+	int interface_num = INTERFACENUM;
 
-	//skip the first line
-	fgets(buff, sizeof(buff), tfp);
-	while(fgets(buff, sizeof(buff), tfp)){
+	struct interface_element if_ele[INTERFACENUM] = {
+		{"br0", "00:00:00:00:00:00", 1},
+		{"ath0", "00:00:00:00:00:00", 0},
+		{"ath01", "00:00:00:00:00:00", 0},
+		{"ath1", "00:00:00:00:00:00", 0},
+		{"ath2", "00:00:00:00:00:00", 0},
+		{"eth0", "00:00:00:00:00:00", 2},
+		{"ath02", "00:00:00:00:00:00", 0},
+		{"ath11", "00:00:00:00:00:00", 0},
+		{NULL, "00:00:00:00:00:00", 0}
+	};
+
+	if (strcmp(config_get("i_opmode"), "apmode") == 0) {
+		apmode = 1;
+		num = interface_num;
+	} else {
+		apmode = 0;
+		num = interface_num - 1;
+	}
+
+	system("brctl showmacs br0 > /tmp/brctl_showmacs_br0");
+	if((fd = fopen("/tmp/brctl_showmacs_br0", "r+")) == NULL)
+		return NONETYPE;
+	
+	//get mac addresses to compare
+	for (i = 0; i < interface_num; i++){
+		if(if_ele[i].name == NULL) break;
+		get_mac(if_ele[i].name, if_ele[i].mac);
+	}
+
+	/*
+	 * #brctl showmacs br0
+	 * port no		mac addr			is local?		ageing time
+	 * 1			20:14:07:11:2A:20	yes				1.01
+	 * ......
+	 */
+	fgets(buff, sizeof(buff), fd);		//skip first line
+	while(fgets(buff, sizeof(buff), fd)){
 		port = strtok(buff, " \t\n");
 		bmac = strtok(NULL, " \t\n");
 		other = strtok(NULL, " \t\n");
 	
 		strupr(bmac);
-		if(!strncmp(bmac, ath2_mac, 17)){
-			strncpy(ath2_port, port, 1);
-			break;
+		for (i = 0; i < INTERFACENUM; i++){
+			if(if_ele[i].name == NULL) break;
+			if(!strncmp(bmac, if_ele[i].mac, 17)){
+				if_ele[i].port = atoi(port);
+				DEBUGP("Found %s interface port id %d\n", if_ele[i].name, if_ele[i].port);
+				break;
+			}
 		}
 	}
-	if(ath2_port == NULL)
-		return 0;
+	
+	fseek(fd, 0, SEEK_SET);
+	fgets(buff, sizeof(buff), fd);		//skip first line
+	ether_etoa(mac, arpmac);
+	while(fgets(buff, sizeof(buff), fd)){
+		int portnum=0;
 
-	pclose(tfp);
-	//reopen showmacs tables
-	if ((tfp = popen("brctl showmacs br0","r")) == NULL)
-	{
-		return found;
-	}
-	//skip the first line
-	fgets(buff, sizeof(buff), tfp);
-	while(fgets(buff, sizeof(buff), tfp)){
 		port = strtok(buff, " \t\n");
 		bmac = strtok(NULL, " \t\n");
 		other = strtok(NULL, " \t\n");
 		
-		portnum = atoi(port);
-		ath2_portnum = atoi(ath2_port);	
-		if (portnum == ath2_portnum || portnum == (ath2_portnum - 2))
-			continue;
-
-		ether_etoa(mac, arpmac);
 		strupr(bmac);
-		if(strncmp(arpmac, bmac, strlen(arpmac)) == 0){
-			if(portnum == (ath2_portnum - 3))
-				found = WIRELESS_2G;
-			else if(portnum == (ath2_portnum - 1))
-				found = WIRELESS_5G;
-			else
-				found = WIRED;
-			break;
+		if(strncmp(arpmac, bmac, strlen(arpmac)))
+			continue;
+		
+		portnum = atoi(port);
+		DEBUGP("ONE client from %d interface.\n", portnum);
+		for (i = 0; i < INTERFACENUM; i++)
+		{
+			// For Orbi projects 2.4G is ath0, ath02. 5G is ath1,ath11
+			if(if_ele[i].name == NULL) break;
+			if (if_ele[i].port == portnum) {
+				switch(i) {
+					case BR0:
+					case ETH0:
+						found = WIRED;
+						goto ret;
+					case ATH0:
+					case ATH02:
+						found = WIRELESS_2G;
+						goto ret;
+					case ATH1:
+					case ATH11:
+						found = WIRELESS_5G;
+						goto ret;
+				}
+			}
 		}
 	}
-	pclose(tfp);
+
+ret:
+	fclose(fd);
+	unlink("/tmp/brctl_showmacs_br0");
 	return found;
 }
 
