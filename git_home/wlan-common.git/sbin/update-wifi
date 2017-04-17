@@ -351,6 +351,7 @@ generate_mode()
         case "$1" in
             wlg_guest | wla_guest)
                 uci set wireless.${wl_section}.wsplcd_unmanaged=1
+                uci set wireless.${wl_section}.repacd_security_unmanaged=1
             ;;
         esac
     fi
@@ -482,6 +483,12 @@ generate_rrm()
 {
     eval wl_value=\$`echo $1`_rrm
     uci set wireless.${wl_section}.rrm=${wl_value:-0}
+}
+
+generate_mcastenhance()
+{
+    eval wl_value=\$`echo $1`_mcastenhance
+    uci set wireless.${wl_section}.mcastenhance=${wl_value:-2}
 }
 
 generate_security()
@@ -1080,6 +1087,7 @@ if [ "$update_conf" = "wifi" -o "$update_conf" = "all" ]; then
         generate_doth $wl_vap
         generate_disablecoext $wl_vap
         generate_rrm $wl_vap
+        generate_mcastenhance $wl_vap
         generate_security $wl_vap
         generate_protocol_setting $wl_vap
         generate_acl $wl_vap
@@ -1156,6 +1164,7 @@ if [ "$update_conf" = "wifi" -o "$update_conf" = "all" ]; then
         generate_doth $wl_vap
         generate_disablecoext $wl_vap
         generate_rrm $wl_vap
+        generate_mcastenhance $wl_vap
         generate_security $wl_vap
         generate_protocol_setting $wl_vap
         generate_acl $wl_vap
@@ -1292,6 +1301,7 @@ if [ "$update_conf" = "wifi" -o "$update_conf" = "all" ]; then
         generate_doth $wl_vap
         generate_disablecoext $wl_vap
         generate_rrm $wl_vap
+        generate_mcastenhance $wl_vap
         generate_security $wl_vap
         generate_protocol_setting $wl_vap
         generate_acl $wl_vap

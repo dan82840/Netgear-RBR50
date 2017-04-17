@@ -613,6 +613,7 @@ case "$ACTION" in
                             rm -f $wps_process_success_file
                             ;;
                         1)      # SUCCESS
+                            [ -n "MAC" ] && echo "$MAC" > /tmp/wps-peer-mac
                             touch $wps_process_success_file
                             ;;
                         3)      # SEND_CONFIG

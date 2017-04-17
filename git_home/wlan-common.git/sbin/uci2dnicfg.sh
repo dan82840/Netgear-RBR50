@@ -330,6 +330,17 @@ set_vap_rrm()
     }
 }
 
+set_vap_mcastenhance()
+{
+    local _vif=$1
+    local _prefix=$2
+    local _mcastenhance
+    config_get _mcastenhance $_vif mcastenhance
+    [ -n "$_mcastenhance" ] && {
+        dni_config_set ${_prefix}mcastenhance $_mcastenhance
+    }
+}
+
 get_set_wifi()
 {
     local vifidx=0
@@ -364,6 +375,7 @@ get_set_wifi()
                 set_vap_hiddenssid $vif $vap_prefix
                 set_vap_disablecoext $vif $vap_prefix
                 set_vap_rrm $vif $vap_prefix
+                set_vap_mcastenhance $vif $vap_prefix
             fi
         done
     done

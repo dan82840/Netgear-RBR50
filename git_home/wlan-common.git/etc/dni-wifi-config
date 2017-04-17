@@ -284,6 +284,7 @@ if [ -n "$DNI_CONFIG" ]; then
         eval wlg_puren_onoff=\$onoff_`dniconfig get wl_puren`
         wlg_disablecoext=`dniconfig get wl_disablecoext`
         wlg_rrm=`dniconfig get wl_rrm`
+        wlg_mcastenhance=`dniconfig get wl_mcastenhance`
         eval wlg_sectype=\$sectype_`dniconfig get wl_sectype`
         eval wlg_auth=`dniconfig get wl_auth`
         wlg_rts=`dniconfig get wl_rts`
@@ -469,6 +470,7 @@ if [ -n "$DNI_CONFIG" ]; then
         eval wla_hide_ssid_onoff=\$onoff_inv_`dniconfig get wla_endis_ssid_broadcast`
         wla_disablecoext=1
         wla_rrm=`dniconfig get wla_rrm`
+        wla_mcastenhance=`dniconfig get wla_mcastenhance`
         eval wla_sectype=\$sectype_`dniconfig get wla_sectype`
         eval wla_auth=`dniconfig get wla_auth`
         wla_rts=`dniconfig get wla_rts`
@@ -746,6 +748,7 @@ if [ -n "$DNI_CONFIG" ]; then
             eval wla2_hide_ssid_onoff=\$onoff_inv_`dniconfig get wla_2nd_endis_ssid_broadcast`
             wla2_disablecoext=1
             wla2_rrm=`dniconfig get wla2_rrm`
+            wla2_mcastenhance=`dniconfig get wla2_mcastenhance`
             eval wla2_sectype=\$sectype_`dniconfig get wla_2nd_sectype`
             eval wla2_auth=`dniconfig get wla_2nd_auth`
             eval wla2_wmm_onoff=\$onoff_`dniconfig get endis_wla_2nd_wmm`
