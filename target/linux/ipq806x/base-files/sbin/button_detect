@@ -120,6 +120,8 @@ do
 	wanportstate=`cat /tmp/port_status`
 	timeupstate=`cat /tmp/led_time`
 	ledringnum=`ps | grep led_ring_action | grep -v grep | awk '{printf("%s\n",$1)}' | wc -l`
+	wpsstate=`cat /tmp/wps_process_state` 2> /dev/null
+	hijackstate=`/bin/config get dns_hijack` 2> /dev/null
 	
 	i=0
 	ps | grep led_ring_action | grep -v grep | awk '{printf("%s\n",$1)}' | while read PID
@@ -130,7 +132,10 @@ do
 	    fi
 	done
 
-	if [ "$wanportstate" = "0" -a "$timeupstate" = "1" ]; then
+	if [ "$wpsstate" = "start" ];then
+		wanportledlock=0
+		
+	elif [ "$wanportstate" = "0" -a "$timeupstate" = "1" -a "$hijackstate" = "0" ]; then
 		if [ "$wanportledlock" = "0" ];then
 			wanportledlock=1
 			/sbin/led_ring stop 
