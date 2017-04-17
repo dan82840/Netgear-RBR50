@@ -45,7 +45,7 @@ PKG_GIT_FILES_SUBDIR=feeds/whc/qca-whc-repacd/files
 PKG_GIT_SRC_SUBDIR=src/qca-whc-repacd
 
 define Build/Prepare
-	mkdir -p  $(PKG_BUILD_DIR)/files
+	 mkdir -p  $(PKG_BUILD_DIR)/files
 	$(CP) $(GIT_HOME)/qsdk-whc.git/$(PKG_GIT_FILES_SUBDIR)/* $(PKG_BUILD_DIR)/files
 	$(CP) $(GIT_HOME)/qsdk-whc.git/$(PKG_GIT_SRC_SUBDIR)/* $(PKG_BUILD_DIR)/
 endef

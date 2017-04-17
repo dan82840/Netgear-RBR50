@@ -109,9 +109,11 @@ scan_wifi() {
 
 cfg_get_wifi() {
     local vifidx=0
+    local managed_network=$1
+    local network=""
 
     scan_wifi
-    for device in ${1:-$DEVICES}; do
+    for device in $DEVICES; do
         local radioidx=${device#wifi}
         local vidx_per_radio=0
         local channel
@@ -146,13 +148,13 @@ cfg_get_wifi() {
             *ng:HT20) hwmode=ng20;;
             *ng:HT40-) hwmode=ng40minus;;
             *ng:HT40+) hwmode=ng40plus;;
-            *ng:HT40) hwmode=ng40minus;;
+            *ng:HT40) hwmode=ng40;;
             *ng:*) hwmode=ng20;;
             *na:HT20) hwmode=na20;;
             *na:HT40-) hwmode=na40minus;;
             *na:HT40+) hwmode=na40plus;;
-            *na:HT40) hwmode=na40minus;;
-            *na:*) hwmode=na40minus;;
+            *na:HT40) hwmode=na40;;
+            *na:*) hwmode=na40;;
             *ac:HT20) hwmode=acvht20;;
             *ac:HT40+) hwmode=acvht40plus;;
             *ac:HT40-) hwmode=acvht40minus;;
@@ -175,6 +177,10 @@ cfg_get_wifi() {
         # determine vif name
         for vif in $vifs; do
             local vifname
+
+            config_get network "$vif" network
+            [ "$network" = "$managed_network" ] || continue
+
             config_get_bool disabled "$vif" disabled 0
             [ "$disabled" = 0 ] ||
             {
@@ -194,6 +200,10 @@ cfg_get_wifi() {
             local beacontype wepencrmode wepauthmode wpaencrmode wpaauthmode wpa2encrmode wpa2authmode
             local vapidx=0
             local vifidx
+
+            config_get network "$vif" network
+            [ "$network" = "$managed_network" ] || continue
+
             # First need to find the correct VAP index for the current vif. This
             # can be done by looking for the matching interface name from
             # vifname_${vapidx} variables,
@@ -419,17 +429,19 @@ cfg_get_wifi() {
 
 }
 
-
 case "$1" in
     "wifisec")
         IGNORE_NON_WIFISEC=1
-        cfg_get_wifi
+        network_name=$2
+        cfg_get_wifi $network_name
     ;;
     "wifi")
-        cfg_get_wifi
+        network_name=$2
+        cfg_get_wifi $network_name
     ;;
     *)
-        cfg_get_wifi
+        network_name=$1
+        cfg_get_wifi $network_name
     ;;
 esac
 

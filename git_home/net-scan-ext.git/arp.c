@@ -2,6 +2,24 @@
 
 #define NEIGH_HASHMASK	0x1F
 
+#define INTERFACENUM 7
+
+enum interface_num {
+        BR0,
+        ATH0,
+        ATH01,
+        ATH1,
+        ATH2,
+        ATH02,
+        ATH11
+};
+
+struct interface_element{
+        char *name;
+        char mac[18];
+        int port;
+};
+
 enum device_type{
 	NONETYPE,
 	WIRELESS_2G,
@@ -143,40 +161,118 @@ static void get_dhcp_host(char host[], struct in_addr ip, int *isrepl)
 	fclose(tfp);
 }
 
-static int get_device_type(uint8 *mac)
+char *get_mac(char *ifname, char *eabuf)
 {
-	FILE *tfp;
-	int found = NONETYPE;
-	char buff[512],arpmac[32];
-	char *port,*bmac,*other;
-//    char *mode, *isFastlane, *fastlaneType;
-	if ((tfp = popen("brctl showmacs br0","r")) == NULL)
-	{
-		return found;
+        int s;
+        struct ifreq ifr;
+
+        eabuf[0] = '\0';
+        s = socket(AF_INET, SOCK_RAW, IPPROTO_RAW);
+        if (s < 0)
+                return eabuf;
+
+        strncpy(ifr.ifr_name, ifname, IFNAMSIZ);
+        if (ioctl(s, SIOCGIFHWADDR, &ifr) == 0)
+                ether_etoa((uint8 *)ifr.ifr_hwaddr.sa_data, eabuf);
+        close(s);
+
+        return eabuf;
+}
+
+
+static int get_device_type(uint8 *mac, int guest_enable)
+{
+	FILE *fd;
+	int found = NONETYPE, i = 0, num;
+	char buff[512], arpmac[32], *port, *bmac, *other;
+
+
+	struct interface_element if_ele[INTERFACENUM] = {
+		{"br0", "00:00:00:00:00:00", 1},
+		{"ath0", "00:00:00:00:00:00", 0},
+		{"ath01", "00:00:00:00:00:00", 0},
+		{"ath1", "00:00:00:00:00:00", 0},
+		{"ath2", "00:00:00:00:00:00", 0},
+		{"ath02", "00:00:00:00:00:00", 0},
+		{"ath11", "00:00:00:00:00:00", 0},
+		{NULL, "00:00:00:00:00:00", 0}
+	};
+
+
+	system("brctl showmacs br0 > /tmp/brctl_showmacs_br0");
+	if((fd = fopen("/tmp/brctl_showmacs_br0", "r+")) == NULL)
+		return NONETYPE;
+	
+	//get mac addresses to compare
+	for (i = 0; i < INTERFACENUM; i++){
+		if(if_ele[i].name == NULL) break;
+		get_mac(if_ele[i].name, if_ele[i].mac);
 	}
-	//skip the first line
-	fgets(buff, sizeof(buff), tfp);
-	while(fgets(buff, sizeof(buff), tfp)){
+
+	/*
+	 * #brctl showmacs br0
+	 * port no		mac addr			is local?		ageing time
+	 * 1			20:14:07:11:2A:20	yes				1.01
+	 * ......
+	 */
+	fgets(buff, sizeof(buff), fd);		//skip first line
+	while(fgets(buff, sizeof(buff), fd)){
 		port = strtok(buff, " \t\n");
 		bmac = strtok(NULL, " \t\n");
 		other = strtok(NULL, " \t\n");
-
-        if(strncmp(port, "5", 1) == 0 || strncmp(port, "3", 1) == 0 )  //&& strncmp(port, "4", 1) != 0)
-           continue; // found = 0
-
-		ether_etoa(mac, arpmac);
+	
 		strupr(bmac);
-		if(strncmp(arpmac, bmac, strlen(arpmac)) == 0){
-			if(strncmp(port, "2", 1) == 0)
-				found = WIRELESS_2G;
-			else if(strncmp(port, "4", 1) == 0)
-				found = WIRELESS_5G;
-			else
-				found = WIRED;
-			break;
+		for (i = 0; i < INTERFACENUM; i++){
+			if(if_ele[i].name == NULL) break;
+			if(!strncmp(bmac, if_ele[i].mac, 17)){
+				if_ele[i].port = atoi(port);
+				DEBUGP("Found %s interface port id %d\n", if_ele[i].name, if_ele[i].port);
+				break;
+			}
 		}
 	}
-	pclose(tfp);
+	
+	fseek(fd, 0, SEEK_SET);
+	fgets(buff, sizeof(buff), fd);		//skip first line
+	ether_etoa(mac, arpmac);
+	while(fgets(buff, sizeof(buff), fd)){
+		int portnum=0;
+
+		port = strtok(buff, " \t\n");
+		bmac = strtok(NULL, " \t\n");
+		other = strtok(NULL, " \t\n");
+		
+		strupr(bmac);
+		if(strncmp(arpmac, bmac, strlen(arpmac)))
+			continue;
+		
+		portnum = atoi(port);
+		DEBUGP("ONE client from %d interface.\n", portnum);
+		for (i = 0; i < INTERFACENUM; i++)
+		{
+			if(if_ele[i].name == NULL) break;
+			// For Orbi projects 2.4G is ath0, ath02. 5G is ath1,ath11
+			if (if_ele[i].port == portnum) {
+				switch(i) {
+					case BR0:
+						found = WIRED;
+						goto ret;
+					case ATH0:
+					case ATH02:
+						found = WIRELESS_2G;
+						goto ret;
+					case ATH1:
+					case ATH11:
+						found = WIRELESS_5G;
+						goto ret;
+				}
+			}
+		}
+	}
+
+ret:
+	fclose(fd);
+	unlink("/tmp/brctl_showmacs_br0");
 	return found;
 }
 
@@ -500,9 +596,14 @@ void show_arp_table(void)
 	char buffer[512];
 	char *ipaddr;
 	struct in_addr lan_ipaddr,lan_netmask;
+	int guest_enable = 0;
+
 	lan_ipaddr = get_ipaddr(ARP_IFNAME);
 	lan_netmask = get_netmask(ARP_IFNAME);
 
+	if (strcmp(config_get("wla1_endis_guestNet"), "1") == 0) 
+		guest_enable = 1;
+	
 	fp = fopen(ARP_FILE, "w");
 	if (fp == 0) return;
 	fp_2g = fopen(ARP_FILE_2G, "w");
@@ -566,7 +667,7 @@ void show_arp_table(void)
 			if(memcmp(u->mac, arpreq.h_source, 6) != 0) {
 				get_host_cache(u->mac, u->host);
 				//strupr(u->host);
-				switch (get_device_type(u->mac))
+				switch (get_device_type(u->mac, guest_enable))
 				{
 					case WIRELESS_2G:
 						fprintf(fp_2g, "%s %s %s @#$&*!\n",

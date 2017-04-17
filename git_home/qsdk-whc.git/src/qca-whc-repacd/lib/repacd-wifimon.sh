@@ -13,9 +13,12 @@ WIFIMON_DEBUG_COMMAND_FILE=
 WIFIMON_STATE_NOT_ASSOCIATED='NotAssociated'
 WIFIMON_STATE_AUTOCONFIG_IN_PROGRESS='AutoConfigInProgress'
 WIFIMON_STATE_AUTOCONFIG_FINISH='AutoConfigFinish'
+WIFIMON_STATE_AUTOCONFIG_FAIL='AutoConfigFail'
 WIFIMON_STATE_MEASURING='Measuring'
 WIFIMON_STATE_WPS_TIMEOUT='WPSTimeout'
+WIFIMON_STATE_BSSID_ASSOC_TIMEOUT='BSSIDAssocTimeout'
 WIFIMON_STATE_ASSOC_TIMEOUT='AssocTimeout'
+WIFIMON_STATE_IP_LEASE_FAIL='IPLeaseFail'
 WIFIMON_STATE_RE_MOVE_CLOSER='RE_MoveCloser'
 WIFIMON_STATE_RE_MOVE_FARTHER='RE_MoveFarther'
 WIFIMON_STATE_RE_LOCATION_SUITABLE='RE_LocationSuitable'
@@ -34,11 +37,13 @@ WIFIMON_PIPE_NAME='/var/run/repacd.pipe'
 # State information
 local sta_iface_24g sta_iface_24g_config_name
 local sta_iface_5g sta_iface_5g_config_name unknown_ifaces=0
+local measurement_sta_iface measurement_sta_iface_config_name
 local assoc_timeout_logged=0 wps_timeout_logged=0
 local wps_in_progress=0 wps_start_time=''
 local wps_stabilization=0 wps_assoc_count=0
 local auto_mode_stabilization=0 auto_mode_assoc_count=0
 local assoc_start_time='' last_assoc_state=0 backhaul_eval_time='' force_down_5g_timestamp=''
+local bssid_stabilization=0 bssid_assoc_count=0 bssid_resolve_complete=0
 local ping_running=0 last_ping_gw_ip
 local rssi_num=0 rssi_filename=
 local force_down_5g=0 down_time_2g='' measurement_eval_count=0
@@ -47,13 +52,22 @@ local backhaul24G_used=0
 local cur_associate_state=0
 local associate_state=0
 
+local force_down_24g=0 badlink_start_time_5g='' badlink_switch_inprogess=0
+local rate_num=0 rate_min=0 rate_max=0 rate_filename=
 
 # Config parameters
 local device_type config_re_mode default_re_mode
-local min_wps_assoc min_auto_mode_assoc
+local min_wps_assoc min_auto_mode_assoc min_bssid_assoc
 local rssi_samples rssi_far rssi_near rssi_min rssi_pref2G
 local assoc_timeout wps_timeout config_downtime2G measuring_attempts=0
 local config_short_eval_time5g=0 config_long_eval_time5g=0
+local rate_samples rate_min5G rate_max5G rate_pref2G
+local daisy_chain bssid_assoc_timeout badlink_timeout5G
+local traffic_separation_enabled=0 traffic_separation_active=0
+local guest_backhaul network_guest
+local guest_preflink_down_start_time=0 guest_preflink_down_timeout=15
+local guest_preflink_up_start_time=0 guest_preflink_up_timeout=5
+local guest_link_override=0 guest_vid=2
 
 # Emit a message at debug level.
 # input: $1 - the message to log
@@ -114,6 +128,11 @@ __repacd_stop_ping() {
         rm -f $rssi_filename
         rssi_filename=
     fi
+    if [ -n "$rate_filename" ]; then
+        # Clean up the temporary file
+        rm -f $rate_filename
+        rate_filename=
+    fi
 }
 
 # Start a background ping to the gateway address (if it can be resolved).
@@ -172,7 +191,7 @@ __repacd_is_gw_reachable() {
 #
 # Note that for the purposes of this function, an empty interface name is
 # considered associated. This is done because in some configurations, only
-# one interface is enabled (the 5 GHz one).
+# one interface is enabled.
 #
 # input: $1 - sta_iface: the name of the interface (eg. ath01)
 # return: 0 if associated or if the interface name is empty; otherwise 1
@@ -182,6 +201,9 @@ __repacd_wifimon_is_assoc() {
     then
         if [ "$sta_iface" = "$sta_iface_5g" ] &&
                [ "$force_down_5g" -gt 0 ];then
+            return 0
+        elif [ "$sta_iface" = "$sta_iface_24g" ] \
+            && [ "$force_down_24g" -gt 0 ]; then
             return 0
         fi
 
@@ -203,47 +225,56 @@ __repacd_wifimon_is_assoc() {
 # mode when using automatic mode switching.
 #
 # input: $1 - cur_re_mode: the current operating range extender mode
-# output: $2 - new_re_mode: the new range extender mode
-# return: 0 if already operating in the desired mode; otherwise 1
+# input: $2 - cur_re_submode: the current operating range extender sub-mode
+# output: $3 - new_re_mode: the new range extender mode
+# output: $4 - new_re_submode: the new range extender sub-mode
+# return: 0 if already operating in the desired mode & submode; otherwise 1
 __repacd_wifimon_resolve_mode() {
-    local old_re_mode=$(eval echo -n \$"$2")
+    local old_re_mode=$1
+    local old_re_submode=$2
     local re_mode_changed=0
 
     # Finally, if the serving AP is operating in one of the special
     # modes, write back the association derived RE mode. Otherwise,
     # write back the default mode.
     if [ "$config_re_mode" = 'auto' ]; then
-        # Since when operating in SON mode we rely on wsplcd to force
+        # Since when operating in SON mode we rely on wsplcd/daisy to force
         # the association to the CAP, do not check whether the CAP is
         # the serving AP when determining whether to switch modes.
         if __repacd_wifimon_is_serving_ap_son; then
             if [ ! "$old_re_mode" = 'son' ]; then
                 __repacd_wifimon_info "Serving AP has SON enabled"
-                eval "$2=son"
+                eval "$3=son"
                 re_mode_changed=1
             fi
         elif __repacd_wifimon_is_serving_ap_wds; then
             if [ ! "$old_re_mode" = 'wds' ]; then
                 __repacd_wifimon_info "Serving AP has WDS enabled"
-                eval "$2=wds"
+                eval "$3=wds"
                 re_mode_changed=1
             fi
         else
             if [ ! "$old_re_mode" = "$default_re_mode" ]; then
                 __repacd_wifimon_info "Serving AP does not advertise WDS"
-                eval "$2=$default_re_mode"
+                eval "$3=$default_re_mode"
                 re_mode_changed=1
             fi
         fi
+    fi
 
-        if [ "$re_mode_changed" -gt 0 ]; then
-            return 1
-        else
-            return 0
+    # By definition, when operating in non-auto mode, we are always in
+    # the desired mode. But if there is any special sub-modes, handle it here.
+    if __repacd_wifimon_is_serving_ap_son; then
+        __repacd_wifimon_get_son_submode submode
+        if [ ! "$old_re_submode" = "$submode" ]; then
+            eval "$4=$submode"
+            re_mode_changed=1
         fi
+    fi
+
+    if [ "$re_mode_changed" -gt 0 ]; then
+        return 1
     else
-        # By definition, when operating in non-auto mode, we are always in
-        # the desired mode.
         return 0
     fi
 }
@@ -301,7 +332,13 @@ __repacd_wifimon_is_deep_cloning_complete() {
 # return: 0 if the association is stable; non-zero if it is not yet deemed
 #         stable
 __repacd_wifimon_is_assoc_stable() {
-    if [ "$wps_stabilization" -gt 0 ]; then
+    if [ "$bssid_stabilization" -gt 0 ]; then
+        if [ "$bssid_assoc_count" -ge "$min_bssid_assoc" ]; then
+            return 0
+        else
+            return 1
+        fi
+    elif [ "$wps_stabilization" -gt 0 ]; then
         if [ "$wps_assoc_count" -ge "$min_wps_assoc" ]; then
             return 0
         else
@@ -319,19 +356,93 @@ __repacd_wifimon_is_assoc_stable() {
     fi
 }
 
+# Determine if the guest network's backhaul interface should be changed
+# from prefered interface to non-prefered interface based on link status.
+# If change has already made then monitor prefered interface, if prefered
+# interface link looks good then change back to prefered interface.
+# input: $1 - pref_iface: prefered sta interface
+# input: $2 - other_iface: other non prefered interface
+__repacd_wifimon_override_guest_backhaul() {
+    local pref_iface=$1
+    local other_iface=$2
+    local force_pref_down=0
+    local force_other_down=0
+    local ifname
+
+    if [ "$pref_iface" = "$sta_iface_5g" ]; then
+        force_pref_down=$force_down_5g
+        force_other_down=$force_down_24g
+    elif [ "$pref_iface" = "$sta_iface_24g" ]; then
+        force_pref_down=$force_down_24g
+        force_other_down=$force_down_5g
+    fi
+
+    if ! __repacd_wifimon_is_assoc $pref_iface || \
+           [ "$force_pref_down" -gt 0 ]; then
+        if __repacd_wifimon_is_assoc $other_iface &&
+               [ "$force_other_down" -eq 0 ]; then
+            if [ "$guest_link_override" -eq 0 ]; then
+                if [ "$guest_preflink_down_start_time" -eq 0 ]; then
+                    __repacd_wifimon_get_timestamp guest_preflink_down_start_time
+                    guest_preflink_up_start_time=0
+                elif __repacd_wifimon_is_timeout $guest_preflink_down_start_time \
+                         $guest_preflink_down_timeout; then
+                    ifname=`iwconfig 2>&1 | grep "$other_iface.$guest_vid" | cut -d ' ' -f1`
+                    if [ -z "$ifname" ]; then
+                        vconfig add $other_iface $guest_vid
+                    fi
+                    brctl delif "br-$network_guest" "$pref_iface.$guest_vid"
+                    brctl addif "br-$network_guest" "$other_iface.$guest_vid"
+                    ifconfig $other_iface.$guest_vid up
+                    guest_link_override=1
+                fi
+            fi
+        elif ! __repacd_wifimon_is_assoc $other_iface || \
+                 [ "$force_other_down" -gt 0 ]; then
+            if [ -n "$guest_preflink_down_start_time" ]; then
+                guest_preflink_down_start_time=0
+            fi
+
+            if [ "$guest_link_override" -gt 0 ]; then
+                brctl delif "br-$network_guest" "$other_iface.$guest_vid"
+                brctl addif "br-$network_guest" "$pref_iface.$guest_vid"
+                ifconfig $pref_iface.$guest_vid up
+                guest_link_override=0
+            fi
+        fi
+    elif __repacd_wifimon_is_assoc $pref_iface &&
+             [ "$force_pref_down" -eq 0 ]; then
+        if [ "$guest_link_override" -gt 0 ]; then
+           if [ "$guest_preflink_up_start_time" -eq 0 ]; then
+               __repacd_wifimon_get_timestamp guest_preflink_up_start_time
+               guest_preflink_down_start_time=0
+           elif __repacd_wifimon_is_timeout $guest_preflink_up_start_time \
+                    $guest_preflink_up_timeout; then
+               brctl delif "br-$network_guest" "$other_iface.$guest_vid"
+               brctl addif "br-$network_guest" "$pref_iface.$guest_vid"
+               ifconfig $pref_iface.$guest_vid up
+               guest_link_override=0
+           fi
+        fi
+    fi
+}
+
 # Determine if the STA is associated and update the state accordingly.
 # input: $1 - network: the name of the network being managed
 # input: $2 - cur_re_mode: the currently configured range extender mode
-# input: $3 - whether this is a check during init for a restart triggered
+# input: $3 - cur_re_submode: the currently configured range extender sub-mode
+# input: $4 - whether this is a check during init for a restart triggered
 #             by mode switching
-# output: $4 - state: the variable to update with the new state name (if there
+# output: $5 - state: the variable to update with the new state name (if there
 #                     was a change)
-# output: $5 - re_mode: the desired range extender mode
+# output: $6 - re_mode: the desired range extender mode
+# output: $7 - re_submode: the desired range extender sub-mode
 # return: 0 if associated; otherwise 1
 __repacd_wifimon_check_associated() {
     local network=$1
     local cur_re_mode=$2
-    local autoconf_start=$3
+    local cur_re_submode=$3
+    local autoconf_start=$4
 
     __repacd_wifimon_debug "CHECK associatd"
 
@@ -362,10 +473,48 @@ __repacd_wifimon_check_associated() {
 
         # Only update the LED state if we transitioned from not associated
         # to associated.
-        #if [ "$last_assoc_state" -eq 0 ]; then
         if [ "$last_assoc_state" -eq 0 ] || [ "$cur_associate_state" != "$associate_state" ]; then
             cur_associate_state=$associate_state
-            if [ "$wps_in_progress" -gt 0 ]; then
+
+        # In Daisy chaining, when we are at hop 2 and above, allow monitoring
+        # even if single backhaul is associated provided other backhaul is forced down.
+
+        # Only update the LED state if we transitioned from not associated
+        # to associated.
+            if [ "$daisy_chain" -gt 0 -a "$bssid_stabilization" -eq 0 -a \
+                -n "$sta_iface_5g" -a "$force_down_5g" -eq 0 -a "$last_assoc_state" -eq 0 ]; then
+                # Daisy chaining enabled, so deep cloning would have been disabled.
+                # Update the 5G BSSID, because we will proceed assuming current
+                # connection is stable.
+                if [ "$badlink_switch_inprogess" -eq 0 ]; then
+                    __repacd_wifimon_config_current_5g_bssid
+                fi
+
+                if [ -n "$sta_iface_24g" -a "$force_down_24g" -eq 0 \
+                    -a "$badlink_switch_inprogess" -eq 0 ] \
+                    && __repacd_wifimon_is_cap_serving; then
+                    # Still we need to resolve 2.4G backhaul BSSID.
+                    bssid_resolve_complete=0
+                else
+                    bssid_resolve_complete=1
+                fi
+
+                # Clear the 2.4G backhaul BSSID if configured because we need
+                # fresh BSSID configuration.
+                if __repacd_wifimon_is_peer_bssid_set $sta_iface_24g_config_name; then
+                    __repacd_wifimon_debug "Delete BSSID for $sta_iface_24g"
+                    uci delete wireless.${sta_iface_24g_config_name}.bssid
+                    uci_commit wireless
+                fi
+
+                __repacd_wifimon_get_timestamp assoc_start_time
+
+                bssid_stabilization=1
+                bssid_assoc_count=0
+                assoc_timeout_logged=0
+
+                eval "$5=$WIFIMON_STATE_AUTOCONFIG_IN_PROGRESS"
+            elif [ "$wps_in_progress" -gt 0 ]; then
                 # If WPS was triggered, it could take some time for the
                 # interfaces to settle into their final state. Thus, update
                 # the start time for the measurement to the point at which
@@ -392,10 +541,24 @@ __repacd_wifimon_check_associated() {
                 auto_mode_assoc_count=0
                 assoc_timeout_logged=0
 
-                eval "$4=$WIFIMON_STATE_AUTOCONFIG_IN_PROGRESS"
+                eval "$5=$WIFIMON_STATE_AUTOCONFIG_IN_PROGRESS"
             fi
 
-            if [ "$wps_stabilization" -gt 0 ]; then
+            if [ "$bssid_stabilization" -gt 0 ]; then
+                if [ "$bssid_resolve_complete" -gt 0 ]; then
+                    bssid_assoc_count=$((bssid_assoc_count + 1))
+                    __repacd_wifimon_debug "Assoc post BSSID resolve (#$bssid_assoc_count)"
+                else
+                    # Try configuring 2.4G backhaul BSSID.
+                    # If successfully configured, we are ready to check association.
+                    __repacd_wifimon_config_cap_24g_bssid
+                    if __repacd_wifimon_is_peer_bssid_set $sta_iface_24g_config_name; then
+                        bssid_resolve_complete=1
+                    else
+                        __repacd_wifimon_debug "Waiting for BSSID resolve"
+                    fi
+                fi
+            elif [ "$wps_stabilization" -gt 0 ]; then
                 wps_assoc_count=$((wps_assoc_count + 1))
                 __repacd_wifimon_debug "Assoc post WPS (#$wps_assoc_count)"
             elif [ "$auto_mode_stabilization" -gt 0 ]; then
@@ -409,13 +572,14 @@ __repacd_wifimon_check_associated() {
 
             if __repacd_wifimon_is_assoc_stable; then
                 auto_mode_stabilization=0
+                bssid_stabilization=0
 
                 # Check the mode to see if we are already in the desired mode.
                 # If not, we will want to trigger the mode switch first as
                 # otherwise the RSSI measurements may not be updated (due to
                 # pings not going through).
-                if __repacd_wifimon_resolve_mode $cur_re_mode $5; then
-                    eval "$4=$WIFIMON_STATE_MEASURING"
+                if __repacd_wifimon_resolve_mode $cur_re_mode $cur_re_submode $6 $7; then
+                    eval "$5=$WIFIMON_STATE_MEASURING"
                     assoc_start_time=''
                     last_assoc_state=1
                     wps_stabilization=0
@@ -424,6 +588,7 @@ __repacd_wifimon_check_associated() {
                     # ones as they might not reflect the current state (eg.
                     # if the root AP was moved).
                     rssi_num=0
+                    rate_num=0
                 else
                     # RE mode switch is required. Do not start measuring link.
                     return 0
@@ -435,10 +600,38 @@ __repacd_wifimon_check_associated() {
             fi
         fi
 
-        # Association is considered stable. Measure the link RSSI.
-        if [ "$rssi_num" -le "$rssi_samples" ] && \
-           __repacd_start_ping $network; then
-            __repacd_wifimon_measure_link $network $4
+        # Association is considered stable. Measure the link, we measure the WiFi link
+        # based on RSSI or Rate, RSSI measurement is used in star topology where we
+        # know the APs location and REs placement is adjusted based on LED feedback.
+        # But in Daisy chain, REs might have connected to any best link, REs auto detects
+        # the best link so we will not know the position of connected AP and LED
+        # feedback is not useful for the user.
+        if [ "$daisy_chain" -gt 0 -a "$force_down_5g" -eq 0 ]; then
+            # Measure the link rate, so that we trigger the best link selection logic.
+            if [ "$rate_num" -le "$rate_samples" ] && \
+                __repacd_start_ping $network; then
+                __repacd_wifimon_measure_rate $network $5
+                return 0
+            else
+                # Restart the rate measurement
+                rate_num=0
+            fi
+
+        else
+            if [ "$force_down_5g" -gt 0 ]; then
+                eval "$5=$WIFIMON_STATE_RE_MOVE_CLOSER"
+                return 0;
+            fi
+
+            # Association is considered stable. Measure the link RSSI.
+            if [ "$rssi_num" -le "$rssi_samples" ]; then
+                if __repacd_start_ping $network; then
+                    eval "$5=$WIFIMON_STATE_MEASURING"
+                    __repacd_wifimon_measure_link $network $5
+                else
+                    eval "$5=$WIFIMON_STATE_IP_LEASE_FAIL"
+                fi
+            fi
         fi
         return 0
     # All cases below are for not associated.
@@ -451,9 +644,9 @@ __repacd_wifimon_check_associated() {
         auto_mode_assoc_count=0
         assoc_timeout_logged=0
 
-        eval "$4=$WIFIMON_STATE_AUTOCONFIG_IN_PROGRESS"
+        eval "$5=$WIFIMON_STATE_AUTOCONFIG_IN_PROGRESS"
     elif [ "$wps_in_progress" -eq 0 -a "$wps_stabilization" -eq 0 -a \
-           "$auto_mode_stabilization" -eq 0 ]; then
+           "$auto_mode_stabilization" -eq 0 -a "$bssid_stabilization" -eq 0 ]; then
         # Record the first time we detected ourselves as not being associated.
         # This will drive a timer in the check function that will change the
         # state if we stay disassociated for too long.
@@ -464,22 +657,13 @@ __repacd_wifimon_check_associated() {
         last_assoc_state=0
         __repacd_stop_ping
 
-            __repacd_wifimon_debug "sta_iface_24g:$sta_iface_24g  :::  force_down_5g:$force_down_5g "
-#        if !(__repacd_wifimon_is_assoc $sta_iface_24g) &&
-#           !(__repacd_wifimon_is_assoc $sta_iface_5g); then
-            eval "$4=$WIFIMON_STATE_NOT_ASSOCIATED"
-#            __repacd_wifimon_debug "BACKHAUL all disconnect"
-#        elif [ -z $sta_iface_24g ] && !(__repacd_wifimon_is_assoc $sta_iface_5g); then
-#            __repacd_wifimon_debug "BACKHAUL all disconnect"
-#            sta_iface_24g=$tmp_sta_iface_24g
-#            eval "$4=$WIFIMON_STATE_NOT_ASSOCIATED"
-#        elif [ "$force_down_5g" -gt 0 ] && !(__repacd_wifimon_is_assoc $sta_iface_24g); then
-#            __repacd_wifimon_debug "BACKHAUL all disconnect"
-#            eval "$4=$WIFIMON_STATE_NOT_ASSOCIATED"
-#
-#        fi
+        __repacd_wifimon_debug "sta_iface_24g:$sta_iface_24g  :::  force_down_5g:$force_down_5g "
+        eval "$5=$WIFIMON_STATE_NOT_ASSOCIATED"
 
-    elif [ "$wps_in_progress" -gt 0 -o "$auto_mode_stabilization" -gt 0 ]; then
+    elif [ "$wps_in_progress" -gt 0 -o "$auto_mode_stabilization" -gt 0 \
+        -o "$bssid_stabilization" -gt 0 ]; then
+
+        __repacd_wifimon_debug "bssid_stabilization ::: $bssid_stabilization"
 
         if __repacd_wifimon_is_assoc $sta_iface_24g ||
         __repacd_wifimon_is_assoc $sta_iface_5g; then
@@ -497,6 +681,7 @@ __repacd_wifimon_check_associated() {
             fi
         fi
 
+        bssid_assoc_count=0
         wps_assoc_count=0
         auto_mode_assoc_count=0
 
@@ -520,6 +705,14 @@ __repacd_wifimon_is_whc_feature_on_iface() {
     fi
 
     local command_result
+    if [ "$sta_iface" = "$sta_iface_5g" ] &&
+           [ "$force_down_5g" -gt 0 ]; then
+        return 0
+    elif [ "$sta_iface" = "$sta_iface_24g" ] &&
+           [ "$force_down_24g" -gt 0 ]; then
+        return 0
+    fi
+
     command_result=$(iwpriv $sta_iface $ioctl_name)
     __repacd_wifimon_dump_cmd "$ioctl_name on $sta_iface: $command_result"
 
@@ -559,6 +752,20 @@ __repacd_wifimon_is_serving_ap_son() {
     return 1
 }
 
+# Determine if the serving AP has SON mode enabled and it is an RE.
+# return: 0 if it is RE and does have SON enabled; otherwise 1
+__repacd_wifimon_is_serving_ap_daisy_son() {
+    if [ "$daisy_chain" -gt 0 ] \
+        && __repacd_wifimon_is_whc_feature_on_iface "$sta_iface_5g" 'get_whc_son'; then
+        __repacd_get_root_ap_dist $sta_iface_5g root_distance
+        if [ "$root_distance" -gt 1 ]; then
+            return 0
+        fi
+    fi
+
+    return 1
+}
+
 # Determine the number of hops a given STA interface is from the
 # root AP.
 # input: $1 - sta_iface: the name of the STA interface (eg. ath01)
@@ -567,6 +774,17 @@ __repacd_get_root_ap_dist() {
     local sta_iface=$1
 
     local command_result
+
+    if [ -n "$sta_iface" ]; then
+        if [ "$sta_iface" = "$sta_iface_5g" ] &&
+               [ "$force_down_5g" -gt 0 ];then
+            return 0
+        elif [ "$sta_iface" = "$sta_iface_24g" ] &&
+               [ "$force_down_24g" -gt 0 ];then
+            return 0
+        fi
+    fi
+
     command_result=$(iwpriv $sta_iface get_whc_dist)
     __repacd_wifimon_dump_cmd "root dist for $sta_iface: $command_result"
 
@@ -583,7 +801,7 @@ __repacd_get_root_ap_dist() {
 #                       root AP
 __repacd_get_max_root_ap_dist() {
     local root_dist_24g=0 root_dist_5g=0
-    if [ -n "$sta_iface_24g" ]; then
+    if [ -n "$sta_iface_24g" -a "$daisy_chain" -eq 0 ]; then
         __repacd_get_root_ap_dist $sta_iface_24g root_dist_24g
     fi
 
@@ -624,25 +842,19 @@ __repacd_wifimon_is_cap_serving() {
     return 1
 }
 
-# Bring up sta vap interface.
-# input: $1 - sta interface: the name of the interface for
-#
-__repacd_wifimon_bring_iface_up() {
-
-    local sta_iface=$1
-    if [ -n "$sta_iface" ];then
-        disabled_5g_network=`wpa_cli -i $sta_iface_5g -p /var/run/wpa_supplicant-$sta_iface_5g list_network | grep "\[DISABLED\]$" | awk '{print $1}'`
-        wpa_cli -p /var/run/wpa_supplicant-$sta_iface_5g enable_network $disabled_5g_network
-        __repacd_wifimon_info "Interface $sta_iface Brought up"
-        force_down_5g=0
+# Determine the current SON sub-mode.
+# output: $1 - submode: sub mode we are operating in.
+__repacd_wifimon_get_son_submode() {
+    if __repacd_wifimon_is_cap_serving; then
+        eval "$1=star"
+    else
+        eval "$1=daisy"
     fi
 
 }
 
 # Bring down sta vap interface.
 # input: $1 - sta interface: the name of the interface for bringing down.
-#
-
 __repacd_wifimon_bring_iface_down() {
 
     local sta_iface=$1
@@ -651,13 +863,157 @@ __repacd_wifimon_bring_iface_down() {
         enabled_5g_network=`wpa_cli -i $sta_iface_5g -p /var/run/wpa_supplicant-$sta_iface_5g list_network | grep "\[CURRENT\]$" | awk '{print $1}'`
         wpa_cli -p /var/run/wpa_supplicant-$sta_iface disable_network $enabled_5g_network
         __repacd_wifimon_info "Interface $sta_iface Brought down "
-        force_down_5g=1
-        if [ -n "$force_down_5g_timestamp" ] ;then
-            backhaul_eval_time=$config_long_eval_time5g
+        if [ "$sta_iface" = "$sta_iface_5g" ]; then
+            force_down_5g=1
+            if [ -n "$force_down_5g_timestamp" ] ;then
+                backhaul_eval_time=$config_long_eval_time5g
+            else
+                backhaul_eval_time=$config_short_eval_time5g
+            fi
+            __repacd_wifimon_get_timestamp force_down_5g_timestamp
         else
-            backhaul_eval_time=$config_short_eval_time5g
+            force_down_24g=1
         fi
-        __repacd_wifimon_get_timestamp force_down_5g_timestamp
+    fi
+}
+
+# Bring up sta vap interface.
+# input: $1 - sta interface: the name of the interface for bringing up.
+__repacd_wifimon_bring_iface_up() {
+    local sta_iface=$1
+
+    if [ -n "$sta_iface" ];then
+        disabled_5g_network=`wpa_cli -i $sta_iface_5g -p /var/run/wpa_supplicant-$sta_iface_5g list_network | grep "\[DISABLED\]$" | awk '{print $1}'`
+        wpa_cli -p /var/run/wpa_supplicant-$sta_iface_5g enable_network $disabled_5g_network
+        __repacd_wifimon_info "Interface $sta_iface Brought up "
+        if [ "$sta_iface" = "$sta_iface_5g" ]; then
+            force_down_5g=0
+        else
+            force_down_24g=0
+        fi
+        last_assoc_state=0
+    fi
+}
+
+# Find the median from the samples file.
+# Find the median from the samples file.
+# This is a crude way to compute the median when the number of
+# samples is odd. It is not strictly correct for an even number
+# of samples since it does not compute the average of the two
+# samples in the middle and rather just takes the lower one, but
+# this should be sufficient for our purposes. The average is not
+# performed due to the values being on the logarithmic scale and
+# because shell scripts do not directly support floating point
+# arithmetic.
+# input: $1 - Samples filename
+# input: $2 - Number of samples in the samples file
+# output: $3 - computed Median
+__repacd_wifimon_compute_median() {
+    local median median_index
+    local samples_filename="$1"
+
+    median_index=$((($2 + 1) / 2))
+    median=$(cat $samples_filename | sort -n |
+                        head -n $median_index | tail -n 1)
+
+    eval "$3=$median"
+}
+
+# Measure the Rate to the serving AP and update the state accordingly.
+# input: $1 - network: the name of the network being monitored
+# output: $2 - state: the variable to update with the new state name (if there
+#                     was a change)
+__repacd_wifimon_measure_rate() {
+    local rate
+
+    if ! __repacd_is_gw_reachable; then
+        if [ -n "$last_ping_gw_ip" ]; then
+            __repacd_wifimon_debug "GW ${last_ping_gw_ip} not reachable"
+        else
+            __repacd_wifimon_debug "GW unknown"
+        fi
+        return
+    fi
+
+    # Only the 5 GHz link is measured. This is especially done since we
+    # generally cannot control which interface is used to reach upstream.
+    # Generally 5 GHz will be used (per the rules to set the broadcast bit
+    # and choose a default path), so we may not have any valid Rate data on
+    # 2.4 GHz.
+    rate=`iwpriv $measurement_sta_iface get_whc_rate | awk -F':' '{print $2}'`
+
+    # We explicitly ignore clearly bogus values. 0 Mbps seen in
+    # some instances where the STA is not associated by the time the Rate
+    # check is done.
+    if [ "$rate" -gt 0 ]; then
+        if [ "$rate_num" -lt "$rate_samples" ]; then
+            __repacd_wifimon_debug "Rate sample #$rate_num = $rate Mbps"
+
+            # Ignore the very first sample since it is taken at the same time
+            # the ping is started (and thus the Rate might not have been
+            # updated).
+            if [ "$rate_num" -eq 0 ]; then
+                rate_filename=`mktemp /tmp/repacd-rate.XXXXXX`
+            else
+                # Not the first sample
+                echo $rate >> $rate_filename
+            fi
+        elif [ "$rate_num" -eq "$rate_samples" ]; then
+            __repacd_wifimon_debug "Rate sample #$rate_num = $rate Mbps"
+
+            # We will take one more sample and then draw the conclusion.
+            # No further measurements will be taken (although this may be
+            # changed in the future).
+            echo $rate >> $rate_filename
+
+            # We got the required number of samples, now derive the median rate.
+            local rate_median
+            __repacd_wifimon_compute_median $rate_filename $rate_num rate_median
+            __repacd_wifimon_debug "Median Rate = $rate_median Mbps"
+            if [ "$device_type" = 'RE' ]; then
+                if [ "$rate_median" -lt "$rate_min" ]; then
+                    eval "$2=$WIFIMON_STATE_RE_MOVE_CLOSER"
+                elif [ "$rate_median" -gt "$rate_max" ]; then
+                    eval "$2=$WIFIMON_STATE_RE_MOVE_FARTHER"
+                else
+                    eval "$2=$WIFIMON_STATE_RE_LOCATION_SUITABLE"
+                fi
+            fi
+
+            if [ "$rate_median" -lt "$rate_pref2G" ]; then
+                if [ -z "$badlink_start_time_5g" ]; then
+                    __repacd_wifimon_get_timestamp badlink_start_time_5g
+                fi
+            else
+                badlink_start_time_5g=''
+            fi
+
+            # If 5G link is very bad and below the prefered limit,
+            # switch to 2.4G backhaul link and wait for association
+            # and then disable 5G backhaul link. 5G backhaul will be
+            # back when the 2.4G link goes down.
+            if [ "$rate_median" -lt "$rate_pref2G" -a "$force_down_24g" -gt 0 ] \
+                && __repacd_wifimon_is_timeout $badlink_start_time_5g $badlink_timeout5G; then
+                __repacd_wifimon_bring_iface_up $sta_iface_24g
+                badlink_switch_inprogess=1
+            fi
+            if [ "$badlink_switch_inprogess" -gt 0 ] \
+                && __repacd_wifimon_is_assoc $sta_iface_24g; then
+                __repacd_wifimon_bring_iface_down $sta_iface_5g
+                badlink_switch_inprogess=0
+                badlink_start_time_5g=''
+            fi
+
+
+            # We have our measurement, so the ping is no longer needed.
+            __repacd_stop_ping
+
+            # In case we disassociate after this, we will want to start the
+            # association timer again, so clear our state of the last time we
+            # started it so that it can be started afresh upon disassociation.
+            assoc_start_time=''
+        fi
+        rate_num=$((rate_num + 1))
     fi
 }
 
@@ -679,6 +1035,9 @@ __repacd_wifimon_measure_link() {
     fi
 
     if [ "$rssi_num" -eq 0 ]; then
+        if [ "$measuring_cnt" -gt 0 ]; then
+            __repacd_wifimon_debug "Measurement failed attempt # $measuring_cnt"
+        fi
         measuring_cnt=$((measuring_cnt + 1))
     fi
 
@@ -746,17 +1105,9 @@ __repacd_wifimon_measure_link() {
             # changed in the future).
             echo $rssi >> $rssi_filename
 
-            # This is a crude way to compute the median when the number of
-            # samples is odd. It is not strictly correct for an even number
-            # of samples since it does not compute the average of the two
-            # samples in the middle and rather just takes the lower one, but
-            # this should be sufficient for our purposes. The average is not
-            # performed due to the values being on the logarithmic scale and
-            # because shell scripts do not directly support floating point
-            # arithmetic.
-            local rssi_median_index=$((($rssi_num + 1) / 2))
-            local rssi_median=$(cat $rssi_filename | sort -n |
-                                head -n $rssi_median_index | tail -n 1)
+            # We got the required number of samples, now derive the median rssi.
+            local rssi_median
+            __repacd_wifimon_compute_median $rssi_filename $rssi_num rssi_median
             __repacd_wifimon_debug "Median RSSI = $rssi_median dBm"
             measuring_cnt=0
             if [ "$device_type" = 'RE' ]; then
@@ -888,10 +1239,13 @@ __repacd_wifimon_get_sta_iface() {
 # forcefully due to RSSI constraints and 2.4 G also went down
 # and stayed of for more then 2GBackhaulSwitchDownTime sec
 # bring back 5G.
-# input: $1 -None
+# input: $1 - re_mode: Current RE mode we are operating in.
+# input: $2 - re_submode: Current RE sub-mode we are operating in.
 # output:None
 
 __repacd_wifimon_evaluate_backhaul_link() {
+    local re_mode=$1
+    local re_submode=$2
 
     if [ "$force_down_5g" -gt 0 ] ; then
         if  ! __repacd_wifimon_is_assoc $sta_iface_24g;then
@@ -900,9 +1254,16 @@ __repacd_wifimon_evaluate_backhaul_link() {
             fi
 
             if __repacd_wifimon_is_timeout $down_time_2g $config_downtime2G; then
+                # Bring down the 2.4G backhaul if we are in daisy son mode.
+                # This will avoid bridge looping issue.
+                if [ "$daisy_chain" -gt 0 \
+                    -a "$re_mode" = 'son' -a "$re_submode" = 'daisy' ]; then
+                    __repacd_wifimon_bring_iface_down $sta_iface_24g
+                fi
                 __repacd_wifimon_bring_iface_up $sta_iface_5g
                 __repacd_wifimon_debug "Bringing up 5G as 2G went down"
                 down_time_2g=''
+                badlink_switch_inprogess=0
             fi
         else
             down_time_2g=''
@@ -910,23 +1271,172 @@ __repacd_wifimon_evaluate_backhaul_link() {
 
         if  __repacd_wifimon_is_timeout $force_down_5g_timestamp $backhaul_eval_time; then
             __repacd_wifimon_bring_iface_up $sta_iface_5g
+                __repacd_wifimon_debug "Bringing up 5G:eval interval $backhaul_eval_time sec expired"
             __repacd_wifimon_get_timestamp force_down_5g_timestamp
         fi
     fi
 }
+
+# Set rate measurement interface on which rate measurement
+# is to be done.
+# input: $1 - '5g' or '24g'
+__repacd_wifimon_set_rate_measurement_iface() {
+    if [ "$1" = '5g' ]; then
+        measurement_sta_iface=$sta_iface_5g
+        measurement_sta_iface_config_name=$sta_iface_5g_config_name
+        rate_min=$rate_min5G
+        rate_max=$rate_max5G
+    elif [ "$1" = '24g' ]; then
+        measurement_sta_iface=$sta_iface_24g
+        measurement_sta_iface_config_name=$sta_iface_24g_config_name
+        rate_min=$rate_min2G
+        rate_max=$rate_max2G
+    fi
+    __repacd_wifimon_debug "Rate measurement requested on $1"
+}
+
+# Check for configured BSSID in wireless file and update if required.
+# Driver will arrive at the best AP based on rate and return the BSSID,
+# the BSSID is written to the wireless config file using UCI.
+# input: $1 - sta_iface: sta interface to configure
+# input: $2 - sta_iface_config_name: config name of the sta interface
+# input: $3 - new_bssid: BSSID value to configure
+# output: $4 - restart wifi required or not
+__repacd_wifimon_check_and_config_bssid() {
+    local sta_iface=$1
+    local sta_iface_config_name=$2
+    local new_bssid=$3
+    local current_bssid peer_bssid
+
+    eval "$4=0"
+
+    # If BSSID is empty, return
+    if [ -z "$new_bssid" ]; then
+        return
+    fi
+
+    current_bssid=`iwconfig $sta_iface | grep "Access Point" | awk -F" " '{print $6}'`
+
+    config_load wireless
+    # If supplied BSSID and configured BSSID are same, simply return.
+    if __repacd_wifimon_is_peer_bssid_set $sta_iface_config_name; then
+        if [ "$new_bssid" = "$peer_bssid" ]; then
+            __repacd_wifimon_debug "$sta_iface: BSSID up to date"
+            return
+        fi
+    elif [ "$new_bssid" = "$current_bssid" ]; then
+        # Associated BSSID and supplied BSSID are same, just update
+        # the config file and supplicant, no restart required.
+        wpa_cli -p /var/run/wpa_supplicant-$sta_iface set_network 0 bssid $new_bssid
+        uci_set wireless $sta_iface_config_name bssid $new_bssid
+        uci_commit wireless
+        __repacd_wifimon_debug "$sta_iface: BSSID updated, NO RESTART required"
+        return
+    fi
+
+    # Write the new BSSID to wireless config file
+    uci_set wireless $sta_iface_config_name bssid $new_bssid
+    uci_commit wireless
+    eval "$4=1"
+    __repacd_wifimon_debug "$sta_iface: BSSID updated, RESTART required"
+}
+
+# Configure Best AP based on Rate : for 5G only
+# Driver will arrive at the best AP based on rate and return the BSSID,
+# the BSSID is written to the wireless config file using UCI.
+# input: None
+# output: $1 - restart wifi required or not
+__repacd_wifimon_config_best_ap() {
+    local selected_bssid peer_bssid
+
+    if [ -n "$sta_iface_5g" -a "$force_down_5g" -eq 0 ]; then
+       __repacd_wifimon_debug "$measurement_sta_iface: Finding best AP"
+
+       eval "$1=0"
+
+       # Driver returns BSSID without separator(:), add the separator before writting
+       # to config file.
+       selected_bssid=`iwpriv $measurement_sta_iface get_whc_bssid | awk -F":" '{print $2}' | \
+       sed -e "s/\(..\)\(..\)\(..\)\(..\)\(..\)\(..\)/\1:\2:\3:\4:\5:\6/"`
+       __repacd_wifimon_debug "$measurement_sta_iface: BSSID = $selected_bssid"
+
+       if [ "$selected_bssid" != "00:00:00:00:00:00" ]; then
+           __repacd_wifimon_check_and_config_bssid $measurement_sta_iface \
+               $measurement_sta_iface_config_name $selected_bssid $1
+       fi
+    fi
+}
+
+# Configure 5G BSSID of Current association to the provided sta interface.
+# The BSSID is arrived from iwconfig command.
+# The BSSID is written to the wireless config file using UCI.
+# input: None
+__repacd_wifimon_config_current_5g_bssid() {
+    local selected_bssid restart=0
+
+    if [ -n "$sta_iface_5g" ]; then
+        # Get the currently associated BSSID from iwconfig.
+        selected_bssid=`iwconfig $sta_iface_5g | grep "Access Point" | awk -F" " '{print $6}'`
+        __repacd_wifimon_debug "$sta_iface_5g: BSSID = $selected_bssid"
+
+        if [ "$selected_bssid" != "00:00:00:00:00:00" ]; then
+            __repacd_wifimon_check_and_config_bssid $sta_iface_5g \
+                $sta_iface_5g_config_name $selected_bssid restart
+        fi
+        if [ "$restart" -gt 0 ]; then
+            # Restart the network with configured BSSID
+            wpa_cli -p /var/run/wpa_supplicant-$sta_iface_5g disable_network 0
+            wpa_cli -p /var/run/wpa_supplicant-$sta_iface_5g set_network 0 bssid $selected_bssid
+            wpa_cli -p /var/run/wpa_supplicant-$sta_iface_5g enable_network 0
+        fi
+    fi
+}
+
+# Configure 2.4G BSSID of CAP for the provided sta interface.
+# Driver will arrive at the CAP 2.4G BSSID,
+# the BSSID is written to the wireless config file using UCI.
+# input: None
+__repacd_wifimon_config_cap_24g_bssid() {
+    local selected_bssid restart=0
+
+    if [ -n "$sta_iface_24g" ]; then
+        # Driver returns BSSID without separator(:), add the separator before writting
+        # to config file.
+        selected_bssid=`iwpriv $sta_iface_24g g_whc_cap_bssid | awk -F":" '{print $2}' | \
+        sed -e "s/\(..\)\(..\)\(..\)\(..\)\(..\)\(..\)/\1:\2:\3:\4:\5:\6/"`
+        __repacd_wifimon_debug "$sta_iface_24g: CAP BSSID = $selected_bssid"
+
+        if [ "$selected_bssid" != "00:00:00:00:00:00" ]; then
+            __repacd_wifimon_check_and_config_bssid $sta_iface_24g \
+                $sta_iface_24g_config_name $selected_bssid restart
+        fi
+        if [ "$restart" -gt 0 ]; then
+            # Restart the network with configured BSSID
+            wpa_cli -p /var/run/wpa_supplicant-$sta_iface_24g disable_network 0
+            wpa_cli -p /var/run/wpa_supplicant-$sta_iface_24g set_network 0 bssid $selected_bssid
+            wpa_cli -p /var/run/wpa_supplicant-$sta_iface_24g enable_network 0
+        fi
+    fi
+}
+
 # Initialize the Wi-Fi monitoring logic with the name of the network being
 # monitored.
 # input: $1 - network: the name of the network being managed
 # input: $2 - cur_re_mode: the current operating range extender mode
-# input: $3 - autoconfig: whether it was an auto-config restart
-# output: $4 - state: the name of the initial state
-# output: $5 - new_re_mode: the resolved range extender mode
+# input: $3 - cur_re_submode: the current operating range extender submode
+# input: $4 - autoconfig: whether it was an auto-config restart
+# output: $5 - state: the name of the initial state
+# output: $6 - new_re_mode: the resolved range extender mode
+# output: $7 - new_re_submode: the resolved range extender submode
 repacd_wifimon_init() {
     # Resolve the STA interfaces.
     # Here we assume that if we have the 5 GHz interface, that is sufficient,
     # as not all modes will have a 2.4 GHz interface.
     __repacd_wifimon_get_sta_iface $1
     if [ -n "$sta_iface_5g" ]; then
+        local re_mode=$2
+        local re_submode=$3
+
         if [ -n "$sta_iface_24g" ]; then
             __repacd_wifimon_debug "Resolved 2.4 GHz STA interface to $sta_iface_24g"
             __repacd_wifimon_debug "2.4 GHz STA interface section $sta_iface_24g_config_name"
@@ -940,9 +1450,14 @@ repacd_wifimon_init() {
         config_get device_type 'repacd' 'DeviceType' 'RE'
         config_get config_re_mode 'repacd' 'ConfigREMode' 'auto'
         config_get default_re_mode 'repacd' 'DefaultREMode' 'qwrap'
+        config_get traffic_separation_enabled repacd TrafficSeparationEnabled '0'
+        config_get traffic_separation_active repacd TrafficSeparationActive '0'
+        config_get guest_backhaul repacd NetworkGuestBackhaulInterface '2.4G'
+        config_get network_guest repacd NetworkGuest 'guest'
 
         config_get min_auto_mode_assoc 'WiFiLink' 'MinAssocCheckAutoMode' '5'
         config_get min_wps_assoc 'WiFiLink' 'MinAssocCheckPostWPS' '5'
+        config_get min_bssid_assoc 'WiFiLink' 'MinAssocCheckPostBSSIDConfig' '5'
         config_get wps_timeout 'WiFiLink' 'WPSTimeout' '120'
         config_get assoc_timeout 'WiFiLink' 'AssociationTimeout' '300'
         config_get rssi_samples 'WiFiLink' 'RSSINumMeasurements' '5'
@@ -955,6 +1470,17 @@ repacd_wifimon_init() {
         config_get measuring_attempts 'WiFiLink' 'MaxMeasuringStateAttempts' '3'
         config_get config_short_eval_time5g 'WiFiLink' '5GBackhaulEvalTimeShort' '1800'
         config_get config_long_eval_time5g  'WiFiLink' '5GBackhaulEvalTimeLong' '7200'
+        config_get daisy_chain 'WiFiLink' 'DaisyChain' '0'
+        config_get rate_samples 'WiFiLink' 'RateNumMeasurements' '5'
+        config_get rate_min5G 'WiFiLink' 'RateThresholdMin5G' '700'
+        config_get rate_max5G 'WiFiLink' 'RateThresholdMax5G' '1200'
+        config_get rate_pref2G 'WiFiLink' 'RateThresholdPrefer2GBackhaul' '200'
+        config_get bssid_assoc_timeout 'WiFiLink' 'BSSIDAssociationTimeout' '90'
+        config_get badlink_timeout5G 'WiFiLink' '5GBackhaulBadlinkTimeout' '60'
+
+        # By default start measurements on 5G STA.
+        __repacd_wifimon_set_rate_measurement_iface '5g'
+
         # Create ourselves a named pipe so we can be informed of WPS push
         # button events.
         if [ -e $WIFIMON_PIPE_NAME ]; then
@@ -963,8 +1489,15 @@ repacd_wifimon_init() {
 
         mkfifo $WIFIMON_PIPE_NAME
 
+        # Bring down the 2.4G backhaul if we are in daisy son mode.
+        # This will avoid bridge looping issue.
+        if [ "$daisy_chain" -gt 0 -a -n "$sta_iface_24g" -a "$force_down_24g" -eq 0 \
+            -a "$re_mode" = 'son' -a "$re_submode" = 'daisy' ]; then
+            __repacd_wifimon_bring_iface_down $sta_iface_24g
+        fi
+
         # If already associated, go to the InProgress state.
-        __repacd_wifimon_check_associated $1 $2 $3 $4 $5
+        __repacd_wifimon_check_associated $1 $2 $3 $4 $5 $6 $7
     fi
     # Otherwise, must be operating in CAP mode.
 }
@@ -972,8 +1505,11 @@ repacd_wifimon_init() {
 # Check the status of the Wi-Fi link (WPS, association, and RSSI).
 # input: $1 - network: the name of the network being managed
 # input: $2 - cur_re_mode: the currently configured range extender mode
-# output: $3 - state: the name of the new state (only set upon a change)
-# output: $4 - re_mode: the desired range extender mode (updated only once
+# input: $3 - cur_re_submode: the currently configured range extender sub-mode
+# output: $4 - state: the name of the new state (only set upon a change)
+# output: $5 - re_mode: the desired range extender mode (updated only once
+#                       the link to the AP is considered stable)
+# output: $6 - re_submode: the desired range extender submode (updated only once
 #                       the link to the AP is considered stable)
 repacd_wifimon_check() {
     if [ -n "$sta_iface_5g" ]; then
@@ -991,15 +1527,15 @@ repacd_wifimon_check() {
 
         __repacd_wifimon_debug "WPS CHECK LOOP:$pipe_empty wps:$wps_event"
 
-
         done
+
 
         if [ "$wps_event" = "wps_pbc" ]; then
             assoc_timeout_logged=0
             wps_timeout_logged=0
 
             __repacd_wifimon_debug "WPS START"
-            eval "$3=$WIFIMON_STATE_AUTOCONFIG_IN_PROGRESS"
+            eval "$4=$WIFIMON_STATE_AUTOCONFIG_IN_PROGRESS"
             wps_in_progress=1
             __repacd_wifimon_get_timestamp wps_start_time
             return 0
@@ -1007,12 +1543,17 @@ repacd_wifimon_check() {
         elif [ "$wps_event" = "wps_finish" ]; then
             wps_in_progress=0
             __repacd_wifimon_debug "WPS FINISH"
-            eval "$3=$WIFIMON_STATE_AUTOCONFIG_FINISH"
+            eval "$4=$WIFIMON_STATE_AUTOCONFIG_FINISH"
+            return 0
+        elif [ "$wps_event" = "wps_fail" ]; then
+            wps_in_progress=0
+            __repacd_wifimon_debug "WPS FAIL"
+            eval "$3=$WIFIMON_STATE_AUTOCONFIG_FAIL"
             return 0
         fi
 
 
-        if  __repacd_wifimon_check_associated $1 $2 0 $3 $4 ; then
+        if __repacd_wifimon_check_associated $1 $2 $3 0 $4 $5 $6; then
             assoc_timeout_logged=0
             wps_timeout_logged=0
         else  # not associated
@@ -1024,10 +1565,38 @@ repacd_wifimon_check() {
                         wps_timeout_logged=1
                     fi
 
-                    eval "$3=$WIFIMON_STATE_WPS_TIMEOUT"
-                    #wps_in_progress=0
+                    eval "$4=$WIFIMON_STATE_WPS_TIMEOUT"
                 fi
             else
+                if [ "$daisy_chain" -gt 0 ]; then
+                    if __repacd_wifimon_is_timeout $assoc_start_time $bssid_assoc_timeout; then
+                        local bssid_deleted=0
+                        # Configured BSSID association timed out,
+                        # the desired BSSID might have powered down or not reachable.
+                        # Reset the BSSID and restart the wifi for fresh association.
+                        if [ -n "$sta_iface_5g" ] \
+                            && __repacd_wifimon_is_peer_bssid_set $sta_iface_5g_config_name; then
+                            __repacd_wifimon_debug "BSSID assoc timed out delete BSSID for $sta_iface_5g"
+                            uci delete wireless.${sta_iface_5g_config_name}.bssid
+                            bssid_deleted=1
+                        fi
+
+                        # If we are reseting 5G BSSID, do it for 2.4G also,
+                        # 2.4G BSSID will also change for first hop RE.
+                        if [ -n "$sta_iface_24g" ] \
+                            && __repacd_wifimon_is_peer_bssid_set $sta_iface_24g_config_name; then
+                            __repacd_wifimon_debug "BSSID assoc timed out delete BSSID for $sta_iface_24g"
+                            uci delete wireless.${sta_iface_24g_config_name}.bssid
+                            bssid_deleted=1
+                        fi
+
+                        if [ "$bssid_deleted" -gt 0 ]; then
+                            uci_commit wireless
+                            eval "$4=$WIFIMON_STATE_BSSID_ASSOC_TIMEOUT"
+                        fi
+                    fi
+                fi
+
                 if __repacd_wifimon_is_timeout $assoc_start_time $assoc_timeout; then
                     # If we have two STA interfaces and only 5 GHz is
                     # associated, see if mode switching is necessary for it
@@ -1039,15 +1608,21 @@ repacd_wifimon_check() {
                     # even in the fallback modes, we may need to make this
                     # smarter and consider both possible STA interfaces that
                     # may be associated.
-                    if [ -n "$sta_iface_24g" ] && [ -n "$sta_iface_5g" ] && \
-                       __repacd_wifimon_is_assoc $sta_iface_5g; then
-                        tmp_sta_iface_24g=$sta_iface_24g
-                        sta_iface_24g=
-                        if ! __repacd_wifimon_resolve_mode $2 $4; then
-                            # Not currently in the right mode. Restore the
-                            # interface name and return to allow for a restart.
-                            sta_iface_24g=$tmp_sta_iface_24g
-                            return
+                    if [ -n "$sta_iface_24g" ] && [ -n "$sta_iface_5g" ]; then
+                        if __repacd_wifimon_is_assoc $sta_iface_5g; then
+                            local tmp_sta_iface_24g=$sta_iface_24g
+                            sta_iface_24g=
+                            if ! __repacd_wifimon_resolve_mode $2 $3 $5 $6; then
+                                # Not currently in the right mode. Restore the
+                                # interface name and return to allow for a restart.
+                                sta_iface_24g=$tmp_sta_iface_24g
+                                return
+                            fi
+                        # Bring down 5G backhaul, we are not associated for long time.
+                        # 2.4G backhaul is ready to take over.
+                        elif [ "$daisy_chain" -gt 0 -a "$force_down_24g" -eq 0 ] \
+                            && __repacd_wifimon_is_assoc $sta_iface_24g; then
+                            __repacd_wifimon_bring_iface_down $sta_iface_5g
                         fi
                     fi
 
@@ -1056,12 +1631,27 @@ repacd_wifimon_check() {
                         assoc_timeout_logged=1
                     fi
 
-                    eval "$3=$WIFIMON_STATE_ASSOC_TIMEOUT"
-                    assoc_start_time=''
+                    eval "$4=$WIFIMON_STATE_ASSOC_TIMEOUT"
                 fi
             fi
         fi
-        __repacd_wifimon_evaluate_backhaul_link
+        __repacd_wifimon_evaluate_backhaul_link $2 $3
+
+        if [ "$traffic_separation_enabled" -gt 0 ] &&
+               [ "$traffic_separation_active" -gt 0 ]; then
+            if ! __repacd_wifimon_is_assoc $sta_iface_5g || \
+               ! __repacd_wifimon_is_assoc $sta_iface_24g || [ "$guest_link_override" -gt 0 ] || \
+               [ "$force_down_5g" -gt 0 ] || [ "$force_down_24g" -gt 0 ]; then
+                if [ -n "$sta_iface_24g" ] && [ -n "$sta_iface_5g" ]; then
+                    if [ "$guest_backhaul" = '5G' ]; then
+                        __repacd_wifimon_override_guest_backhaul $sta_iface_5g $sta_iface_24g
+                    elif [ "$guest_backhaul" = '2.4G' ]; then
+                        __repacd_wifimon_override_guest_backhaul $sta_iface_24g $sta_iface_5g
+                    fi
+                fi
+            fi
+        fi
+
     fi
 }
 

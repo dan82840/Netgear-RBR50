@@ -66,7 +66,7 @@ config MINIUPNPD_PATCH_GEN_UUID
 config WAN_IFNAME
 	string
 	prompt "wan interface name"
-	default "eth0"
+	default "brwan"
 	help
 	  the name of wan interface 
 

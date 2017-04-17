@@ -112,4 +112,30 @@ fi
 
 sleep $POLLING_SEC
 
+ath2_not_connected=`iwconfig ath2 | grep "Not-Associated"`
+ath01_not_connected=`iwconfig ath01 | grep "Not-Associated"`
+
+if [ "$ath2_not_connected" -a "$ath01_not_connected" ]; then
+    echo "backhaul not connected"
+else
+    enable_24G=`config get endis_wl_radio`
+    enable_5G=`config get endis_wla_radio`
+    wifischedule_24G=`config get wladv_schedule_enable`
+    wifischedule_5G=`config get wladv_schedule_a`
+
+    if [ "$enable_24G" -eq '1' -a "$enable_5G" -eq '1' -a "$wifischedule_24G" -eq '0' -a "$wifischedule_5G" -eq '0' ]; then
+        ath1_not_connected=`iwconfig ath1 | grep "Not-Associated"`
+        ath0_not_connected=`iwconfig ath0 | grep "Not-Associated"`
+        if [ -n "$ath1_not_connected" ]; then
+        echo "Bring fronthaul 5G interface up" > /dev/console
+            ifconfig ath1 up
+        fi
+        if [ -n "$ath0_not_connected" ]; then
+        echo "Bring fronthaul 2.4G interface up" > /dev/console
+            ifconfig ath0 up
+        fi
+    fi
+
+fi
+
 done

@@ -1,6 +1,9 @@
 WLAN_DEVICES=
 WLAN_DEVICE_NUM=
 ALL_DEVICES=
+local guest_network="guest"
+local traffic_separation_enabled=0
+local traffic_separation_active=0
 
 __whc_get_wlan_vifnum() {
 	local config="$1"
@@ -23,17 +26,25 @@ __whc_get_wlan_vifnum() {
 __whc_get_wlan_ifaces() {
 	local config="$1"
 	local ssid_to_match="$2"
-	local device iface disabled mode ssid
+	local device iface disabled mode ssid network
 
 	config_get device "$config" device
 	config_get iface "$config" ifname
 	config_get disabled "$config" disabled '0'
 	config_get mode "$config" mode
 	config_get ssid "$config" ssid
+	config_get network "$config" network
 
 	if [ "$mode" == "wrap" ]; then
 		echo "Interface $iface is in QWrap mode, can not use for lbd"
 		return
+	fi
+
+	if [ "$traffic_separation_enabled" -gt 0 ] && \
+		[ "$traffic_separation_active" -gt 0 ] && \
+		[ "$network" == "$guest_network" ]; then
+			echo "Interface $iface is part of guest network, currently not used for lbd"
+                return
 	fi
          
 	if [ -n "$iface" -a "$mode" == "ap" -a "$disabled" -eq 0 ]; then
@@ -49,6 +60,11 @@ __whc_get_wlan_ifaces() {
 #        interfaces; otherwise, get all that matches this SSID
 whc_get_wlan_ifaces() {
 	WLAN_DEVICES=""
+	config_load 'repacd'
+	config_get guest_network repacd NetworkGuest 'guest'
+	config_get traffic_separation_enabled repacd TrafficSeparationEnabled '0'
+	config_get traffic_separation_active repacd TrafficSeparationActive '0'
+
 	config_load wireless
 	config_foreach __whc_get_wlan_ifaces wifi-iface $2
 

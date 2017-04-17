@@ -20,8 +20,15 @@ hyfi_network_restart() {
 
 	lock -u /var/run/hyfi_network.lock
 	[ -f /sbin/wlan ] && {
-		/sbin/wlan down
-		/sbin/wlan up
+		for i in $(cat /tmp/wifi_topology);
+			do  mode=`echo  "$i" | awk -F ':' '{print $2}'` ;
+				if [ "$mode" = "AP" ]; then
+				radio=`echo  "$i" | awk -F ':' '{print $3}'`
+				/sbin/wlan down $radio
+				/sbin/wlan up $radio
+				fi
+			done
+
 	}
 
 	trap - INT ABRT QUIT ALRM
@@ -29,12 +36,6 @@ hyfi_network_restart() {
 
 hyfi_network_update_dni_wifi(){
     /sbin/uci2dnicfg.sh
-}
-
-hyfi_network_dni_set_module_reload(){
-    local reload=$1
-    [ -z "$reload" ] && reload=1
-    uci set wireless.qcawifi=qcawifi
-    uci set wireless.qcawifi.module_reload=$reload
-    uci commit wireless
+    /sbin/wifison.sh updateconf lbd
+    /etc/init.d/hyd restart
 }

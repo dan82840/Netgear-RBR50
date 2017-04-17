@@ -3015,7 +3015,7 @@ void ssdk_intf_set(struct net_device *dev, char op)
 		tmp_vid = entry.vid;
 		if (tmp_vid != 0) {
 			if(entry.mem_ports & wan_port) {
-				if (!strcmp(dev->name, "eth0")) {
+				if (!strcmp(dev->name, "eth0") || !strcmp(dev->name, "brwan")) {
 					intf_entry.vid_low = tmp_vid;
 					intf_entry.vid_high = intf_entry.vid_low;
 					if (op) {
@@ -3041,7 +3041,7 @@ void ssdk_intf_set(struct net_device *dev, char op)
 					}
 				}
 			} else {
-				if (strcmp(dev->name, "eth0")) {
+				if (strcmp(dev->name, "eth0") && strcmp(dev->name, "brwan")) {
 					intf_entry.vid_low = tmp_vid;
 					intf_entry.vid_high = intf_entry.vid_low;
 					if (op) {

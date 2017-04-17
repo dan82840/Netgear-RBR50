@@ -22,6 +22,7 @@ var str_old = "<tr><td>" + "$old_ver" + "&nbsp;&nbsp;&nbsp;&nbsp;" + current_ver
 var str_new = "<tr><td>" + "$upload_ver" + "&nbsp;&nbsp;&nbsp;&nbsp;" + new_version +"</td></tr>";
 document.write(str_old);
 document.write(str_new);
+var cfg_allow_upgrade="<% cat_file("/tmp/cfg_allow_upgrade_fw") %>";
 </script>
 
 $bluebar
@@ -92,16 +93,20 @@ function loadvalue()
 		file_num*=100;
 	}
 
-	if(netgear_num<file_num)
-	{
-		click_button(document.forms[0], 1);
-	}
-	else if( netgear_num > file_num )
-	{
-		if(!confirm("$oldver1" +new_version + " $oldver2" + current_version + " $oldver3"))
+	if(cfg_allow_upgrade == "0" && file_num < "1040000"){//when cfg_allow_upgrade is 0,and version lower than V1.4.0.0,can't allow user upgrade fw.
+		this.location.href="UPG_failure.htm";
+	}else{
+		if(netgear_num<file_num)
 		{
-			return_to_upgrade_page();
-			return false;
+			click_button(document.forms[0], 1);
+		}
+		else if( netgear_num > file_num )
+		{
+			if(!confirm("$oldver1" +new_version + " $oldver2" + current_version + " $oldver3"))
+			{
+				return_to_upgrade_page();
+				return false;
+			}
 		}
 	}
 }

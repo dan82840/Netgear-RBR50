@@ -401,8 +401,7 @@ function click_adv_action(id)
                 }
 		else if( id == "qos")
 		{
-			
-			goto_formframe("QOS_wmm.htm");
+			goto_formframe("QOS_speedtest.htm");
 			menu_color_change('qos');
 		}
                 else if( id == "usb_bas" )

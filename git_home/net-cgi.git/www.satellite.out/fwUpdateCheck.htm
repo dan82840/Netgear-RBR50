@@ -9,7 +9,7 @@
 //new_version=new_version.substring(1);
 var current_version="<% cat_file("/firmware_version") %>".substring(1);
 var current_region="<% cat_file("/firmware_region") %>";
-
+var cfg_allow_upgrade="<% cat_file("/tmp/cfg_allow_upgrade_fw") %>";
 </script>
 <div id="slider">
 <div class="main clearfix">

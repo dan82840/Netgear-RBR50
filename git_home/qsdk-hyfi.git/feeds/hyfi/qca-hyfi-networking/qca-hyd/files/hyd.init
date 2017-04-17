@@ -52,13 +52,13 @@ __hyd_cfg_add_str() {
 
 __hyd_get_default_mode() {
 
-	local mode=$(artmtd -r board_model_id)
+        local mode=`/sbin/artmtd -r board_model_id | awk -F: '{print $2}'`
 
-	if [ "$mode" = "model_id:RBS50" ] ;then
+	if [ "$mode" = "RBS50" -o "$mode" = "RBS30" ] ;then
 		eval "$1='HYCLIENT'"
 		uci set hyd.config.Mode=HYCLIENT
 		uci commit hyd
-	elif [ "$mode" = "model_id:RBR50" ] ;then
+	elif [ "$mode" = "RBR50" -o "$mode" = "RBR30" ] ;then
 		eval "$1='HYROUTER'"
 		uci set hyd.config.Mode=HYROUTER
 		uci commit hyd
@@ -80,6 +80,7 @@ __hyd_get_wlan_sta_ifaces() {
 
 __hyd_cfg_add_interface() {
 	local all_ifaces wlan_ifaces plc_iface non_relay_ifaces default_mode
+	local wlan_vlan_sta_ifaces
 
 	__hyd_cfg_append 'HybridBridgeInterfaceName=br'$ieee1905managed_bridge
 
@@ -101,6 +102,9 @@ __hyd_cfg_add_interface() {
 		# Get all WLAN interfaces bound to the managed bridge
 		config_load wireless
 		config_foreach __hyd_get_wlan_sta_ifaces wifi-iface $ieee1905managed_bridge
+
+		hyfi_get_wlan_vlan_sta_ifaces $ieee1905managed_bridge wlan_vlan_sta_ifaces
+		non_relay_ifaces=${non_relay_ifaces}${non_relay_ifaces:+","}${wlan_vlan_sta_ifaces}
 
 		__hyd_cfg_append	'NoRelayGroupList='"$non_relay_ifaces"
 		__hyd_cfg_append	'ForceGroupRelaying=1'

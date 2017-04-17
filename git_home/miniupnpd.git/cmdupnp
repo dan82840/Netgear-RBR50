@@ -23,6 +23,8 @@ appsystem_location=http://updates1.netgear.com/r7800/ww/r7800.ddf
 appsystem_os=Linux/3.4
 appsystem_product=r7800
 non_igd=${7:-0}
+max_leaseduration=86400
+check_interval=3600
 EOF
 }
 
@@ -32,7 +34,7 @@ upnp_start() {
 	if [ "$proto" = "pppoe" -o "$proto" = "pptp" -o "$proto" = "mulpppoe1" ]; then
 		wan_ifname="ppp0"
 	else
-		wan_ifname="eth0"
+		wan_ifname="brwan"
 	fi
 
 	local name=$($config get netbiosname)

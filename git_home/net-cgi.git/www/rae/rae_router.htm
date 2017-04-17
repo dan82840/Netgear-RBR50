@@ -1,5 +1,5 @@
 <% http_header("style/form2.css", "/funcs_min.js","/jquery-1.7.2.min.js") %>
-<% body_header("_rae", "rae_waiting.htm", "rae_router") %>
+<% body_header("_rae", "ap_waiting.htm", "rae_router") %>
 <style type="text/css">
 .link_a{background-color: #702b86; margin-left: 0px; color: #f2f2f2;  font: -webkit-small-control; padding-left:20px; padding-right:20px; border-top-width: 0px; border-left-width: 0px; border-bottom-width: 0px; border-right-width: 0px;}
 .blue_a{COLOR: blue; TEXT-DECORATION: underline}
@@ -14,9 +14,9 @@
 	<script>
 		var master="<% cfg_get("http_loginname") %>";
 		if( master=="admin" )
-			document.write('<input class="new_cancel_bt ui-corner-all" type="reset" name="Cancel" value="$cancel_mark" onClick="location.href=\'rae_main.htm\';"><input class="new_apply_bt ui-corner-all" type="submit" name="Apply" value="$apply_mark" onClick="return click_apply();">');
+			document.write('<input class="cancel_bt" type="reset" name="Cancel" value="$cancel_mark" onClick="location.href=\'rae_main.htm\';"><input class="apply_bt" type="submit" name="Apply" value="$apply_mark" onClick="return click_apply();">');
 		else
-			document.write('<input class="new_greycancel_bt ui-corner-all" type="reset" name="Cancel" value="$cancel_mark" disabled><input class="new_greyapply_bt ui-corner-all" type="submit" name="Apply" value="$apply_mark" disabled>');
+			document.write('<input class="cancel1_bt" type="reset" name="Cancel" value="$cancel_mark" disabled><input class="apply1_bt" type="submit" name="Apply" value="$apply_mark" disabled>');
 	</script>
 	</TD>
 </TR>
@@ -57,7 +57,7 @@ function click_apply()
 				<tr><td><input type="button"  name="wireless" value="$wls_setup" class="wireless_bt2 ui-corner-all" onclick="gotto_link('setup', 'wireless');"></td></tr>
 			</table>
 		</div>
-	<div class="foot"><img src="image/router_map.gif" style="padding-left:30px; padding-top:40px"></div>
+	<div class="foot"><img src="image/router_map.png" style="padding-left:30px; padding-top:40px"></div>
 </div>
 <% help_box("0","_rae_router") %>
 </form>

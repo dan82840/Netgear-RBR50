@@ -42,12 +42,24 @@ local LBD_INIT='/etc/init.d/lbd'
 . /lib/functions/whc-iface.sh
 . /lib/functions/whc-network.sh
 
+RE_DEFAULT_RATE_ESTIMATE_SCALING_FACTOR='70'
+
 local managed_network config_changed=0
 local vap_defconf=1
-local config_re_mode resolved_re_mode
+local config_re_mode resolved_re_mode resolved_re_submode
 local wsplcd_enabled=0 wsplcd_start=0 wsplcd_stop=0 wsplcd_restart=0
 local hyd_start=0 hyd_stop=0
 local resolved_ssid resolved_enc resolved_key
+
+local network_guest
+local guest_backhaul_iface
+local network_spcl="backhaul"
+local guest_ssid_suffix="guest" spcl_ssid_suffix="spcl"
+local traffic_separation_enabled traffic_separation_active create_sta=0
+local ssid_copy enc_copy key_copy
+local vlan1_ports= vlan2_ports= vlan1_remaining_ports= vlan1_port_count=0
+local inc=1
+local daisy_chain=0 bssid_updated=0
 
 # Write the provided log message to the correct output stream.
 # If REPACD_DEBUG_OUTOUT is non-zero, it will be written to the console.
@@ -75,6 +87,178 @@ __repacd_gw_mode() {
 
     return 1
 }
+
+# Determine if the network is configured or not.
+#
+# input: $1 network name
+# return: 0 if network exist; otherwise non-zero
+__repacd_network_exist() {
+    local lan_name=$1
+    local no_network
+
+    no_network=`uci show network.$lan_name 2>&1 | grep 'Entry not found'`
+    [ -n "$no_network" ] && return 1
+
+    return 0
+}
+
+# Determine if additional network exist.
+# Currently looking out for only guest network.
+#
+# input: $1 network name
+# return: 0 if exist; otherwise non-zero
+__repacd_check_additional_network_exist() {
+    config_load network
+
+    if [ -n "$network_guest" ]; then
+        if __repacd_network_exist $network_guest; then
+            return 0
+        fi
+    fi
+
+    return 1
+}
+
+# Add the given interface to the given network.
+# input: $1 network name
+# input: $2 interface name
+__repacd_add_interface() {
+    local name=$1 new_if="$2"
+    local if_name
+
+    config_load network
+    if __repacd_network_exist $name; then
+        if [ -n "$new_if" ]; then
+            if_name=`uci get network.$name.ifname`
+            if [ -n "$if_name" ]; then
+                if_name="$if_name $new_if"
+            else
+                if_name="$new_if"
+            fi
+            uci set network.$name.ifname="$if_name"
+        fi
+        uci_commit network
+    fi
+}
+
+# Get spcl interfaces.Interfaces with suffix spcl in their SSID.
+# input: $1 band either 2.4G or 5G
+# output: $2 - variable into which we populate interface list.
+__repacd_get_spcl_interfaces() {
+    local ifaces
+    local ifaces_24g
+    local ifaces_5g
+
+    ifaces=`iwconfig 2>&1 | grep spcl`
+    if [ "$1" = '2.4G' ]; then
+        ifaces_24g=`echo "$ifaces" | grep -E '11b|11g|11ng' | cut -d ' ' -f1`
+        eval "$2='$ifaces_24g'"
+    elif [ "$1" = '5G' ]; then
+        ifaces_5g=`echo "$ifaces" | grep -E '11a|11na|11ac' | cut -d ' ' -f1`
+        eval "$2='$ifaces_5g'"
+    fi
+}
+
+# Create VLAN interfaces for all the special vaps that we create and add the
+# created interfaces to the given network.
+# VLAN interfaces are created by concatenating interface name and vlan id.
+# input: $1 network name
+# input: $2 VLAN id
+__repacd_add_vlan_interfaces() {
+    local spcl_interfaces_5g
+    local spcl_interfaces_24g
+    local id=$2
+    local network=$1
+    local backhaul_iface=$3
+    local interface
+    local ifname
+
+    if [ "$backhaul_iface" = 'both' -a "$network" = "$managed_network" ]; then
+        __repacd_get_spcl_interfaces '2.4G' spcl_interfaces_24g
+        __repacd_get_spcl_interfaces '5G' spcl_interfaces_5g
+    elif [ "$backhaul_iface" = '5G' ]; then
+        __repacd_get_spcl_interfaces '5G' spcl_interfaces_5g
+    else
+        __repacd_get_spcl_interfaces '2.4G' spcl_interfaces_24g
+    fi
+
+    if [ -n "$spcl_interfaces_5g" ]; then
+        for interface in $spcl_interfaces_5g; do
+            ifname=`iwconfig 2>&1 | grep "$interface.$id" | cut -d ' ' -f1`
+            if [ -z "$ifname" ]; then
+                vconfig add $interface $id
+                brctl addif "br-$network" "$interface.$id"
+                ifconfig $interface.$id up
+                __repacd_add_interface $network "$interface.$id"
+            fi
+        done
+    fi
+
+    if [ -n "$spcl_interfaces_24g" ]; then
+        for interface in $spcl_interfaces_24g; do
+            ifname=`iwconfig 2>&1 | grep "$interface.$id" | cut -d ' ' -f1`
+            if [ -z "$ifname" ]; then
+                vconfig add $interface $id
+                brctl addif "br-$network" "$interface.$id"
+                ifconfig $interface.$id up
+                __repacd_add_interface $network "$interface.$id"
+            fi
+        done
+    fi
+
+}
+
+# Create firewall rules for the given network if the rule does not exist.
+# input: $1 network name
+__repacd_set_firewall_rules() {
+    local network=$1
+    local no_rule
+
+    no_rule=`uci show firewall | grep zone | grep $network`
+
+    if [ -z "$no_rule" ]; then
+        local zone=`uci add firewall zone`
+        if [ -n "$zone" ]; then
+            uci_set firewall $zone name $network
+            uci add_list firewall.$zone.network=$network
+            uci_set firewall $zone input 'REJECT'
+            uci_set firewall $zone output 'ACCEPT'
+            uci_set firewall $zone forward 'REJECT'
+
+            local fwd=`uci add firewall forwarding`
+            if [ -n "$fwd" ]; then
+                uci_set firewall $fwd src $network
+                uci_set firewall $fwd dest 'wan'
+            fi
+
+            local rule=`uci add firewall rule`
+            if [ -n "$rule" ]; then
+                uci_set firewall $rule name 'Allow-DHCP-request'
+                uci_set firewall $rule src $network
+                uci_set firewall $rule src_port '67-68'
+                uci_set firewall $rule dest_port '67-68'
+                uci_set firewall $rule proto 'udp'
+                uci_set firewall $rule target 'ACCEPT'
+            fi
+
+            rule=`uci add firewall rule`
+            if [ -n "$rule" ]; then
+                uci_set firewall $rule name 'Allow-DNS-queries'
+                uci_set firewall $rule src $network
+                uci_set firewall $rule dest_port '53'
+                uci_set firewall $rule proto 'tcpudp'
+                uci_set firewall $rule target 'ACCEPT'
+            fi
+        fi
+    fi
+    uci_commit firewall
+}
+
+# Restart firewall.
+__repacd_restart_firewall() {
+    /etc/init.d/firewall restart
+}
+
 
 # Determine the configured RE mode, not applying any automatic mode
 # switching rules.
@@ -123,6 +307,9 @@ __repacd_get_re_mode() {
     else
         mode=$config_re_mode
     fi
+
+    # Get the Association derived sub-mode. If not derived, say "star".
+    config_get resolved_re_submode repacd 'AssocDerivedRESubMode' 'star'
 
     eval "$resolved_mode=$mode"
 }
@@ -199,6 +386,25 @@ __repacd_is_block_dfs() {
     fi
 }
 
+# Get the configured Rate scaling factor.
+# Gives default value in case of configuration miss or invalid value.
+#
+# output: $1 - rate_scaling_factor
+__repacd_get_rate_scaling_factor() {
+    local scaling_factor
+
+    config_load 'repacd'
+    config_get scaling_factor WiFiLink 'RateScalingFactor' $RE_DEFAULT_RATE_ESTIMATE_SCALING_FACTOR
+
+    # If scaling factor out of limits, return the default value "70".
+    if [ "$scaling_factor" -lt '1' \
+        -o "$scaling_factor" -gt '100' ]; then
+        scaling_factor=$RE_DEFAULT_RATE_ESTIMATE_SCALING_FACTOR
+    fi
+
+    eval "$1=$scaling_factor"
+}
+
 # check vap is in default configuration by comparing ssid as OpenWrt
 # and encryption as none,for now any one VAP with this configuration
 # is enough for marking configuration as default configuration.
@@ -261,6 +467,8 @@ __repacd_vaps_in_default_config() {
 # the function used when the SSID and passphrase configured are to be
 # preserved.
 __repacd_reset_default_config() {
+    local random_psk
+
     config_load wireless
     config_foreach __repacd_resolve_vaps wifi-iface $managed_network
 
@@ -269,7 +477,18 @@ __repacd_reset_default_config() {
 
     # Generate a random password (which will likely be changed either through
     # cloning or by the end user).
-    local random_psk=`dd if=/dev/urandom bs=1 count=8 2> /dev/null | openssl base64`
+    # if we are in multi ssid traffic separation mode then instead of creating
+    # key consisting of ascii characters create a key which is 64 hexadecimal characters.
+    # we do this because we want to make key independent of ssid, as we have multiple ssids
+    # and no deep cloning.
+    if [ "$traffic_separation_enabled" -gt 0 ]; then
+        random_psk=`openssl rand -hex 32`
+        ssid_copy="whc-$ssid_suffix"
+        enc_copy="psk2+ccmp"
+        key_copy="$random_psk"
+    else
+        random_psk=`dd if=/dev/urandom bs=1 count=8 2> /dev/null | openssl base64`
+    fi
 
     __repacd_create_vaps "whc-$ssid_suffix" 'psk2+ccmp' $random_psk
     uci_commit wireless
@@ -410,6 +629,55 @@ __repacd_init_vap() {
     # This is mainly for wsplcd optimization: if wsplcd detects athnewind
     # is set to 0, it will not restart VAP; otherwise it will bring down
     # the VAP, set athnewind to 0 and bring the VAP back up
+    if ! whc_is_5g_radio $device \
+        && __repacd_is_son_mode && [ "$resolved_re_submode" = 'daisy' ]; then
+        __repacd_update_vap_param $name 'athnewind' 1
+    else
+        __repacd_update_vap_param $name 'athnewind' 0
+    fi
+
+    # Mode needs to be handled separately. If the device is already in one
+    # of the AP modes and the init is requesting an AP mode, we leave it as
+    # is. If it is already in the STA mode, we also leave it as is.
+    config_get cur_mode "$name" 'mode'
+    if ! __repacd_is_matching_mode $mode $cur_mode; then
+        uci_set wireless $name 'mode' $mode
+        config_changed=1
+    fi
+}
+# Initialise all the additional that we created to support multi ssid traffic
+# separation.
+# input: $1 name: section name
+# input: $2 device: name of the radio
+# input: $3 mode: whether to act as a STA or AP
+# input: $4 ssid: the desired SSID for this VAP
+# input: $5 encryption: the desired encryption mode for this VAP
+# input: $6 key: the desired passphrase for this VAP
+# input: $7 network: desired network for this VAP
+# input: $8 open: whether its open profile or not
+__repacd_init_additional_vap() {
+    local name=$1 device=$2 mode=$3 ssid=$4 encryption=$5 key=$6 network=$7
+    local open="$8"
+    local cur_mode repacd_security_unmanaged
+
+    __repacd_update_vap_param $name 'device' $device
+    __repacd_update_vap_param $name 'network' $network
+    __repacd_update_vap_param $name 'wds' '1'
+    __repacd_update_vap_param $name 'wps_pbc' '0'
+
+    config_get_bool repacd_security_unmanaged  $name repacd_security_unmanaged '0'
+    if [ $repacd_security_unmanaged -eq 0 ] ; then
+        __repacd_update_vap_param $name 'ssid' $ssid
+        if [ "$open" -eq 0 ] ; then
+            __repacd_update_vap_param $name 'encryption' $encryption
+            __repacd_update_vap_param $name 'key' $key
+        fi
+    fi
+
+
+    # This is mainly for wsplcd optimization: if wsplcd detects athnewind
+    # is set to 0, it will not restart VAP; otherwise it will bring down
+    # the VAP, set athnewind to 0 and bring the VAP back up
     __repacd_update_vap_param $name 'athnewind' 0
 
     # Mode needs to be handled separately. If the device is already in one
@@ -466,7 +734,7 @@ __repacd_create_vaps() {
         fi
 
         name=$(eval "echo \$${device}_sta")
-        if [ -z "$name" ] && [ $repacd_auto_create_vaps -eq 1 ]; then
+        if [ -z "$name" ] && [ $repacd_auto_create_vaps -eq 1 ] && [ "$traffic_separation_active" -eq 0 ]; then
             # No existing entry; create a new one.
             name=`uci add wireless wifi-iface`
             config_changed=1
@@ -477,6 +745,139 @@ __repacd_create_vaps() {
         fi
     done
     uci_commit wireless
+}
+# Create the additional vaps required for multi ssid traffic separation.
+# 1 guest vap and 1 spcl vap on each radio. Currently no sta vaps created.
+# spcl vap on 2.4GHz band will be disabled.
+# Note that if the VAPs already exist, they will be reconfigured as
+# appropriate. Existing VAP section names are given by ${device}_guest/spcle_ap
+# and ${device}_guest/spcl_sta global variables.
+#
+# input: $1 ssid: the SSID to use on all VAPs
+# input: $2 encryption: the encryption mode to use on all VAPs
+# input: $3 key: the pre-shared key to use on all VAPs
+# input: $4 open security: true/false
+# input: $5 list: suffix list
+# input: $6 network: network to which this vap belongs
+__repacd_create_additional_vaps() {
+    local ssid=$1
+    local encryption=$2
+    local key=$3
+    local list="$5"
+    local network=$6
+    local DEVICES=
+    local no_vlan_val
+    local hwmode
+
+    __repacd_get_devices DEVICES
+
+    for device in $DEVICES; do
+        config_get_bool repacd_auto_create_vaps "$device" repacd_auto_create_vaps '1'
+        uci_set wireless $device disabled '0'
+        config_get hwmode $device hwmode
+        config_get no_vlan_val $device no_vlan '0'
+        if [ $no_vlan_val -eq 0 ]; then
+            uci_set wireless $device no_vlan '1'
+        fi
+
+        for entry in $list; do
+            local name=$(eval "echo \$${device}_${entry}_ap")
+            if [ -z "$name" ] && [ $repacd_auto_create_vaps -eq 1 ]; then
+                # No existing entry; create a new ap.
+                name=`uci add wireless wifi-iface`
+                config_changed=1
+            fi
+
+            if [ -n "$name" ]; then
+                if [ "$network" = "$network_spcl" ]; then
+                    uci_set wireless $name rept_spl '1'
+                    uci_set wireless $name hidden '1'
+                fi
+
+                __repacd_init_additional_vap $name $device 'ap' "$ssid-$entry" \
+                                        $encryption $key $network "$4"
+            fi
+
+            if [ $create_sta -eq 1 ]; then
+                name=$(eval "echo \$${device}_${entry}_sta")
+                if [ -z "$name" ] && [ $repacd_auto_create_vaps -eq 1 ]; then
+                    # No existing entry; create a new sta.
+                    name=`uci add wireless wifi-iface`
+                    config_changed=1
+                fi
+
+                if [ -n "$name" ]; then
+                    __repacd_init_additional_vap $name $device 'sta' "$ssid-$entry" \
+                                            $encryption $key $network "$4"
+                fi
+            fi
+        done
+    done
+    uci_commit wireless
+}
+
+# Reconfigure the STA vaps of managed network.
+# After restarting in Non CAP mode we reconfigure the sta vaps
+# to be part of backhaul network. Network,ssid and credential are changed other configuration
+# remains same.
+#
+# input: $1 config: section name
+# input: $2 : current network
+# input: $3 : backhaul network
+# input: $4 ssid_val: ssid
+# input: $5 enc_val: encryption
+# input: $6 key_val: key
+# input: $7 suffix: spcl ssid suffix
+__repacd_reconfig_sta_vaps() {
+    local config=$1
+    local network sta_reconfigured
+    local ssid_val="$4"
+    local enc_val="$5"
+    local key_val="$6"
+    local spcl_suffix="$7"
+    local repacd_security_unmanaged
+
+    config_load repacd
+    config_get sta_reconfigured repacd StaReconfigured '0'
+
+    config_get network "$config" network
+
+    if [ "$2" = "$network" -o "$3" = "$network" ]; then
+        local mode device hwmode type_val disabled
+
+        config_get mode "$config" mode
+        config_get device "$config" device
+        config_get hwmode "$device" hwmode
+        config_get type_val "$device" type
+        config_get disabled "$config" disabled 0
+        config_get_bool repacd_security_unmanaged  $config repacd_security_unmanaged '0'
+
+        if [ "$hwmode" = '11ad' ] && [ "$type_val" = 'mac80211' ] ;then
+            return
+        fi
+
+        if [ "$mode" = "sta" ] && [ "$disabled" -eq 0 ]; then
+            __repacd_update_vap_param "$config" 'network' "$3"
+
+            if [ $repacd_security_unmanaged -eq 0 ] ; then
+                if [ -n "$spcl_suffix" ]; then
+                    __repacd_update_vap_param "$config" 'ssid' "$ssid_val-$spcl_suffix"
+                else
+                    __repacd_update_vap_param "$config" 'ssid' "$ssid_val"
+                fi
+                 __repacd_update_vap_param "$config" 'encryption' "$enc_val"
+                 __repacd_update_vap_param "$config" 'key' "$key_val"
+            fi
+
+            uci_set wireless $config rept_spl '1'
+
+            if [ "$sta_reconfigured" -eq 0 ];then
+                sta_reconfigured=1
+                uci_set repacd repacd StaReconfigured $sta_reconfigured
+                uci_commit repacd
+            fi
+        fi
+    fi
 }
 
 # Determine if the mode on the interface is a match.
@@ -572,6 +973,88 @@ __repacd_resolve_vaps() {
         fi
     fi
 }
+# Detect which additional VAPs are already configured.
+#
+# input: $1 config: section name
+# input: $2 list: suffix list
+__repacd_resolve_additional_vaps() {
+    local config="$1"
+    local list="$2"
+    local network
+
+    config_get network "$config" network
+    if [ "$3" = "$network" ]; then
+        local device mode ssid_val hwmode type_val encryption_val key_val
+        local result disabled
+
+        config_get device "$config" device
+        config_get mode "$config" mode
+        config_get ssid_val "$config" ssid
+        config_get encryption_val "$config" encryption
+        config_get key_val "$config" key
+        config_get disabled "$config" disabled 0
+        config_get hwmode "$device" hwmode
+        config_get type_val "$device" type
+
+        if [ "$hwmode" = '11ad' ] && [ "$type_val" = 'mac80211' ] ;then
+             return
+        fi
+
+        # Remember the section name for this radio in this mode.
+        for entry in $list; do
+            result=`echo $ssid_val | grep $entry`
+            if [ -n "$result" ]; then
+                if __repacd_is_matching_mode 'ap' $mode; then
+                    eval "${device}_${entry}_ap=$config"
+                elif [ "$mode" = "sta" ]; then
+                    eval "${device}_${entry}_sta=$config"
+                fi
+            fi
+        done
+
+        if [ -n "$ssid_val" -a -z "$ssid_copy" -o "$mode" = "sta" ]; then
+            if [ "$disabled" -eq 0 ]; then
+                ssid_copy=$ssid_val
+            fi
+        fi
+
+        if [ -n "$encryption_val" -a -z "$enc_copy" -o "$mode" = "sta" ]; then
+            if [ "$disabled" -eq 0 ]; then
+                enc_copy="$encryption_val"
+            fi
+        fi
+
+        if [ -n "$key_val" -a -z "$key_copy" -o "$mode" = "sta" ]; then
+            if [ "$disabled" -eq 0 ]; then
+                key_copy="$key_val"
+            fi
+        fi
+    fi
+}
+
+# Configure the additional VAPs needed to be consistent with the configuration that
+# would be produced if starting from a default configuration. If any VAPs
+# need to be created, use the SSID with suitable suffix, encryption mode, and passphrase
+# from the managed network vaps
+__repacd_reset_additional_config() {
+    local sta_reconfigured
+
+    config_load wireless
+    config_foreach __repacd_resolve_additional_vaps wifi-iface $guest_ssid_suffix $network_guest
+    config_foreach __repacd_resolve_additional_vaps wifi-iface $spcl_ssid_suffix $network_spcl
+
+    ssid_copy=`echo ${ssid_copy%-$spcl_ssid_suffix}`
+    __repacd_create_additional_vaps $ssid_copy $enc_copy $key_copy "0" \
+                                   $spcl_ssid_suffix $network_spcl
+    __repacd_create_additional_vaps $ssid_copy $enc_copy $key_copy "1" \
+                                   $guest_ssid_suffix $network_guest
+
+    config_load repacd
+    config_get sta_reconfigured repacd StaReconfigured '0'
+    if [ "$sta_reconfigured" -gt 0 ];then
+       __repacd_create_vaps $ssid_copy $enc_copy $key_copy
+    fi
+}
 
 # Configure the 4 VAPs needed to be consistent with the configuration that
 # would be produced if starting from a default configuration. If any VAPs
@@ -580,6 +1063,12 @@ __repacd_resolve_vaps() {
 __repacd_reset_existing_config() {
     config_load wireless
     config_foreach __repacd_resolve_vaps wifi-iface $managed_network
+
+    if [ "$traffic_separation_enabled" -gt 0 ]; then
+        ssid_copy="$resolved_ssid"
+        enc_copy="$resolved_enc"
+        key_copy="$resolved_key"
+    fi
 
     __repacd_create_vaps $resolved_ssid $resolved_enc $resolved_key
 }
@@ -626,6 +1115,30 @@ __repacd_disable_vap() {
             eval "$6='$changed'"
             __repacd_echo "Set VAP $config to Disabled=$desired_val"
         fi
+    fi
+}
+
+# Delete the bssid entry from the given STA interface.
+#
+# input: $1 config: section name
+# input: $2 network: network for which to update VAPs
+__repacd_delete_bssid_entry() {
+    local config="$1"
+    local mode
+
+    config_get device "$config" device
+    config_get hwmode "$device" hwmode
+    config_get type "$device" type
+
+    if [ "$hwmode" = '11ad' ] && [ "$type" = 'mac80211' ] ;then
+        return
+    fi
+
+    config_get mode "$config" mode
+
+    if __repacd_is_matching_mode 'sta' $mode; then
+        uci delete wireless.${config}.bssid
+        uci_commit wireless
     fi
 }
 
@@ -698,17 +1211,19 @@ __repacd_configure_wsplcd() {
 #
 # input: $1 enable_steering: 1 - AP interfaces support steering;
 #                            0 - they do not
-# input: $2 enable_son: 1 - multi-AP SON mode should be enabled (so
+# input: $2 disable_ap_steering: 1 - disbale AP steering feature
+# input: $3 enable_son: 1 - multi-AP SON mode should be enabled (so
 #                           long as it is not prohibited by config);
 #                       0 - multi-AP SON mode should not be enabled
-# input: $3 son_mode: one of HYROUTER or HYCLIENT; only relevant if enable_son
+# input: $4 son_mode: one of HYROUTER or HYCLIENT; only relevant if enable_son
 #                     is 1 and SON mode is not prohibited by the config
-# input-output: $4 changed: count of the changes
+# input-output: $5 changed: count of the changes
 __repacd_configure_son() {
     local enable_steering=$1
-    local enable_son=$2
-    local son_mode="$3"
-    local changed="$4"
+    local disable_ap_steering=$2
+    local enable_son=$3
+    local son_mode="$4"
+    local changed="$5"
 
     local enable_steering_mask enable_son_mask manage_mcsd
     config_load repacd
@@ -733,19 +1248,28 @@ __repacd_configure_son() {
         config_load hyd
         config_get cur_mode config 'Mode'
         config_get hyd_enabled config 'Enable'
+        config_get disable_steering config 'DisableSteering'
 
         if [ ! "$cur_mode" = "$son_mode" ]; then
             uci_set hyd config 'Mode' "$son_mode"
             changed=$((changed + 1))
-            eval "$4='$changed'"
+            eval "$5='$changed'"
             uci_commit hyd
             __repacd_echo "Set hyd Mode=$son_mode"
+        fi
+
+        if [ ! "$disable_steering" = "$disable_ap_steering" ]; then
+            uci_set hyd config 'DisableSteering' "$disable_ap_steering"
+            changed=$((changed + 1))
+            eval "$5='$changed'"
+            uci_commit hyd
+            __repacd_echo "Set hyd DisableSteering=$disable_ap_steering"
         fi
 
         if [ ! "$hyd_enabled" = "$enable_son" ]; then
             uci_set hyd config 'Enable' "$enable_son"
             changed=$((changed + 1))
-            eval "$4='$changed'"
+            eval "$5='$changed'"
             uci_commit hyd
 
             if [ "$manage_mcsd" -gt 0 -a -f $MCSD_INIT ]; then
@@ -784,7 +1308,7 @@ __repacd_configure_son() {
         if [ ! "$lbd_enabled" = "$enable_steering" ]; then
             uci_set lbd config 'Enable' "$enable_steering"
             changed=$((changed + 1))
-            eval "$4='$changed'"
+            eval "$5='$changed'"
             uci_commit lbd
 
             # Start/stop is handled when Wi-Fi interfaces are reconfigured.
@@ -914,12 +1438,14 @@ __repacd_config_wps_pbc_enhc() {
 # input: $5 extap: 1 - enable, 0 disable
 # input: $6 block_dfs_chan: 1 - block DFS channels, 0 - do not block them
 # input: $7 enable_rrm: 1 - enable, 0 disable
-# input-output: $8 change counter
+# inout: $8 re_scalingfactor: 0 - ignore, 1 to 100 valid for sta
+# input-output: $9 change counter
 __repacd_config_iface() {
     local config="$1"
     local device mode network enable_wds qwrap_ap extap block_dfs enable_rrm
+    local bssid re_scalingfactor
     local num_changes=0
-    local changed="$8"
+    local changed="$9"
 
     config_get device "$config" device
     config_get hwmode "$device" hwmode
@@ -936,6 +1462,8 @@ __repacd_config_iface() {
     config_get extap "$config" extap
     config_get block_dfs "$config" blockdfschan
     config_get enable_rrm "$config" rrm
+    config_get bssid "$config" bssid ''
+    config_get re_scalingfactor "$config" re_scalingfactor '0'
 
     if [ "$2" = "$network" ]; then
         if [ ! "$3" = "$enable_wds" ]; then
@@ -991,9 +1519,24 @@ __repacd_config_iface() {
             __repacd_echo "Set iface $config to ExtAP=$5"
         fi
 
+        if [ "$daisy_chain" -gt 0 ] && \
+            __repacd_is_matching_mode 'sta' $mode; then
+            # Check if bssid updated by wifimon/daisychain, needs restart
+            if [ "$bssid_updated" -gt 0 ]; then
+                num_changes=$((num_changes + 1))
+                __repacd_echo "Set iface $config to BSSID=$bssid"
+            fi
+
+            if [ ! "$8" = "$re_scalingfactor" ]; then
+                uci_set wireless $config re_scalingfactor $8
+                num_changes=$((num_changes + 1))
+                __repacd_echo "Set iface $config to RE_ScalingFactor=$8"
+            fi
+        fi
+
         if [ "$num_changes" -gt 0 ]; then
             changed=$((changed + 1))
-            eval "$8='$changed'"
+            eval "$9='$changed'"
         fi
     fi
 }
@@ -1006,11 +1549,12 @@ __repacd_config_iface() {
 __repacd_config_gwcon_ap_mode() {
     local is_cap=$1
     local wsplcd_mode son_mode
+    local rate_scaling_factor=0
 
     # The WDS, VAP independent, and QWrap AP settings also need to be updated
     # based on the range extension mode.
     local enable_wds enable_rrm enable_qwrap_ap enable_extap
-    local block_dfs enable_multi_ap
+    local block_dfs enable_multi_ap disable_steering=0
     __repacd_get_config_re_mode config_re_mode
     __repacd_get_re_mode resolved_re_mode
     if __repacd_is_auto_re_mode $config_re_mode || __repacd_is_wds_mode || \
@@ -1076,7 +1620,7 @@ __repacd_config_gwcon_ap_mode() {
     # Now set up the interfaces in the right way.
     config_foreach __repacd_config_iface wifi-iface \
         $managed_network $enable_wds $enable_qwrap_ap $enable_extap \
-        $block_dfs $enable_rrm config_changed
+        $block_dfs $enable_rrm $rate_scaling_factor config_changed
 
     uci_commit wireless
 
@@ -1095,8 +1639,8 @@ __repacd_config_gwcon_ap_mode() {
     # anyways (since that is the default).
     __repacd_configure_wsplcd $wsplcd_mode 1 config_changed
 
-    __repacd_configure_son $enable_wds $enable_multi_ap $son_mode \
-        config_changed
+    __repacd_configure_son $enable_wds $disable_steering $enable_multi_ap \
+        $son_mode config_changed
 }
 
 # Switch the device to act in one of the NonCAP configurations.
@@ -1109,13 +1653,14 @@ __repacd_config_noncap_mode() {
     # The WDS and QWrap AP settings also need to be updated based on the
     # range extension mode.
     local enable_wds enable_qwrap_ap enable_extap enable_dbdc_repeater
-    local block_dfs enable_rrm enable_multi_ap
+    local block_dfs enable_rrm enable_multi_ap disable_steering=0
+    local rate_scaling_factor=$RE_DEFAULT_RATE_ESTIMATE_SCALING_FACTOR
     local disable_24g_sta=1 disable_5g_sta=0
     local disable_24g_ap=$disable_ap disable_5g_ap=$disable_ap
     if __repacd_is_wds_mode || __repacd_is_son_mode; then
         if __repacd_is_wds_mode; then
             __repacd_echo "Using WDS mode for NonCAP"
-        else   # must be SON mode
+        else  # Must be SON mode
             __repacd_echo "Using SON mode for NonCAP"
         fi
 
@@ -1137,6 +1682,8 @@ __repacd_config_noncap_mode() {
         fi
 
         wsplcd_enabled=1
+
+        __repacd_get_rate_scaling_factor rate_scaling_factor
     else
         enable_wds=0
 
@@ -1189,6 +1736,10 @@ __repacd_config_noncap_mode() {
         enable_multi_ap=1
         disable_24g_sta=0
         enable_dbdc_repeater=0
+        # Disable AP steering if submode is "daisy".
+        if [ "$resolved_re_submode" -eq "daisy" ]; then
+            disable_steering=1
+        fi
     else
         enable_multi_ap=0
 
@@ -1197,6 +1748,8 @@ __repacd_config_noncap_mode() {
         # should make no difference if only one STA interface is active.
         enable_dbdc_repeater=1
     fi
+
+    config_get bssid_updated WiFiLink BSSIDUpdated '0'
 
     config_load wireless
     config_foreach __repacd_disable_vap wifi-iface \
@@ -1212,23 +1765,30 @@ __repacd_config_noncap_mode() {
 
     config_foreach __repacd_config_iface wifi-iface \
         $managed_network $enable_wds $enable_qwrap_ap $enable_extap \
-        $block_dfs $enable_rrm config_changed
+        $block_dfs $enable_rrm $rate_scaling_factor config_changed
 
     uci_commit wireless
 
+    uci_set repacd WiFiLink BSSIDUpdated '0'
     uci_set repacd repacd Role 'NonCAP'
     uci_commit repacd
 
     __repacd_configure_wsplcd 'ENROLLEE' $deep_clone config_changed
 
-    __repacd_configure_son $enable_wds $enable_multi_ap 'HYCLIENT' \
-        config_changed
+    __repacd_configure_son $enable_wds $disable_steering $enable_multi_ap \
+        'HYCLIENT' config_changed
 }
 
 # Switch the device into acting as a range extender.
 # Also update the range extension mode as necessary.
 __repacd_config_re_mode() {
     local disable_ap=0 deep_clone=1
+
+    # Disable Deep cloning for daisy chaining, we decide the BSSID.
+    if [ "$daisy_chain" -gt 0 -o "$traffic_separation_enabled" -gt 0 ]; then
+        deep_clone=0
+    fi
+
     __repacd_config_noncap_mode $disable_ap $deep_clone
 }
 
@@ -1276,6 +1836,12 @@ start() {
 
     config_load 'repacd'
     config_get_bool enabled repacd 'Enable' '0'
+    config_get traffic_separation_enabled repacd TrafficSeparationEnabled '0'
+    config_get traffic_separation_active repacd TrafficSeparationActive '0'
+    config_get daisy_chain WiFiLink DaisyChain '0'
+    config_get network_guest repacd NetworkGuest 'guest'
+    config_get guest_backhaul_iface repacd NetworkGuestBackhaulInterface '2.4G'
+    __repacd_get_config_re_mode config_re_mode
 
     [ "$enabled" -gt 0 ] || {
         return 1
@@ -1299,12 +1865,11 @@ start() {
 
     config_get dni_mode repacd 'DNI_Mode' '1'
 
-
     if [ "$dni_mode" = "1" ]; then
         __repacd_echo "starting in DNI mode"
 	#Start in Range extender mode in default
 	start-stop-daemon -S -x /usr/sbin/repacd-run.sh -b -- \
-		RE son son
+		RE son son star
     else
 	# Grab a lock to prevent any updates from being made by the daemon.
 	whc_wifi_config_lock
@@ -1323,6 +1888,43 @@ start() {
 	fi
 
 	__repacd_enable_wifi
+
+        # create additional vaps if traffic separation enabled
+        if __repacd_gw_mode || [ "$device_type" = 'RE' -a "$gwcon_mode" != "CAP" ]; then
+            if [ "$traffic_separation_enabled" -gt 0 ]; then
+                if __repacd_is_auto_re_mode $config_re_mode || \
+                   __repacd_is_son_mode; then
+                    if __repacd_check_additional_network_exist; then
+                        __repacd_set_firewall_rules $network_guest
+
+                        __repacd_reset_additional_config
+
+                        if ! __repacd_gw_mode && \
+                           [ "$traffic_separation_active" -gt 0 ]; then
+                            config_load wireless
+                            config_foreach __repacd_reconfig_sta_vaps wifi-iface $managed_network $network_spcl \
+                                $ssid_copy $enc_copy $key_copy $spcl_ssid_suffix
+                            uci_commit wireless
+                        fi
+
+                        if ! __repacd_gw_mode && \
+                           [ "$traffic_separation_active" -eq 0 ]; then
+                            local disable_24g_ap=1 disable_5g_ap=1
+
+                            config_load wireless
+                            config_foreach __repacd_disable_vap wifi-iface \
+                                $network_spcl 'ap' $disable_24g_ap $disable_5g_ap config_changed
+                            config_foreach __repacd_disable_vap wifi-iface \
+                                $network_guest 'ap' $disable_24g_ap $disable_5g_ap config_changed
+                            uci_commit wireless
+                        fi
+
+                        uci_set repacd repacd NetworkBackhaul $network_spcl
+                        uci_commit repacd
+                    fi
+                fi
+            fi
+        fi
 
 	if __repacd_gw_mode; then
 	   # WAN group not empty; this device will act as CAP regardless of
@@ -1353,8 +1955,45 @@ start() {
 	    start-stop-daemon -S -x /usr/sbin/repacd-run.sh -b -- \
 		init $config_re_mode $resolved_re_mode
 	fi
-    fi
 
+        whc_wifi_config_unlock
+ 
+        __repacd_restart_dependencies
+ 
+        # create vlan interfaces required for traffic separation.
+        if __repacd_gw_mode; then
+            if __repacd_is_auto_re_mode $config_re_mode || \
+               __repacd_is_son_mode; then
+                if [ "$traffic_separation_enabled" -gt 0 ]; then
+                    if __repacd_check_additional_network_exist; then
+                        __repacd_add_vlan_interfaces $managed_network '1' 'both'
+                        __repacd_add_vlan_interfaces $network_guest '2' $guest_backhaul_iface
+                        __repacd_restart_firewall
+ 
+                        uci_set repacd repacd TrafficSeparationActive '1'
+                        uci_commit repacd
+ 
+                        config_changed=0
+                        hyd_stop=1
+                        hyd_start=1
+                        __repacd_restart_dependencies
+                    fi
+                fi
+            fi
+        fi
+ 
+        if ! __repacd_gw_mode; then
+            start-stop-daemon -K -n repacd-run.sh -s SIGTERM >/dev/null
+ 
+            # Start the script that monitors the link state.
+            #
+            # In this NonCAP mode, it will keep checking whether there is a link
+            # to the gateway over ethernet.
+            __repacd_echo "Starting  RE Placement and Auto-config Daemon"
+            start-stop-daemon -S -x /usr/sbin/repacd-run.sh -b -- \
+                init $config_re_mode $resolved_re_mode $resolved_re_submode
+        fi
+    fi
 }
 
 # Script entry point: Stop the daemon
@@ -1398,6 +2037,11 @@ restart_in_cap_mode() {
     config_load repacd
     config_get managed_network repacd ManagedNetwork 'lan'
     config_get gwcon_mode repacd GatewayConnectedMode 'AP'
+    config_get traffic_separation_enabled repacd TrafficSeparationEnabled '0'
+    config_get traffic_separation_active repacd TrafficSeparationActive '0'
+    config_get daisy_chain WiFiLink DaisyChain '0'
+    config_get network_guest repacd NetworkGuest 'guest'
+    __repacd_get_config_re_mode config_re_mode
 
     stop
 
@@ -1414,7 +2058,27 @@ restart_in_cap_mode() {
         __repacd_config_gwcon_ap_mode 0
     fi
 
-    __repacd_reset_existing_config
+    if [ "$traffic_separation_active" -eq 0 ]; then
+        __repacd_reset_existing_config
+    fi
+
+    if [ "$gwcon_mode" != "CAP" ]; then
+        if __repacd_is_auto_re_mode $config_re_mode || \
+           __repacd_is_son_mode; then
+            if [ "$traffic_separation_enabled" -gt 0 ] && \
+               [ "$traffic_separation_active" -eq 1 ]; then
+                 #if we are not gateway connected CAP mode then we are here
+                 #because we moved from NonCAP to CAP on gw link detection.
+                 #But we do not want to disable sta interfaces as it is used by guest
+                 #networks to communicate to rootAP as eth interface is part of private network.
+                 local disable_24g_sta=0 disable_5g_sta=0
+                 config_load wireless
+                 config_foreach __repacd_disable_vap wifi-iface \
+                     $managed_network 'sta' $disable_24g_sta $disable_5g_sta config_changed
+                 uci_commit wireless
+            fi
+        fi
+    fi
 
     if [ "$wsplcd_enabled" -gt 0 ]; then
         wsplcd_restart=1
@@ -1429,7 +2093,7 @@ restart_in_cap_mode() {
         # In this mode, it will just keep checking that the link to the
         # gateway is still present on ethernet.
         start-stop-daemon -S -x /usr/sbin/repacd-run.sh -b -- \
-            CAP $config_re_mode $resolved_re_mode autoconf
+            CAP $config_re_mode $resolved_re_mode $resolved_re_submode autoconf
     fi
 }
 
@@ -1442,6 +2106,13 @@ restart_in_noncap_mode() {
     config_load repacd
     config_get managed_network repacd ManagedNetwork 'lan'
     config_get device_type repacd DeviceType 'RE'
+    config_get gwcon_mode repacd GatewayConnectedMode 'AP'
+    config_get traffic_separation_enabled repacd TrafficSeparationEnabled '0'
+    config_get traffic_separation_active repacd TrafficSeparationActive '0'
+    config_get daisy_chain WiFiLink DaisyChain '0'
+    config_get network_guest repacd NetworkGuest 'guest'
+    config_get guest_backhaul_iface repacd NetworkGuestBackhaulInterface '2.4G'
+    __repacd_get_config_re_mode config_re_mode
 
     stop
 
@@ -1450,11 +2121,38 @@ restart_in_noncap_mode() {
     # have the right credentials. For the non-SON and WDS modes, this is
     # subject to the RE WPS enhancement rules.
     __repacd_config_wps_pbc_enhc 0 config_changed
+
     __repacd_reset_existing_config
 
     # Need to resolve the generic NonCAP role to the actual configuration.
     if [ "$device_type" = 'RE' ]; then
         __repacd_config_re_mode
+
+        if [ "$gwcon_mode" != "CAP" ]; then
+            if [ "$traffic_separation_enabled" -gt 0 ]; then
+                if __repacd_is_auto_re_mode $config_re_mode || \
+                   __repacd_is_son_mode; then
+                   if __repacd_check_additional_network_exist; then
+                        # create/reset additional vaps if traffic separation enabled
+                        local disable_24g_ap=0 disable_5g_ap=0
+
+                        config_load wireless
+                        config_foreach __repacd_disable_vap wifi-iface \
+                            $network_spcl 'ap' $disable_24g_ap $disable_5g_ap config_changed
+                        config_foreach __repacd_disable_vap wifi-iface \
+                            $network_guest 'ap' $disable_24g_ap $disable_5g_ap config_changed
+                        uci_commit wireless
+
+                        __repacd_reset_additional_config
+
+                        config_load wireless
+                        config_foreach __repacd_reconfig_sta_vaps wifi-iface $managed_network $network_spcl \
+                            $ssid_copy $enc_copy $key_copy $spcl_ssid_suffix
+                        uci_commit wireless
+                   fi
+                fi
+            fi
+        fi
     else
         __repacd_config_client_mode
     fi
@@ -1465,6 +2163,26 @@ restart_in_noncap_mode() {
 
     __repacd_restart_dependencies
 
+    # create vlan interfaces required for traffic separation.
+    if __repacd_is_auto_re_mode $config_re_mode || \
+       __repacd_is_son_mode; then
+        if [ "$traffic_separation_enabled" -gt 0 ]; then
+            if __repacd_check_additional_network_exist; then
+                __repacd_add_vlan_interfaces $managed_network '1' 'both'
+                __repacd_add_vlan_interfaces $network_guest '2' $guest_backhaul_iface
+                __repacd_restart_firewall
+
+                uci_set repacd repacd TrafficSeparationActive '1'
+                uci_commit repacd
+
+                config_changed=0
+                hyd_stop=1
+                hyd_start=1
+                __repacd_restart_dependencies
+            fi
+        fi
+    fi
+
     if ! __repacd_gw_mode; then
         # Start the script that monitors the link state, telling the daemon that
         # it is an auto config-triggered restart.
@@ -1472,7 +2190,7 @@ restart_in_noncap_mode() {
         # In this NonCAP mode, it will keep checking whether there is a link
         # to the gateway over ethernet.
         start-stop-daemon -S -x /usr/sbin/repacd-run.sh -b -- \
-            NonCAP $config_re_mode $resolved_re_mode autoconf
+            NonCAP $config_re_mode $resolved_re_mode $resolved_re_submode autoconf
     fi
 }
 
@@ -1509,6 +2227,6 @@ restart_in_re_mode() {
         # a link to the gateway over ethernet and that the Wi-Fi link is
         # sufficient to continue operating as an RE.
         start-stop-daemon -S -x /usr/sbin/repacd-run.sh -b -- \
-            RE $config_re_mode $resolved_re_mode autoconf
+            RE $config_re_mode $resolved_re_mode $resolved_re_submode autoconf
     fi
 }

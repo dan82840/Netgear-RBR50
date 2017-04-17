@@ -64,6 +64,8 @@ function loadvalue()
 			var webfilter2 = decodeURI(webfilter[i]);
 			tbox.options[i]=new Option(webfilter2,webfilter2);
 		}
+		if(i > 0)
+			tbox.options[0].selected = true;
 	}
 }
 </script>

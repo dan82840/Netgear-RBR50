@@ -4,7 +4,7 @@
 # All Rights Reserved.
 # Qualcomm Atheros Confidential and Proprietary. 
 
-START=55
+START=96
 SERVICE_WRITE_PID=1
 SERVICE_DAEMONIZE=1
 SERVICE_DEBUG_OUTPUT=0
@@ -51,15 +51,17 @@ __hyd_cfg_add_str() {
 }
 
 __hyd_get_default_mode() {
-	local wan_iface
 
-	config_load network
-	config_get wan_iface wan ifname
+        local mode=`/sbin/artmtd -r board_model_id | awk -F: '{print $2}'`
 
-	if [ -n "$wan_iface" ]; then
-		eval "$1='HYROUTER'"
-	else
+	if [ "$mode" = "RBS50" -o "$mode" = "RBS30" ] ;then
 		eval "$1='HYCLIENT'"
+		uci set hyd.config.Mode=HYCLIENT
+		uci commit hyd
+	elif [ "$mode" = "RBR50" -o "$mode" = "RBR30" ] ;then
+		eval "$1='HYROUTER'"
+		uci set hyd.config.Mode=HYROUTER
+		uci commit hyd
 	fi
 }
 
@@ -78,15 +80,16 @@ __hyd_get_wlan_sta_ifaces() {
 
 __hyd_cfg_add_interface() {
 	local all_ifaces wlan_ifaces plc_iface non_relay_ifaces default_mode
+	local wlan_vlan_sta_ifaces
 
-	__hyd_cfg_append 'HybridBridgeInterfaceName=br-'$ieee1905managed_bridge
+	__hyd_cfg_append 'HybridBridgeInterfaceName=br'$ieee1905managed_bridge
 
 	# Get a list of all interfaces
 	hyfi_get_ifaces $ieee1905managed_bridge all_ifaces
 	__hyd_cfg_append 'ManagedInterfacesList='$all_ifaces
 
 	__hyd_get_default_mode default_mode
-	config_get mode config 'Mode' '$default_mode'
+	config_get mode config 'Mode' $default_mode
 
 	if [ "${mode}" = 'HYCLIENT' ];then
 		# Get PLC interface
@@ -99,6 +102,9 @@ __hyd_cfg_add_interface() {
 		# Get all WLAN interfaces bound to the managed bridge
 		config_load wireless
 		config_foreach __hyd_get_wlan_sta_ifaces wifi-iface $ieee1905managed_bridge
+
+		hyfi_get_wlan_vlan_sta_ifaces $ieee1905managed_bridge wlan_vlan_sta_ifaces
+		non_relay_ifaces=${non_relay_ifaces}${non_relay_ifaces:+","}${wlan_vlan_sta_ifaces}
 
 		__hyd_cfg_append	'NoRelayGroupList='"$non_relay_ifaces"
 		__hyd_cfg_append	'ForceGroupRelaying=1'
@@ -208,6 +214,8 @@ __hyd_create_config() {
 	__hyd_cfg_add_str		Topology		ENABLE_TD3
 	__hyd_cfg_add_str		Topology		ENABLE_BD_SPOOFING
 	__hyd_cfg_add_str		Topology		NOTIFICATION_THROTTLING_WINDOW
+	__hyd_cfg_add_str		Topology		PERIODIC_QUERY_INTERVAL
+	__hyd_cfg_add_str		Topology		ENABLE_NOTIFICATION_UNICAST
 
 	__hyd_cfg_nl_append '[PATHSELECT]'
 	__hyd_cfg_add_str		PathSelect		UpdateHDInterval
@@ -229,6 +237,7 @@ __hyd_create_config() {
 	__hyd_cfg_add_str		HSPECEst		ReservedMemory
 	__hyd_cfg_add_str		HSPECEst		LocalFlowRateThreshold
 	__hyd_cfg_add_str		HSPECEst		LocalFlowRatioThreshold
+	__hyd_cfg_add_str		HSPECEst		MaxHActiveEntries
 
 	__hyd_cfg_nl_append '[LOGSETTINGS]'
 	__hyd_cfg_add_str		LogSettings		EnableLog
@@ -266,7 +275,7 @@ __hyd_create_config() {
 	if [ -f /etc/config/lbd ]; then
 		local default_mode
 		__hyd_get_default_mode default_mode
-		config_get mode config 'Mode' '$default_mode'
+		config_get mode config 'Mode' $default_mode
 
 		__hyd_cfg_nl_append '[WLB]'
 		__hyd_cfg_add_str		config		DisableSteering
@@ -278,6 +287,7 @@ __hyd_create_config() {
 		fi
 	fi
 }
+
 
 __hyd_set_wlan_mcastenhance() {
 	hyfi_get_wlan_ifaces $ieee1905managed_bridge wlan_ifaces
@@ -342,6 +352,7 @@ start() {
 		return 1
 	}
 
+
 	# Enable hyfi-netfilter
 	if [ -f /proc/sys/net/bridge/bridge-nf-call-custom ]; then
 		sysctl -w net.bridge.bridge-nf-call-custom=1
@@ -351,7 +362,7 @@ start() {
 	hyfi_get_ieee1905_managed_iface ieee1905managed_bridge
 
 	# Bail out from starting hyd if attach fails.
-	if ! hyctl attach br-$ieee1905managed_bridge; then
+	if ! hyctl attach br$ieee1905managed_bridge; then
 		stop
 		hyfi_unlock
 		return 1
@@ -369,7 +380,7 @@ start() {
 
 	touch $HYD_RUN_FILE
         # By default disable retag of DSCP when multicast enhancement is enabled. 
-	hyctl setmc br-$ieee1905managed_bridge retag disable
+	hyctl setmc br$ieee1905managed_bridge retag disable
 	hyfi_unlock
 }
 
@@ -395,7 +406,7 @@ __stop_hyfi_bridging() {
 
 	# Get the IEEE1905.1 managed bridge name and detach
 	hyfi_get_ieee1905_managed_iface ieee1905managed_bridge
-	hyctl detach br-$ieee1905managed_bridge
+	hyctl detach br$ieee1905managed_bridge
 }
 
 stop() {

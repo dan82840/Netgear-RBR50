@@ -1,5 +1,5 @@
 <% http_header("style/form2.css", "/funcs_min.js", "/jquery-1.7.2.min.js") %>
-<% body_header("_wladv", "rae_waiting.htm", "rae_ap") %>
+<% body_header("_wladv", "ap_waiting.htm", "rae_ap") %>
 <style type="text/css">
 <% rae_css() %>
 .ipbox{width: 450px; height: 210px; position:absolute; left:5%; top:320px;z-index:2; }
@@ -12,9 +12,9 @@
 	<script>
 		var master="<% cfg_get("http_loginname") %>";
 		if( master=="admin" )
-			document.write('<input class="new_cancel_bt ui-corner-all" type="reset" name="Cancel" value="$cancel_mark" onClick="location.href=\'rae_main.htm\';"><input class="new_apply_bt ui-corner-all" type="submit" name="Apply" value="$apply_mark" onClick="check_ap();return false;">');
+			document.write('<input class="cancel_bt" type="reset" name="Cancel" value="$cancel_mark" onClick="location.href=\'rae_main.htm\';"><input class="apply_bt" type="submit" name="Apply" value="$apply_mark" onClick="check_ap();return false;">');
 		else
-			document.write('<input class="new_greycancel_bt ui-corner-all" type="reset" name="Cancel" value="$cancel_mark" disabled><input class="new_greyapply_bt ui-corner-all" type="submit" name="Apply" value="$apply_mark" disabled>');
+			document.write('<input class="cancel1_bt" type="reset" name="Cancel" value="$cancel_mark" disabled><input class="apply1_bt" type="submit" name="Apply" value="$apply_mark" disabled>');
 	</script>
 	</TD>
 </TR>
@@ -342,21 +342,23 @@ else if (wl_sectype == 5)
 else if (wl_sectype == 6)
 	document.write('<TR><TD nowrap colspan=3>'+wl_radiusSecret+'</TD></TR>');
 </script>
-<TR><TD height="15px"></TD></TR>
-<TR>
-	<TD nowrap colspan=3 style="font-size:12px;color:#702b86"><b>5G $guest_table_ssid</b></TD>		
-</TR>
-<TR>
-	<TD nowrap colspan=3><% cfg_get_ssid_html("wla_ssid") %></TD>		
-</TR>
+
 <script>
-if (wla_sectype == 1)
-	document.write('<TR><TD nowrap colspan=3>NULL</TD></TR>');
-else if (wla_sectype == 4)
-	document.write('<TR><TD nowrap colspan=3>'+wla_password1+'</TD></TR>');
-else if (wla_sectype == 5)
-	document.write('<TR><TD nowrap colspan=3>'+wla_password2+'</TD></TR>');
+if(parent.an_router_flag == 1)
+{
+	document.write('<TR><TD height="15px"></TD></TR>');
+	document.write('<TR><TD nowrap colspan=3 style="font-size:12px;color:#702b86"><b>5G $guest_table_ssid</b></TD></TR>');
+	document.write('<TR><TD nowrap colspan=3><% cfg_get_ssid_html("wla_ssid") %></TD></TR>');
+
+	if (wla_sectype == 1)
+		document.write('<TR><TD nowrap colspan=3>NULL</TD></TR>');
+	else if (wla_sectype == 4)
+		document.write('<TR><TD nowrap colspan=3>'+wla_password1+'</TD></TR>');
+	else if (wla_sectype == 5)
+		document.write('<TR><TD nowrap colspan=3>'+wla_password2+'</TD></TR>');
+}
 </script>
+
 <TR><TD height="15px"></TD></TR>
 <TR>
 	<td nowrap colspan=3>$ap_tochange:</td>
@@ -422,7 +424,7 @@ else if (wla_sectype == 5)
 </div>
 
 <div class="foot">
-<img src="/image/ap-4.gif">
+<img src="/image/ap-4.png">
 </div>
 </div>
 <% help_box("0","_rae_ap") %>

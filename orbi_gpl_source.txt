@@ -178,6 +178,11 @@ User application
 	http://www.gnu.org/software/gettext
 	GPL
 	Source Code
+[geniecloud]
+	geniecloud
+	netgear
+	netgear
+	Binary
 [hd-idle]
         hd-idle-1.04.tgz
         http://hd-idle.sourceforge.net/
@@ -383,6 +388,11 @@ User application
         DNI
         BSD
         Binary
+[orbi-new-fonts]
+	glyphicons-halflings-regular*
+	Netgear
+	Netgear
+	Binary
 [net-dump]
         net-dump
         DNI
@@ -861,6 +871,11 @@ atm
         DNI
         DNI
         Binary
+[kmod-iparray-match]
+	kmod-iparry-match
+	DNI
+	GPL
+	Source Code
 [kmod-l2tp]
         linux-2.6.31
         http://www.kernel.org

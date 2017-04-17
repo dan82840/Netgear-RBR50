@@ -13,6 +13,7 @@ SERVICE_DAEMONIZE=1
 SERVICE_DEBUG_OUTPUT=0
 SERVICE_PATH="/usr/sbin/wsplcd"
 WSPLCD_CONFIG_FILE="/tmp/wsplcd.conf"
+WSPLCD_CONFIG_FILE_PREFIX="/tmp/wsplcd"
 WSPLCD_RUN_FILE="/var/run/.wsplcd"
 
 NON_PBC_IFACES=
@@ -22,33 +23,37 @@ NON_PBC_IFACES=
 . /lib/functions/hyfi-network.sh
 
 wsplcd_cfg_append() {
-    echo "$1" >> "$WSPLCD_CONFIG_FILE"
+    local configfile=$2
+    echo "$1" >> "$configfile"
 }
 
 wsplcd_cfg_add_str() {
     local cfg="$1"
     local key="$2"
     local def="$3"
+    local configfile="$4"
     local val
 
     config_get val config "$key" "$def"
-    [ -n "$val" ] && wsplcd_cfg_append "$cfg=$val"
+    [ -n "$val" ] && wsplcd_cfg_append "$cfg=$val" "$configfile"
 }
 
 wsplcd_cfg_add_bool() {
     local cfg="$1"
     local key="$2"
     local def="$3"
+    local configfile="$4"
     local val
 
     config_get_bool val config "$key" "$def"
-    [ -n "$val" ] && wsplcd_cfg_append "$cfg=$val"
+    [ -n "$val" ] && wsplcd_cfg_append "$cfg=$val" "$configfile"
 }
 
 wsplcd_cfg_add_debuglevel() {
     local cfg="$1"
     local key="$2"
     local def="$3"
+    local configfile="$4"
     local val
 
     config_get val config "$key" "$def"
@@ -66,15 +71,14 @@ wsplcd_cfg_add_debuglevel() {
             val='3'
         ;;
     esac
-    [ -n "$val" ] && wsplcd_cfg_append "$cfg=$val"
+    [ -n "$val" ] && wsplcd_cfg_append "$cfg=$val" "$configfile"
 }
 
 __wsplcd_get_default_mode() {
-    local mode=$(artmtd -r board_model_id)
-
-    if [ "$mode" = "model_id:RBS50" ] ;then
+    local model_id=`/sbin/artmtd -r board_model_id | awk -F: '{print $2}'`
+    if [ "$model_id" = "RBS50" -o "$model_id" = "RBS30" ] ;then
         eval "$1='ENROLLEE'"
-    elif [ "$mode" = "model_id:RBR50" ] ;then
+    elif [ "$model_id" = "RBR50" -o "$model_id" = "RBR30" ] ;then
         eval "$1='REGISTRAR'"
     fi
 }
@@ -82,6 +86,7 @@ __wsplcd_get_default_mode() {
 wsplcd_cfg_add_role() {
 	local cfg="$1"
 	local key="$2"
+	local configfile="$3"
 	local default_mode
 	local val
 
@@ -106,13 +111,14 @@ wsplcd_cfg_add_role() {
 			uci_set wsplcd config $key $default_mode
 		;;
 	esac
-	[ -n "$val" ] && wsplcd_cfg_append "$cfg=$val"
+	[ -n "$val" ] && wsplcd_cfg_append "$cfg=$val" "$configfile"
 }
 
 wsplcd_cfg_add_wpsmethod() {
     local cfg="$1"
     local key="$2"
     local def="$3"
+    local configfile="$4"
     local val
 
     config_get val config "$key" "$def"
@@ -124,13 +130,14 @@ wsplcd_cfg_add_wpsmethod() {
             val='M8'
         ;;
     esac
-    [ -n "$val" ] && wsplcd_cfg_append "$cfg=$val"
+    [ -n "$val" ] && wsplcd_cfg_append "$cfg=$val" "$configfile"
 }
 
 wsplcd_cfg_add_wpstxmode() {
     local cfg="$1"
     local key="$2"
     local def="$3"
+    local configfile="$4"
     local val
 
     config_get val config "$key" "$def"
@@ -142,13 +149,14 @@ wsplcd_cfg_add_wpstxmode() {
             val='none'
         ;;
     esac
-    [ -n "$val" ] && wsplcd_cfg_append "$cfg=$val"
+    [ -n "$val" ] && wsplcd_cfg_append "$cfg=$val" "$configfile"
 }
 
 wsplcd_cfg_add_wpsrxmode() {
     local cfg="$1"
     local key="$2"
     local def="$3"
+    local configfile="$4"
     local val
 
     config_get val config "$key" "$def"
@@ -160,18 +168,33 @@ wsplcd_cfg_add_wpsrxmode() {
             val='either'
         ;;
     esac
-    [ -n "$val" ] && wsplcd_cfg_append "$cfg=$val"
+    [ -n "$val" ] && wsplcd_cfg_append "$cfg=$val" "$configfile"
 }
 
 wsplcd_cfg_add_configsta() {
-    uci_set wsplcd config ConfigSta 0
-    wsplcd_cfg_append "config_station=no"
+    local cfg="$1"
+    local key="$2"
+    local def="$3"
+    local configfile="$4"
+    local val
+
+    config_get val config "$key" "$def"
+    case "$val" in
+        1)
+            val='yes'
+        ;;
+        0)
+            val='no'
+        ;;
+    esac
+    [ -n "$val" ] && wsplcd_cfg_append "$cfg=$val" "$configfile"
 }
 
 wsplcd_cfg_add_wpatype() {
     local cfg="$1"
     local key="$2"
     local def="$3"
+    local configfile="$4"
     local val
 
     config_get val config "$key" "$def"
@@ -183,13 +206,14 @@ wsplcd_cfg_add_wpatype() {
             val='1'
         ;;
     esac
-    [ -n "$val" ] && wsplcd_cfg_append "$cfg=$val"
+    [ -n "$val" ] && wsplcd_cfg_append "$cfg=$val" "$configfile"
 }
 
 wsplcd_cfg_add_buttonmode() {
     local cfg="$1"
     local key="$2"
     local def="$3"
+    local configfile="$4"
     local val
 
     config_get val config "$key" "$def"
@@ -201,7 +225,7 @@ wsplcd_cfg_add_buttonmode() {
             val='2'
         ;;
     esac
-    [ -n "$val" ] && wsplcd_cfg_append "$cfg=$val"
+    [ -n "$val" ] && wsplcd_cfg_append "$cfg=$val" "$configfile"
 }
 
 __wsplcd_iterate_wlan_ifaces_nonpbc() {
@@ -230,75 +254,92 @@ wsplcd_cfg_add_nonpbc() {
 }
 
 wsplcd_cfg_add_interface() {
+	local br_name=$1
+	local configfile="$2"
 	local wlan_ifaces ether_ifaces plc_iface non_wlan_ifaces
+	local wlan_vlan_ifaces
 
-	wsplcd_cfg_append          'bridge=br'$ieee1905managed_bridge
+	wsplcd_cfg_append          'bridge=br'$br_name	 $configfile
 
 	# Get all WLAN interfaces bound to the managed bridge
-	hyfi_get_wlan_ifaces $ieee1905managed_bridge wlan_ifaces
-	wsplcd_cfg_append          '1905InterfacesWlan='$wlan_ifaces
+	hyfi_get_wlan_ifaces $br_name wlan_ifaces
+	wsplcd_cfg_append          '1905InterfacesWlan='$wlan_ifaces  $configfile
+
+	# Get all WLAN VLAN interfaces bound to the managed bridge
+	hyfi_get_wlan_vlan_ifaces $br_name wlan_vlan_ifaces
 
 	# Get all Ethernet interfaces and PLC interface
-	hyfi_get_ether_ifaces $ieee1905managed_bridge ether_ifaces
-	hyfi_get_plc_iface $ieee1905managed_bridge plc_iface
+	hyfi_get_ether_ifaces $br_name ether_ifaces
+	hyfi_get_plc_iface $br_name plc_iface
 	if [ -n "${plc_iface}" ] ; then
 		non_wlan_ifaces=${ether_ifaces}${ether_ifaces:+","}${plc_iface}
 	else
 		non_wlan_ifaces=${ether_ifaces}
 	fi
-	non_wlan_ifaces=`echo "$non_wlan_ifaces" | sed 's/ESWITCH/ETHER/g'`
-	wsplcd_cfg_append          '1905InterfacesElse='$non_wlan_ifaces
+	if [ -n "${wlan_vlan_ifaces}" ] ; then
+		non_wlan_ifaces=${non_wlan_ifaces}${non_wlan_ifaces:+","}${wlan_vlan_ifaces}
+	fi
 
+	non_wlan_ifaces=`echo "$non_wlan_ifaces" | sed 's/ESWITCH/ETHER/g'`
+
+	wsplcd_cfg_append          '1905InterfacesElse='$non_wlan_ifaces  $configfile
 	wsplcd_cfg_add_nonpbc
 }
 
 
 wsplcd_create_config() {
 	lock /var/run/wsplcd.lock
+	local br_name=$1
+	local configfile=$2
 
-	echo "# Config file for wsplcd, automatically created by script" > "$WSPLCD_CONFIG_FILE"
-	wsplcd_cfg_add_debuglevel  debug_level                   DebugLevel           'ERROR'
-	wsplcd_cfg_add_interface
-	wsplcd_cfg_add_role        role                          RunMode
-	wsplcd_cfg_add_bool        designated_pb_ap              DesignatedPBAP       '0'
-	wsplcd_cfg_add_wpsmethod   WPS_method                    WPSMethod            'WPS_M2'
-	wsplcd_cfg_add_wpstxmode   WPS_tx_mode                   TXMode               'WPS_TX_ENCRYPTED'
-	wsplcd_cfg_add_wpsrxmode   WPS_rx_mode                   RXMode               'WPS_RX_ENCRYPTED'
-	wsplcd_cfg_add_configsta   config_station                ConfigSta            '1'
-	wsplcd_cfg_add_str         ssid_suffix                   SSIDSuffix           ''
-	wsplcd_cfg_add_str         search_timeout                SearchTimeout        '60'
-	wsplcd_cfg_add_str         WPS_session_timeout           WPSSessionTimeout    '120'
-	wsplcd_cfg_add_str         WPS_retransmission_timeout    WPSRetransmitTimeout '5'
-	wsplcd_cfg_add_str         WPS_per_message_timeout       WPSPerMessageTimeout '15'
-	wsplcd_cfg_add_bool        band_sel_enable               BandSel              '1'
-	wsplcd_cfg_add_bool        band_choice                   BandChoice           '5G'
-	wsplcd_cfg_add_str         rm_collect_timeout            RMCollectTimeout     '10'
-	wsplcd_cfg_add_bool        deep_clone_enable             DeepClone            '1'
-	wsplcd_cfg_add_bool        manage_vap_ind                ManageVAPInd         '1'
-	wsplcd_cfg_add_str         1905Nwkey                     NetworkKey1905       ''
-	wsplcd_cfg_add_str         ucpk_salt                     UCPKSalt             ''
-	wsplcd_cfg_add_wpatype     wpa_passphrase_type           WPAPassphraseType    'LONG'
-	wsplcd_cfg_append          'config_methods=push_button virtual_push_button physical_push_button'
-	wsplcd_cfg_append          'manufacturer=Qualcomm Atheros'
-	wsplcd_cfg_append          'model_name=ModelNameHere'
-	wsplcd_cfg_append          'model_number=ModelNumberHere'
-	wsplcd_cfg_append          'serial_number=SerialNumberHere'
-	wsplcd_cfg_append          'device_type=6-0050f204-1'
-	wsplcd_cfg_append          'device_name=ExampleWpa'
-	wsplcd_cfg_append          'os_version=01020300'
-	wsplcd_cfg_append          '#AP Cloning 1.0 parameters'
-	wsplcd_cfg_add_bool        APCloning                     APCloning            '0'
-	wsplcd_cfg_add_buttonmode  button_mode                   ButtonMode           'TWOBUTTON'
-	wsplcd_cfg_add_str         clone_timeout                 CloneTimeout         '180'
-	wsplcd_cfg_add_str         walk_timeout                  WalkTimeout          '120'
-	wsplcd_cfg_add_str         repeat_timeout                RepeatTimeout        '1'
-	wsplcd_cfg_add_str         internal_timeout              InternalTimeout      '15'
-	wsplcd_cfg_add_str         wait_wifi_config_secs_other   WaitOtherBandsSecs   '20'
-	wsplcd_cfg_add_str         wait_wifi_config_secs_first   WaitFirstBandSecs    '30'
+	echo "# Config file for wsplcd, automatically created by script" > "$configfile"
+	wsplcd_cfg_add_debuglevel  debug_level                   DebugLevel           'ERROR'		$configfile
+	wsplcd_cfg_add_interface   $br_name			 $configfile
+	wsplcd_cfg_add_role        role                          RunMode		$configfile
+	wsplcd_cfg_add_bool        designated_pb_ap              DesignatedPBAP       '0'		$configfile
+	wsplcd_cfg_add_wpsmethod   WPS_method                    WPSMethod            'WPS_M2'		$configfile
+	wsplcd_cfg_add_wpstxmode   WPS_tx_mode                   TXMode               'WPS_TX_ENCRYPTED' $configfile
+	wsplcd_cfg_add_wpsrxmode   WPS_rx_mode                   RXMode               'WPS_RX_ENCRYPTED' $configfile
+	wsplcd_cfg_add_configsta   config_station                ConfigSta            '1'		$configfile
+	wsplcd_cfg_add_str         ssid_suffix                   SSIDSuffix           ''		$configfile
+	wsplcd_cfg_add_str         search_timeout                SearchTimeout        '60'		$configfile
+	wsplcd_cfg_add_str         WPS_session_timeout           WPSSessionTimeout    '120'		$configfile
+	wsplcd_cfg_add_str         WPS_retransmission_timeout    WPSRetransmitTimeout '5'		$configfile
+	wsplcd_cfg_add_str         WPS_per_message_timeout       WPSPerMessageTimeout '15'		$configfile
+	wsplcd_cfg_add_bool        band_sel_enable               BandSel              '0'		$configfile
+	wsplcd_cfg_add_bool        band_choice                   BandChoice           '5G'		$configfile
+	wsplcd_cfg_add_str         rm_collect_timeout            RMCollectTimeout     '10'		$configfile
+	wsplcd_cfg_add_bool        deep_clone_enable             DeepClone            '1'		$configfile
+    wsplcd_cfg_add_bool        deep_clone_no_bssid           DeepCloneNoBSSID     '0'       $configfile
+	wsplcd_cfg_add_bool        manage_vap_ind                ManageVAPInd         '1'		$configfile
+	wsplcd_cfg_add_str         1905Nwkey                     NetworkKey1905       ''		$configfile
+	wsplcd_cfg_add_str         ucpk_salt                     UCPKSalt             ''		$configfile
+	wsplcd_cfg_add_wpatype     wpa_passphrase_type           WPAPassphraseType    'LONG'		$configfile
+	wsplcd_cfg_append          'config_methods=push_button virtual_push_button physical_push_button' $configfile
+	wsplcd_cfg_append          'manufacturer=Qualcomm Atheros' $configfile
+	wsplcd_cfg_append          'model_name=ModelNameHere' $configfile
+	wsplcd_cfg_append          'model_number=ModelNumberHere' $configfile
+	wsplcd_cfg_append          'serial_number=SerialNumberHere' $configfile
+	wsplcd_cfg_append          'device_type=6-0050f204-1' $configfile
+	wsplcd_cfg_append          'device_name=ExampleWpa' $configfile
+	wsplcd_cfg_append          'os_version=01020300' $configfile
+	wsplcd_cfg_append          '#AP Cloning 1.0 parameters' $configfile
+	wsplcd_cfg_add_bool        APCloning                     APCloning            '0'		$configfile
+	wsplcd_cfg_add_buttonmode  button_mode                   ButtonMode           'TWOBUTTON'	$configfile
+	wsplcd_cfg_add_str         clone_timeout                 CloneTimeout         '180'		$configfile
+	wsplcd_cfg_add_str         walk_timeout                  WalkTimeout          '120'		$configfile
+	wsplcd_cfg_add_str         repeat_timeout                RepeatTimeout        '1'		$configfile
+	wsplcd_cfg_add_str         internal_timeout              InternalTimeout      '15'		$configfile
+	wsplcd_cfg_add_str         wait_wifi_config_secs_other   WaitOtherBandsSecs   '20'		$configfile
+	wsplcd_cfg_add_str         wait_wifi_config_secs_first   WaitFirstBandSecs    '30'		$configfile
+	wsplcd_cfg_append          "cfg_changed=$cfg_changed"  $configfile
+	wsplcd_cfg_append          "cfg_restart_long_timeout=$cfg_restart_long_timeout" $configfile
+	wsplcd_cfg_append          "cfg_restart_short_timeout=$cfg_restart_short_timeout" $configfile
+	wsplcd_cfg_append          "cfg_apply_timeout=$cfg_apply_timeout" $configfile
 
 	[ -x "/sbin/uci2cfg.sh" ] && {
-		`/sbin/uci2cfg.sh >> $WSPLCD_CONFIG_FILE`
-		`/sbin/uci2cfg.sh wifisec > "/tmp/.wsplc.wifisec"`
+		`/sbin/uci2cfg.sh $br_name >> $configfile`
+		`/sbin/uci2cfg.sh wifisec $br_name > "/tmp/.wsplc.wifisec"`
 	}
 
 	lock -u /var/run/wsplcd.lock
@@ -309,8 +350,9 @@ wsplcd_create_config() {
 __wsplcd_wlanif_ready() {
 	local vif vifs
 	local vifstat
+	local configfile=$1
 
-	vifs=`cat $WSPLCD_CONFIG_FILE | grep '^1905InterfacesWlan' | sed -e 's/1905InterfacesWlan=//' -e 's/,/ /g' -e 's/:WLAN//g'`
+	vifs=`cat $configfile | grep '^1905InterfacesWlan' | sed -e 's/1905InterfacesWlan=//' -e 's/,/ /g' -e 's/:WLAN//g'`
 	if [ -z "$vifs" ]; then
 		echo "[wsplcd]WLAN interface is not ready" > /dev/console
 		return 0
@@ -329,6 +371,7 @@ __wsplcd_wlanif_ready() {
 start() {
 	local enabled
 	local ieee1905managed_bridge
+	local ieee1905managed_bridge2
 	local log_mode
 
 	stop
@@ -352,25 +395,35 @@ start() {
 	}
 
 	# Get the IEEE1905.1 managed bridge name
-	hyfi_get_ieee1905_managed_iface ieee1905managed_bridge
+	hyfi_get_ieee1905_managed_iface ieee1905managed_bridge ieee1905managed_bridge2
 
-	wsplcd_create_config || return 1
+	wsplcd_create_config $ieee1905managed_bridge ${WSPLCD_CONFIG_FILE_PREFIX}-${ieee1905managed_bridge}.conf || return 1
+	if [ -n "$ieee1905managed_bridge2" ]
+	then
+		wsplcd_create_config $ieee1905managed_bridge2 ${WSPLCD_CONFIG_FILE_PREFIX}-${ieee1905managed_bridge2}.conf || return 1
+	fi
 
-	__wsplcd_wlanif_ready
+	__wsplcd_wlanif_ready ${WSPLCD_CONFIG_FILE_PREFIX}-${ieee1905managed_bridge}.conf
 	if [ $? -eq 1 ]; then
 		hyfi_echo wsplcd "starting daemon"
-		${SVCDBG}service_start ${SERVICE_PATH} -c "$WSPLCD_CONFIG_FILE" "$log_mode"
+		kill -9 $(ps |grep -e /usr/sbin/wsplcd |grep -v grep | awk '{ print $1 }')  > /dev/null 2>&1
+		sleep 1
+		${SERVICE_PATH} -c "${WSPLCD_CONFIG_FILE_PREFIX}-${ieee1905managed_bridge}.conf" "$log_mode"  > /dev/null 2>&1 &
+		if [ -n "$ieee1905managed_bridge2" ]
+		then
+		    ${SERVICE_PATH} -c "${WSPLCD_CONFIG_FILE_PREFIX}-${ieee1905managed_bridge2}.conf" "$log_mode"  > /dev/null 2>&1 &
+		fi
 	fi
 	touch $WSPLCD_RUN_FILE
 }
 
 stop() {
-	${SVCDBG}service_stop ${SERVICE_PATH}
+	#${SVCDBG}service_stop ${SERVICE_PATH}
 	# Hotplug will compare WLAN configuration stored in the config file,
 	# if it finds nothing changed, wsplcd will not be restarted.
 	# So here we remove the config file to force wsplcd restarting if it stopped.
-	[ -f "$WSPLCD_CONFIG_FILE" ] &&
-		mv ${WSPLCD_CONFIG_FILE} ${WSPLCD_CONFIG_FILE}.bak
+	kill -9 $(ps |grep -e /usr/sbin/wsplcd |grep -v grep | awk '{ print $1 }')  > /dev/null 2>&1
+	rm ${WSPLCD_CONFIG_FILE_PREFIX}-*.conf > /dev/null 2>&1
 }
 
 restart() {

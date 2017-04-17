@@ -1,4 +1,6 @@
 WLAN_DEVICES=
+WLAN_VLAN_DEVICES=
+WLAN_VLAN_STA_DEVICES=
 WLAN_DEVICE_NUM=
 ETHER_DEVICES=
 PLC_DEVICE=
@@ -8,7 +10,13 @@ ALL_DEVICES=
 
 local ieee1905managed_found=0
 local ieee1905managed_bridge=""
+local ieee1905managed_bridge2=""
 local bound_bridge=""
+local device_wlan=1
+local backhaul_network="backhaul"
+local traffic_separation_enabled=0
+local traffic_separation_active=0
+local iface_config
 
 __hyfi_get_wlan_vifnum() {
 	local config="$1"
@@ -162,7 +170,7 @@ __hyfi_get_switch_cpu_port_dnihook() {
 	if [ -f /sbin/artmtd ]; then
 		model_id=`/sbin/artmtd -r board_model_id | awk -F: '{print $2}'`
 		case "$model_id" in
-			RBS50|RBR50)
+			RBS50|RBR50|RBR30|RBS30)
 				switch_cpu_port=0
 			;;
 		esac
@@ -218,6 +226,16 @@ __hyfi_get_ether_ifaces() {
 
 		for iface in $ifnames; do
 			[ "$iface" = "$plciface" ] && continue
+
+			if [ "$traffic_separation_enabled" -gt 0 ] && \
+				[ "$traffic_separation_active" -gt 0 ]; then
+					if __hyfi_is_vlan_iface $iface; then
+						if __hyfi_is_device_wlan $iface; then
+							continue
+						fi
+					fi
+			fi
+
 			if [ "$iface" = "$switch_iface" -a "$eswitch_support" = "1" ]; then
 				ETHER_DEVICES="${ETHER_DEVICES}${ETHER_DEVICES:+","}${iface}:ESWITCH"
 			else
@@ -235,10 +253,143 @@ hyfi_get_ether_ifaces() {
 
 	ETHER_DEVICES=""
 	hyfi_network_sync
+
+	config_load repacd
+	config_get traffic_separation_enabled repacd TrafficSeparationEnabled '0'
+	config_get traffic_separation_active repacd TrafficSeparationActive '0'
+	config_get backhaul_network repacd NetworkBackhaul 'backhaul'
+
 	config_load network
 	config_foreach __hyfi_get_ether_ifaces interface $ieee1905managed
 
 	eval "$2='${ETHER_DEVICES}'"
+}
+
+__hyfi_is_vlan_iface() {
+	local iface="$1"
+
+	echo "$iface" | grep '\.' >/dev/null 2>&1
+	if [ "$?" -eq "0" ]; then
+		return 0
+	fi
+
+	return 1
+}
+
+__hyfi_iterate_wlan_ifaces() {
+	local config="$1"
+	local iface network disabled
+	local interface
+
+	config_get iface "$config" ifname
+	config_get network "$config" network
+	config_get disabled "$config" disabled '0'
+
+	if [ -n "$iface" -a "$backhaul_network" = "$network" -a "$disabled" -eq 0 ]; then
+		interface=`echo "$2" | cut -d '.' -f1`
+		if [ "$interface" = "$iface" ]; then
+			eval "$3='0'"
+			eval "$4=$config"
+		fi
+	fi
+}
+
+__hyfi_is_device_wlan() {
+	local iface="$1"
+	device_wlan=1
+
+	if [ -n "$backhaul_network" ]; then
+		config_load wireless
+		config_foreach __hyfi_iterate_wlan_ifaces wifi-iface $iface device_wlan iface_config
+	fi
+
+	return $device_wlan
+}
+
+__hyfi_get_wlan_vlan_ifaces() {
+	local config="$1"
+	local ifnames bridge_name
+
+	config_get ifnames "$config" device
+	config_get bridge_name "$config" ifname
+
+	if [ "$2" = "$config" ]; then
+                #initially VLAN interfaces are added using vconfig and brctl tool 
+                #to avoid multiple restarts.VLAN interfaces added this way are not 
+                #detected by config_get, so using direct command here.
+		ifnames=`uci get "network.$1.ifname"`
+		for iface in $ifnames; do
+			if __hyfi_is_vlan_iface $iface; then
+				if __hyfi_is_device_wlan $iface; then
+					WLAN_VLAN_DEVICES="${WLAN_VLAN_DEVICES}${WLAN_VLAN_DEVICES:+","}${iface}:WLAN_VLAN"
+				fi
+			fi
+		done
+	fi
+}
+
+__hyfi_get_wlan_vlan_sta_ifaces() {
+	local config="$1"
+	local ifnames bridge_name
+	local mode
+
+	config_get ifnames "$config" device
+	config_get bridge_name "$config" ifname
+
+	if [ "$2" = "$config" ]; then
+		ifnames=`uci get "network.$1.ifname"`
+		for iface in $ifnames; do
+			if __hyfi_is_vlan_iface $iface; then
+				if __hyfi_is_device_wlan $iface; then
+					config_load wireless
+					config_get mode "$iface_config" mode
+					if [ "$mode" = "sta" ]; then
+						WLAN_VLAN_STA_DEVICES="${WLAN_VLAN_STA_DEVICES}${WLAN_VLAN_STA_DEVICES:+","}${iface}"
+					fi
+				fi
+			fi
+		done
+	fi
+}
+
+hyfi_get_wlan_vlan_ifaces() {
+	local ieee1905managed="$1"
+
+	WLAN_VLAN_DEVICES=""
+	hyfi_network_sync
+
+	config_load repacd
+	config_get traffic_separation_enabled repacd TrafficSeparationEnabled '0'
+	config_get traffic_separation_active repacd TrafficSeparationActive '0'
+	config_get backhaul_network repacd NetworkBackhaul 'backhaul'
+	if [ "$traffic_separation_enabled" -gt 0 ] && \
+		[ "$traffic_separation_active" -gt 0 ]; then
+		config_load network
+		config_foreach __hyfi_get_wlan_vlan_ifaces interface $ieee1905managed
+	fi
+
+	eval "$2='${WLAN_VLAN_DEVICES}'"
+
+}
+
+hyfi_get_wlan_vlan_sta_ifaces() {
+	local ieee1905managed="$1"
+
+	WLAN_VLAN_STA_DEVICES=""
+	hyfi_network_sync
+
+	config_load repacd
+	config_get traffic_separation_enabled repacd TrafficSeparationEnabled '0'
+	config_get traffic_separation_active repacd TrafficSeparationActive '0'
+	config_get backhaul_network repacd NetworkBackhaul 'backhaul'
+	if [ "$traffic_separation_enabled" -gt 0 ] && \
+		[ "$traffic_separation_active" -gt 0 ]; then
+		config_load network
+		config_foreach __hyfi_get_wlan_vlan_sta_ifaces interface $ieee1905managed
+	fi
+
+	eval "$2='${WLAN_VLAN_STA_DEVICES}'"
+
 }
 
 __hyfi_get_plc_iface() {
@@ -278,7 +429,7 @@ __hyfi_get_ether_ifaces_dnihook(){
 	if [ -f /sbin/artmtd ]; then
 		model_id=`/sbin/artmtd -r board_model_id | awk -F: '{print $2}'`
 		case "$model_id" in
-			RBR50)
+			RBR50|RBR30)
 				ap_mode=`/bin/config get ap_mode`
 				if [ "$ap_mode" -eq 1 ]; then
 					ETHER_DEVICES="eth1:ESWITCH,eth0:ETHER"
@@ -288,7 +439,7 @@ __hyfi_get_ether_ifaces_dnihook(){
 
 			;;
 
-			RBS50)
+			RBS50|RBS30)
 				ETHER_DEVICES="eth1:ESWITCH"
 			;;
 
@@ -304,15 +455,27 @@ hyfi_get_ifaces() {
 	local ieee1905managed="$1"
 
 	WLAN_DEVICES=""
+	WLAN_VLAN_DEVICES=""
 	ETHER_DEVICES=""
 	PLC_DEVICE=""
 	hyfi_network_sync
+
+	config_load repacd
+	config_get traffic_separation_enabled repacd TrafficSeparationEnabled '0'
+	config_get traffic_separation_active repacd TrafficSeparationActive '0'
+	config_get backhaul_network repacd NetworkBackhaul 'backhaul'
 
 	config_load network
 	config_foreach __hyfi_get_ether_ifaces interface $ieee1905managed
 
 	config_load wireless
 	config_foreach __hyfi_get_wlan_ifaces wifi-iface $ieee1905managed
+
+	if [ "$traffic_separation_enabled" -gt 0 ] && \
+		[ "$traffic_separation_active" -gt 0 ]; then
+		config_load network
+		config_foreach __hyfi_get_wlan_vlan_ifaces interface $ieee1905managed
+	fi
 
 	__hyfi_get_plc_iface $ieee1905managed
 
@@ -326,6 +489,10 @@ hyfi_get_ifaces() {
 		[ -z "$ALL_DEVICES" ] || ALL_DEVICES="${ALL_DEVICES},"
 		ALL_DEVICES="${ALL_DEVICES}${PLC_DEVICE}"
 	fi
+	if [ -n "$WLAN_VLAN_DEVICES" ]; then
+		[ -z "$ALL_DEVICES" ] || ALL_DEVICES="${ALL_DEVICES},"
+		ALL_DEVICES="${ALL_DEVICES}${WLAN_VLAN_DEVICES}"
+	fi
 
 	eval "$2='${ALL_DEVICES}'"
 }
@@ -333,8 +500,6 @@ hyfi_get_ifaces() {
 __hyfi_iterate_networks() {
 	local config="$1"
 	local type ieee1905managed
-
-	[ "$ieee1905managed_found" -eq "1" ] && return
 
 	config_get type "$config" type
 	[ -z "$type" -o ! "$type" = "bridge" ] && return
@@ -345,7 +510,12 @@ __hyfi_iterate_networks() {
 
 	if [ "$ieee1905managed" -eq "1" ]; then
 		ieee1905managed_found=1
-		ieee1905managed_bridge="$config"
+		if [ -n "$ieee1905managed_bridge" ]
+		then
+			ieee1905managed_bridge2="$config"
+		else
+			ieee1905managed_bridge="$config"
+		fi
 	fi
 }
 
@@ -371,15 +541,18 @@ __hyfi_iterate_networks2() {
 
 # hyfi_get_ieee1905_managed_iface()
 # output: $1 IEEE1905.1 managed bridge interface
+# output: $2 2nd IEEE1905.1 managed bridge interface
 # Note: If no entry exists, the function will set the "lan"
 # interface as the default managed bridge
 hyfi_get_ieee1905_managed_iface() {
 	ieee1905managed_found=0
 	ieee1905managed_bridge=""
+	ieee1905managed_bridge2=""
 
 	config_load network
 	config_foreach __hyfi_iterate_networks interface
 	eval "$1='$ieee1905managed_bridge'"
+	eval "$2='$ieee1905managed_bridge2'"
 	[ "$ieee1905managed_found" -eq "1" ] && return
 
 	ieee1905managed_bridge="0"

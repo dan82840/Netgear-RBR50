@@ -4,7 +4,7 @@ orbi
 
 2) List the version number of the firmware/software that correlates with the open source code archive.
 
-orbi-V1.0.0.32 orbi-V1.1.0.16 orbi-V1.2.0.6 orbi-V1.3.0.10 orbi-V1.3.0.16 orbi-V1.3.0.24 orbi-V1.3.0.26
+orbi-V1.0.0.32 orbi-V1.1.0.16 orbi-V1.2.0.6 orbi-V1.3.0.10 orbi-V1.4.0.14
 
 7) List the main HW platform utilized such as CPU, main chipset, RF chipset, DSP, Switch IC¡­etc.
 
@@ -104,6 +104,8 @@ ez-ipupdate, ez-ipupdate, GPL, No
 factory-tools, factory-tools, DNI, No
 
 gettext, gettext, GPL, No
+
+ready-genie-cloud, 20161005, netgear, No
 
 hd-idle, hd-idle, GPL, No
 

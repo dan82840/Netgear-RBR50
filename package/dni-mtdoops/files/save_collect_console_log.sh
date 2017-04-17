@@ -80,6 +80,7 @@ dd if=/dev/mmcblk0p22 of=/tmp/panic_log.txt bs=131072 count=2
 [ -f /tmp/basic_debug_log.txt ] && unix2dos /tmp/basic_debug_log.txt
 [ -d /tmp/soapclient ] && unix2dos /tmp/soapclient/*
 [ -d /var/log/soapclient ] && unix2dos /var/log/soapclient/*
+[ -f /var/log/soapapp ] && unix2dos /var/log/soapapp
 [ -f /tmp/hyt_result ] && unix2dos /tmp/hyt_result
 [ -f /tmp/satellite_status ] && unix2dos /tmp/satellite_status
 [ -e /tmp/radardetect.log ] && RADARLOG=radardetect.log
@@ -87,12 +88,12 @@ dd if=/dev/mmcblk0p22 of=/tmp/panic_log.txt bs=131072 count=2
 [ -f /tmp/thermal-log2.txt ] && unix2dos /tmp/thermal-log2.txt
 
 if [ "x$collect_log" = "x1" ];then
-	zip debug-log.zip  NETGEAR_$module_name.cfg panic_log.txt Console-log1.txt Console-log2.txt  thermal-log1.txt thermal-log2.txt basic_debug_log.txt wireless-log1.txt wireless-log2.txt lan.pcap wan.pcap soapclient/* /var/log/soapclient/* hyt_result satellite_status hyd-restart.log wsplcd-restart.log $RADARLOG
+	zip debug-log.zip  NETGEAR_$module_name.cfg panic_log.txt /firmware_version Console-log1.txt Console-log2.txt  thermal-log1.txt thermal-log2.txt basic_debug_log.txt wireless-log1.txt wireless-log2.txt lan.pcap wan.pcap soapclient/* /var/log/soapclient/* /var/log/soapapp hyt_result satellite_status hyd-restart.log wsplcd-restart.log $RADARLOG
 else
-	zip debug-log.zip NETGEAR_$module_name.cfg  panic_log.txt  Console-log1.txt Console-log2.txt thermal-log1.txt thermal-log2.txt wireless-log1.txt wireless-log2.txt basic_debug_log.txt lan.pcap wan.pcap soapclient /var/log/soapclient/* hyt_result satellite_status hyd-restart.log wsplcd-restart.log $RADARLOG
+	zip debug-log.zip NETGEAR_$module_name.cfg  panic_log.txt /firmware_version Console-log1.txt Console-log2.txt thermal-log1.txt thermal-log2.txt wireless-log1.txt wireless-log2.txt basic_debug_log.txt lan.pcap wan.pcap soapclient /var/log/soapclient/* /var/log/soapapp hyt_result satellite_status hyd-restart.log wsplcd-restart.log $RADARLOG
 fi
 
 cd /tmp
-rm -rf debug-usb debug_cpu debug_flash debug_mem debug_mirror_on debug_session NETGEAR_$module_name.cfg panic_log.txt Console-log1.txt Console-log2.txt thermal-log1.txt thermal-log2.txt basic_debug_log.txt lan.pcap wan.pcap wireless-log1.txt wireless-log2.txt
+rm -rf debug-usb debug_cpu debug_flash debug_mem debug_mirror_on debug_session NETGEAR_$module_name.cfg panic_log.txt Console-log1.txt Console-log2.txt thermal-log1.txt thermal-log2.txt basic_debug_log.txt lan.pcap wan.pcap wireless-log1.txt wireless-log2.txt /var/log/soapapp
 
 echo 0 > /tmp/collect_debug

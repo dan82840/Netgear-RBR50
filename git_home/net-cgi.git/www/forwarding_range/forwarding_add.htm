@@ -153,6 +153,7 @@ if(satellite_num>0)
 		attach_name_array[i]=each_info[2];
 		attach_ip_array[i]=each_info[1];
 		document.write('<TR><TD nowrap align=center><input type="radio" name="MacSelect" id="mac_select'+(i+1)+'" value="'+i+'" onclick="ipaddr_value()"></TD><TD nowrap align=center>'+attach_ip_array[i]+'</TD><TD nowrap align=center>'+attach_name_array[i]+'</TD></TR>');
+		i++;
 	}
 }
 function ipaddr_value()

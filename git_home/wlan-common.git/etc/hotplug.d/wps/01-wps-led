@@ -97,11 +97,6 @@ case "$LED_STATE" in
 		wpsled wps_lock_down off
 		
 		echo "********wps inprogress**********" > /dev/console
-                echo "wps_pbc" > /var/run/repacd.pipe
-		#save ledstatus
-		killall ping-netgear 2> /dev/null 
-                #ledcontrol -n all -c save
-		/sbin/led_ring start white
 		;;
 	LED_ERROR | LED_OVERLAP)
 		TIMEOUT_=$ERROR_TIMEOUT

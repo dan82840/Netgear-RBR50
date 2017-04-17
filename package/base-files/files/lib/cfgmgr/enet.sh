@@ -127,8 +127,7 @@ sw_printconf_add_vlan() # $1: device, $2: vlan, $3: vid, $4: ports
 	cat <<EOF
 config switch_vlan
 	option device '$1'
-	option vlan '$2'
-	option vid '$3'
+	option vlan '$3'
 	option ports '$4'
 
 EOF
@@ -212,28 +211,31 @@ sw_configvlan_normal()
 {
 	[ "$enable_bond" = "1" ] && bond_switch_set && return
 	sw_printconf_add_switch > $swconf
-	sw_printconf_add_vlan "switch0" "1" "1" "6 1 2 3 4" >> $swconf
-	sw_printconf_add_vlan "switch0" "2" "2" "0 5" >> $swconf
+	sw_printconf_add_vlan "switch0" "1" "1" "0 2 3 4" >> $swconf
+	sw_printconf_add_vlan "switch0" "2" "2" "0 1" >> $swconf
 
+	module_name=`cat /module_name`
+
+	if [ "$module_name" = "RBR50" ]; then
 	$swconfig dev switch0 load $swconf
+	fi
 }
 
 i_mask() # $1: 1 / 2 / 3 / 4
 {
 	case $1 in
-	1) echo 8 ;;
-	2) echo 4 ;;
+	2) echo 1 ;;
 	3) echo 2 ;;
-	4) echo 1 ;;
+	4) echo 4 ;;
 	esac
 }
 
 sw_configvlan_iptv() # $1: iptv_mask
 {
-	local i mask=$(($1 & 0xf))
-	local ports1="6" ports2="0 5"
+	local i mask=$(($1 & 0x7))
+	local ports1="0t" ports2="0t 1"
 
-	for i in 1 2 3 4; do
+	for i in 2 3 4; do
 		[ $(( $(i_mask $i) & $mask )) -eq 0 ] && ports1="$ports1 $i" || ports2="$ports2 $i"
 	done
 
@@ -256,16 +258,16 @@ sw_configvlan_vlan()
 		g_vlanindex=0
 		;;
 	add)
-		local vid=$3 mask=$(($4 & 0xf)) pri=$5
+		local vid=$3 mask=$(($4 & 0x7)) pri=$5
 		local i ports
 
 		case "$2" in
-			br) ports="0t 5t" ;;
-			lan) ports="6" ;;
-			wan) ports="0t 5" ;;
-			vlan) ports="0t 5t 6t" ;
+			br) ports="0t 1t" ;;
+			lan) ports="0t" ;;
+			wan) ports="0t 1" ;;
+			vlan) ports="0t 1t" ;
 		esac
-		for i in 1 2 3 4; do
+		for i in 2 3 4; do
 			[ $(( $(i_mask $i) & $mask )) -eq 0 ] || ports="$ports $i"
 		done
 		sw_tmpconf_adjust_vlan "$g_vlanindex" "$vid" "$ports" || {

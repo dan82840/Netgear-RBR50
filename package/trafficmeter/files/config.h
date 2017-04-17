@@ -6,7 +6,7 @@
 #define TRAFFIC_METER_MTD_DONGLE "/dev/mtd18"
 
 /* WAN interface name of router */
-#define WAN_DHCP_IFNAME "eth0"
+#define WAN_DHCP_IFNAME "brwan"
 /* PPP interface name of router */
 #define WAN_PPP_IFNAME "ppp0"
 #define WAN_ETH_STATUS "/tmp/port_status"

@@ -84,5 +84,5 @@ p{position: relative; top: 5px;}
 #wireless{ background: url('../image/basic_homes.gif') no-repeat -192px 0; position: relative }
 #attached{ background: url('../image/basic_homes.gif') no-repeat 0 -192px; position: relative }
 #parental{ background: url('../image/basic_homes.gif') no-repeat -192px -192px; position: relative }
-
+#guest{background: url(../image/guest.png) no-repeat;position:relative}
 

@@ -105,6 +105,15 @@ function checkadv(form)
 	//transmit power control
 	wlan_txctrl(form, form.tx_power_ctrl.value, form.tx_power_ctrl_an.value, wla_channel, country);
 
+	if(form.enable_ap.checked == true)
+		form.wl_enable_router.value="1";
+	else
+		form.wl_enable_router.value="0";
+	if(form.enable_ap_an.checked == true)
+		form.wla_enable_router.value="1";
+	else
+		form.wla_enable_router.value="0";
+
 	if( form.enable_coexistence.checked == true)
 		form.hid_enable_coexist.value="0";
 	else
@@ -209,6 +218,16 @@ function checkadv(form)
 		form.wla_frag.value = form.frag_an.value;
 	}
 	
+	if(form.wifi_onoff.checked)
+		form.wladv_enable_schedule.value = "1";
+	else
+		form.wladv_enable_schedule.value = "0";
+
+	if(form.wifi_onoff_an.checked)
+		form.wladv_enable_schedule_a.value = "1";
+	else
+		form.wladv_enable_schedule_a.value = "0";
+
 	if(form.tx_power_ctrl_an.value == "super_wifi")
 		form.tx_power_ctrl_an.value = wla_tpscale;
 	if(form.tx_power_ctrl.value == "super_wifi")
@@ -216,7 +235,12 @@ function checkadv(form)
 
 	form.wl_WRegion.value = form.WRegion.value;
 	form.wla_WRegion.value =form.WRegion.value;
-	form.hid_regionindex.value = form.WRegion.selectedIndex;
+	if(form.WRegion.selectedIndex < 8)
+		form.hid_regionindex.value = form.WRegion.selectedIndex;
+	else if(form.WRegion.selectedIndex < 13)
+		form.hid_regionindex.value = form.WRegion.selectedIndex + 1;
+	else
+		form.hid_regionindex.value = form.WRegion.selectedIndex + 2;
 	form.qca_wireless_region.value = qca_region_arr[parseInt(form.WRegion.value)];
 	if(document.getElementsByName("WRegion")[0].value != wl_get_countryA && form.ssid_bc_an.checked == true)
 		form.change_region_flag.value = 1;

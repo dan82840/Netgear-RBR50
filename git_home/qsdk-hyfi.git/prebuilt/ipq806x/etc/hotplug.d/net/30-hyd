@@ -14,7 +14,7 @@ hyd_restart_aggr() {
 
 	[ -f "$fileflag" ] || return
 
-	a=`stat -c %Y $fileflag`
+	a=`stat -t $fileflag | awk '{print $13}'`
 	b=`date +%s`
 	c=`expr $b - $a`
 	[ "$c" -ge 5 ] || return

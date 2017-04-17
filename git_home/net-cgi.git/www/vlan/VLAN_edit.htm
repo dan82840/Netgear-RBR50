@@ -56,15 +56,11 @@ function loadvalue()
 
 		var wired_port=parseInt(each_info[4],10);
 		var wireless_port=parseInt(each_info[5],10);
-		if(wired_port>=8 && wired_port<=15)
-			cf.iptv_ports_3.checked=true;
-		else
-			cf.iptv_ports_3.checked=false;
-		if((wired_port>=12 && wired_port<=15) || (wired_port>=4 && wired_port<=7))
+		if(wired_port>=4 && wired_port<=7)
 			cf.iptv_ports_2.checked=true;
 		else
 			cf.iptv_ports_2.checked=false;
-		if(wired_port==15 ||wired_port==14 ||wired_port==11 ||wired_port==10 ||wired_port==7 ||wired_port==6 ||wired_port==3 ||wired_port==2)
+		if(wired_port==7 ||wired_port==6 ||wired_port==3 ||wired_port==2)
 			cf.iptv_ports_1.checked=true;
 		else
 			cf.iptv_ports_1.checked=false;
@@ -150,7 +146,6 @@ function loadvalue()
 	<td align="center"><input type="checkbox" id="iptv_ports_0" name="iptv_ports_0">Port1</td>
 	<td align="center"><input type="checkbox" id="iptv_ports_1" name="iptv_ports_1">Port2</td>
 	<td align="center"><input type="checkbox" id="iptv_ports_2" name="iptv_ports_2">Port3</td>
-	<td align="center"><input type="checkbox" id="iptv_ports_3" name="iptv_ports_3">Port4</td>
 	<td>&nbsp;</td>
 	<td align="center"><input type="checkbox" id="iptv_ports_10" name="iptv_ports_10">WiFi-2.4G</td>
 	<td align="center"><input type="checkbox" id="iptv_ports_11" name="iptv_ports_11">WiFi-5G</td>

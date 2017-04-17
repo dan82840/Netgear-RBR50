@@ -1,6 +1,7 @@
 #!/bin/sh /etc/rc.common
 START=20
 . /lib/cfgmgr/cfgmgr.sh
+. /lib/cfgmgr/opmode.sh
 
 vlan_iptv_wl_enable()
 {
@@ -47,11 +48,12 @@ bridge_stop_nss()
 
 start_stage0() # $1: boot/start
 {
-#	op_set_induced_configs
-#	op_create_brs_and_vifs
+	#[ $($CONFIG get ap_mode) = "1" ] && $CONFIG set i_opmode=apmode || $CONFIG set i_opmode=normal
+	#[ $($CONFIG get enable_vlan) = "1" ] && $CONFIG set i_opmode=vlan || $CONFIG set i_opmode=normal
 
-	[ $($CONFIG get ap_mode) = "1" ] && $CONFIG set i_opmode=apmode || $CONFIG set i_opmode=normal
-
+	op_set_induced_configs
+	op_create_brs_and_vifs
+	
 	#For AP mode and Bridge mode turn off access control
 	local opmode=$($CONFIG get i_opmode)
 	if [ "$opmode" = "apmode"  -o "$opmode" = "brmode" ]; then
@@ -71,9 +73,9 @@ start_stage0() # $1: boot/start
 		;;
 	esac
 
-#	if vlan_iptv_wl_enable || bridge_stop_nss; then
-#		/etc/init.d/qca-nss-ecm stop &
-#	fi
+	if vlan_iptv_wl_enable || bridge_stop_nss; then
+		/etc/init.d/qca-nss-ecm stop &
+	fi
 }
 
 stop0()
@@ -88,8 +90,8 @@ stop0()
 		/etc/init.d/net-br stop
 		;;
 	esac
-	brctl delif br0 eth0
-	#op_del_all_brs_vifs
+	#brctl delif br0 eth0
+	op_del_all_brs_vifs
 }
 
 start()

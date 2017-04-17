@@ -102,7 +102,8 @@ same_time="$same_time",
 timestamp_error="$timestamp_error",
 timeout_msg="$timeout_msg",
 Auto="$auto_mark",
-reset_timer="$reset_timer";
+reset_timer="$reset_timer",
+incorrect_firmware="$incorrect_firmware";
 
 var network_name = "$network_name",
 signal_strength = "$info_signal_strength";

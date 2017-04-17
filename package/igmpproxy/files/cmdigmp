@@ -8,7 +8,7 @@ PID_FILE="/var/run/igmpproxy.pid" #if the path/file changes, remember to modify 
 CONFIG_FILE="/var/igmpproxy.conf"
 lan_ifname=`config get lan_ifname`
 wan_ifname=`config get wan_ifname`
-wan_hwifname=ethwan
+wan_hwifname=eth0
 wan_proto=`config get wan_proto`
 current_language=`config get GUI_Region`
 

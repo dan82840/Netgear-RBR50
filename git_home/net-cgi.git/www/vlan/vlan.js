@@ -61,8 +61,6 @@ function check_vlan_input(cf,flag)
 	{
 		var wired=0;
 		var wireless=0;
-		if(cf.iptv_ports_3.checked==true)
-			wired += 8;
 		if(cf.iptv_ports_2.checked==true)
 			wired += 4;
 		if(cf.iptv_ports_1.checked==true)
@@ -71,12 +69,12 @@ function check_vlan_input(cf,flag)
 			wired += 1;
 		if(cf.iptv_ports_10.checked==true)
 			wireless += 1;
-		if(cf.iptv_ports_12.checked==true)
-			wireless += 4;
+		//if(cf.iptv_ports_12.checked==true)
+		//	wireless += 4;
 		if(cf.iptv_ports_11.checked==true)
 			wireless += 2;
-		if(cf.iptv_ports_13.checked==true)
-			wireless += 8;
+		//if(cf.iptv_ports_13.checked==true)
+		//	wireless += 8;
 		if(wired==15 && wireless==3)
 		{
 			alert("$vlan_error6");
@@ -194,13 +192,6 @@ function check_iptv_input(cf)
 {
 	var wired=0;
 	var wireless=0;
-	if(cf.iptv_ports_3.checked==true)
-	{
-		wired += 8;
-		cf.hid_bri_lan4.value="1";
-	}
-	else
-		cf.hid_bri_lan4.value="0";
 	if(cf.iptv_ports_2.checked==true)
 	{
 		wired += 4;
@@ -229,13 +220,13 @@ function check_iptv_input(cf)
 	}
 	else
 		cf.hid_brig_ssid1.value="0";
-	if(cf.iptv_ports_12.checked==true)
+	/*if(cf.iptv_ports_12.checked==true)
 	{
 		wireless += 4;
 		cf.hid_brig_guest_ssid1.value="1";
 	}
 	else
-		cf.hid_brig_guest_ssid1.value="0";
+		cf.hid_brig_guest_ssid1.value="0";*/
 	if(cf.iptv_ports_11.checked==true)
 	{
 		wireless += 2;
@@ -243,14 +234,14 @@ function check_iptv_input(cf)
 	}
 	else
 		cf.hid_brig_ssid2.value="0";
-	if(cf.iptv_ports_13.checked==true)
+	/*if(cf.iptv_ports_13.checked==true)
 	{
 		wireless += 8;
 		cf.hid_brig_guest_ssid2.value="1";
 	}
 	else
-		cf.hid_brig_guest_ssid2.value="0";
-	if(wired==15 && wireless==3)
+		cf.hid_brig_guest_ssid2.value="0";*/
+	if(wired==7 && wireless==3)
 	{
 		alert("$vlan_error6");
 		return false;
@@ -357,7 +348,7 @@ function click_apply(cf)
 		{					
 			var count_enable=0;
 			var sel_list="";
-			var port1=port2=port3=port4=port5=port6=port7=port8=0;
+			var port1=port2=port3=port5=port6=port7=port8=0;
 			for(i=1;i<=array_num;i++)
 			{
 				var boxName= "vlan_check"+i;
@@ -367,11 +358,9 @@ function click_apply(cf)
 					var sel_info=sel_str.split(' ');
 					var lan_port=parseInt(sel_info[4],10);
 					var wlan_port=parseInt(sel_info[5],10);
-					if(lan_port>=8 && lan_port<=15)
-						port4++;
-					if((lan_port>=12 && lan_port<=15) || (lan_port>=4 && lan_port<=7))
+					if(lan_port>=4 && lan_port<=7)
 						port3++;
-					if(lan_port==15 ||lan_port==14 ||lan_port==11 ||lan_port==10 ||lan_port==7 ||lan_port==6 ||lan_port==3 ||lan_port==2)
+					if(lan_port==7 ||lan_port==6 ||lan_port==3 ||lan_port==2)
 						port2++;
 					if(lan_port%2 ==1)
 						port1++;
@@ -389,11 +378,11 @@ function click_apply(cf)
 				}
 			}
 			if( array_num >1 && cf.hid_inter_lan1.value=="0" && cf.hid_inter_lan2.value=="0" && cf.hid_inter_lan3.value=="0" &&
-                        cf.hid_inter_lan4.value=="0" && cf.hid_inter_wireless1.value=="0" && cf.hid_inter_wireless2.value=="0" )	
+                         cf.hid_inter_wireless1.value=="0" && cf.hid_inter_wireless2.value=="0" )	
 			{	alert("$vlan_error16");
 				return false;
 			}
-			if(port1>1 ||port2>1 ||port3>1 ||port4>1 ||port5>1 ||port6>1 ||port7>1 ||port8>1)
+			if(port1>1 ||port2>1 ||port3>1 ||port5>1 ||port6>1 ||port7>1 ||port8>1)
 			{
 				alert("$vlan_port_dup");
 				return false;

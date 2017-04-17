@@ -308,17 +308,20 @@ start_stage0() # $1: boot/start, $2: manually
 		ifconfig bond0 hw ether $mac_value
 		ifconfig ethlan hw ether $mac_value
 	fi
-	ifconfig ethwan hw ether $mac_value
 	ifconfig $WAN_IF down
+	#work around for MR1.5 dhcp throughput low issue. reset mac address cause it.
+	ifconfig eth0 hw ether 84:2b:2b:50:f2:b1
+	ifconfig $WAN_IF hw ether 84:2b:2b:50:f2:b1
+	ifconfig eth0 hw ether $mac_value
 	ifconfig $WAN_IF hw ether $mac_value
-	ifconfig ethwan up
+	ifconfig eth0 up
 	ifconfig $WAN_IF up
 
 	/etc/init.d/dni-qos $1
 	check_qca_nss
 
 	# Bring up the wan interface first time when sytem is Rebooted, it needs to wait 
-	# for a moment after executing the command `ifconfig ethwan up`, then ethwan
+	# for a moment after executing the command `ifconfig eth0 up`, then eth0
 	# PHY is up. 3 seconds MAY be acceptable, and it works.
 	# If not wait, the `udhcpc` CAN'T obtain IP address in its selecting time.
 	[ "$changing_mode" = "1" ] && sleep 5
@@ -330,7 +333,10 @@ start_stage0() # $1: boot/start, $2: manually
 
 	# brigde wan to br0 in factory mode for Base
 	if [ "x$(/bin/config get factory_mode)" = "x1" ]; then
+		brctl delif brwan eth0
 		/usr/bin/killall udhcpc
+		ifconfig brwan down
+		brctl delbr brwan
 		brctl addif br0 eth0
 	fi
 
@@ -400,7 +406,7 @@ stop()
 	fi
 
 	ifconfig $WAN_IF mtu 1500
-	ifconfig ethwan down
+	ifconfig eth0 down
 
 	/etc/init.d/dni-qos stop
 }
@@ -473,7 +479,7 @@ restart_from_detwan()
          ifconfig $WAN_IF up
 
          # Bring up the wan interface first time when sytem is Rebooted, it needs to wait
-         # for a moment after executing the command `ifconfig ethwan up`, then ethwan
+         # for a moment after executing the command `ifconfig eth0 up`, then eth0
          # PHY is up. 3 seconds MAY be acceptable, and it works.
          # If not wait, the `udhcpc` CAN'T obtain IP address in its selecting time.
          sleep 5

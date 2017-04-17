@@ -4,7 +4,7 @@ wan_proto=$(config get wan_proto)
 lan_ipaddr=$(config get lan_ipaddr)
 mask=$(config get lan_netmask)
 tun_subnet=$(tun_net $lan_ipaddr $mask)
-wan_interface="eth0"
+wan_interface="brwan"
 if [ "$wan_proto" = "static" ] || [ "$wan_proto" = "dhcp" ]; then
 	iptables -t nat -A ${wan_interface}_masq -s $tun_subnet/$mask -j MASQUERADE
 else

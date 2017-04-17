@@ -25,7 +25,7 @@
 /* Different Router */
 #define MODEL_NAME	"R7800"
 #define DFT_FILENAME	MODEL_NAME "_pkt_debug.txt"
-#define DFT_IFNAME	"eth0"
+#define DFT_IFNAME	"brwan"
 
 typedef unsigned int  uint32;
 typedef unsigned short uint16;

@@ -13,7 +13,7 @@ WEB_PATH_CC:=www.satellite
 
 include $(INCLUDE_DIR)/package.mk
 
-PKG_GIT_TREEISH:=net-cgi-dni245
+PKG_GIT_TREEISH:=orbi-gui-dni011
 
 define Package/net-cgi
   SECTION:=utils
