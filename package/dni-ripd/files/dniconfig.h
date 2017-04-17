@@ -4,5 +4,5 @@
  */
 
 #define LAN_IF_NAME "br0"
-#define WAN_ETH_NAME "eth0"
+#define WAN_ETH_NAME "brwan"
 #define WAN_PPP_NAME "ppp0"
