@@ -537,7 +537,7 @@ extern struct source_set ZEROSET;
  */
 
 #define LAN_IF "br0"
-#define WAN_IF "eth0"
+#define WAN_IF "brwan"
 #define PPP_IF "ppp0"
 
 extern int	recv_len;

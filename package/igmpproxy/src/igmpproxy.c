@@ -101,7 +101,7 @@ static int sighandled = 0;
 int upStreamVif = 0;
 
 #ifdef USE_ATH_HEADER
-#define SWINTERFACE "ethwan"
+#define SWINTERFACE "eth0"
 /*interfaceSetPacketFlag --
  */
 int interfaceSetPacketFlag(const char *Interface,
