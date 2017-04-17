@@ -49,6 +49,10 @@ atheros-gpio, atheros-gpio, DNI, No
 
 avl, libal, GPL ,No
 
+aws-iot, aws-iot, DNI, No
+
+aws-iot-device-sdk, aws-iot-device-sdk, GPL, No
+
 base-files, base-files, GPL, No
 
 bc, bc, GPL, No
@@ -111,8 +115,6 @@ hd-idle, hd-idle, GPL, No
 
 hotplug2, hotplug2, GPL, No
 
-igmpproxy, igmpproxy, GPL, No
-
 ipp, ipp, GPL, No
 
 iproute2, iproute2, GPL, No
@@ -138,6 +140,8 @@ mtd, mtd, GPL, No
 mtd-utils, mtd-utils, GPL, No
 
 mxml, mxml, GPL, No
+
+mcproxy, mcproxy, GPL, No
 
 net6conf, net6conf, GPL, No
 
