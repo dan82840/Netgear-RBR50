@@ -1681,7 +1681,7 @@ CONFIG_PACKAGE_wlan-common=y
 #
 # Configurations
 #
-CONFIG_WLAN_COMMON_GIT_TREEISH="eb8ef672bf2741c26f44f5b4f905b7e2a4e44023"
+CONFIG_WLAN_COMMON_GIT_TREEISH="d9b7e02740623930d5370c01f2ca85db0d8e8144"
 CONFIG_WLAN_COMMON_GIT_REPOSITORY="wlan-common.git"
 CONFIG_WLAN_COMMON_GIT_URL="ssh://dniserver/scm/dnigit/apps/wlan-common/spencer/wlan-common.git"
 
