@@ -1,7 +1,10 @@
 # 
-#Copyright (c) 2006, Thomas BERNARD 
-#All rights reserved.
+# Copyright (C) 2006 OpenWrt.org
 #
+# This is free software, licensed under the GNU General Public License v2.
+# See /LICENSE for more information.
+#
+# $Id: Makefile,v 1.1.2.2 2007/01/31 06:23:51 ronger Exp $
 
 include $(TOPDIR)/rules.mk
 
