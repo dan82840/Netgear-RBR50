@@ -31,7 +31,7 @@
 #define PPPOE_SESSION_SET       "/usr/share/ppp/ppp-session.script pppoe_ses_set"
 
 /* Define the wan ethernet interface name */
-#define WAN_ETH_NAME           "eth0"
+#define WAN_ETH_NAME           "brwan"
 
 #endif
 
