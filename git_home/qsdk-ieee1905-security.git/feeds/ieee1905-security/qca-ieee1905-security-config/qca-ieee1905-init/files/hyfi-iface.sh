@@ -118,7 +118,7 @@ __hyfi_get_switch_iface() {
 		# is needed to force the interface names to be untagged.
 			loc_switch_iface="eth1"
 			force_untagged_iface=1
-			loc_eswitch_support="1"
+			loc_eswitch_support="0"
 			;;
 		ap135)
 		# ap135 has S17 switch, which is not fully supported by
@@ -432,15 +432,15 @@ __hyfi_get_ether_ifaces_dnihook(){
 			RBR50|RBR30)
 				ap_mode=`/bin/config get ap_mode`
 				if [ "$ap_mode" -eq 1 ]; then
-					ETHER_DEVICES="eth1:ESWITCH,eth0:ETHER"
+					ETHER_DEVICES="eth1:ETHER,eth0:ETHER"
 				else
-					ETHER_DEVICES="eth1:ESWITCH"
+					ETHER_DEVICES="eth1:ETHER"
 				fi
 
 			;;
 
 			RBS50|RBS30)
-				ETHER_DEVICES="eth1:ESWITCH"
+				ETHER_DEVICES="eth1:ETHER"
 			;;
 
 
