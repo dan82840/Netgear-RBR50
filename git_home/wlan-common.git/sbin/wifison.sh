@@ -6,7 +6,7 @@ local BOARD=""
 #
 lbd_updateDNI_config () {
     #Orbi DNI setting
-    if [ "$BOARD" = "model_id:RBR50" -o "$BOARD" = "model_id:RBS50" ]; then
+    if [ "$BOARD" = "RBR50" -o "$BOARD" = "RBS50" -o "$BOARD" = "RBR30" -o "$BOARD" = "RBS30" ]; then
         #config
 
         local lbd_enable
@@ -738,7 +738,7 @@ lbd_updateDNI_config () {
 #
 hyd_updateDNI_config () {
     #Orbi DNI setting
-    if [ "$BOARD" = "model_id:RBR50" -o "$BOARD" = "model_id:RBS50" ]; then
+    if [ "$BOARD" = "RBR50" -o "$BOARD" = "RBS50" -o "$BOARD" = "RBR30" -o "$BOARD" = "RBS30" ]; then
 
         local hyd_enable
         hyd_enable=$(config get hyd_enable)
@@ -800,11 +800,11 @@ hyd_updateDNI_config () {
 
 repacd_updateDNI_config() {
     #Orbi DNI setting
-    if [ "$BOARD" = "model_id:RBR50" ]; then
+    if [ "$BOARD" = "RBR50" -o "$BOARD" = "RBR30" ]; then
         uci set repacd.repacd.Enable=0
         config set repacd_enable=0
         config commit
-    elif [ "$BOARD" = "model_id:RBS50" ]; then
+    elif [ "$BOARD" = "RBS50" -o "$BOARD" = "RBS30" ]; then
         uci set repacd.repacd.ConfigREMode=son
 
         local repacd_enable
@@ -874,7 +874,7 @@ repacd_updateDNI_config() {
 
 wsplcd_updateDNI_config() {
     #Orbi DNI setting
-    if [ "$BOARD" = "model_id:RBR50" -o "$BOARD" = "model_id:RBS50" ]; then
+    if [ "$BOARD" = "RBR50" -o "$BOARD" = "RBS50" -o "$BOARD" = "RBR30" -o "$BOARD" = "RBS30" ]; then
         local wsplcd_enable
         wsplcd_enable=$(config get wsplcd_enable)
 
@@ -976,7 +976,7 @@ wifison_restart() {
 }
 
 wifison_boot () {
-    if [ "$BOARD" = "model_id:RBR50" -o "$BOARD" = "model_id:RBS50" ]; then
+    if [ "$BOARD" = "RBR50" -o "$BOARD" = "RBS50" -o "$BOARD" = "RBR30" -o "$BOARD" = "RBS30" ]; then
 
         lbd_updateDNI_config
         hyd_updateDNI_config
@@ -1016,7 +1016,7 @@ EOF
 }
 
 
-BOARD=$(artmtd -r board_model_id)
+BOARD=$(artmtd -r board_model_id | awk -F: '{print $2}')
 
 case "$1" in
         updateconf) wifison_updateconf "$2";;

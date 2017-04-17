@@ -3,6 +3,11 @@
 
 . /lib/functions.sh
 
+dniconfig()
+{
+    /bin/config $@
+}
+
 usage() {
 	cat <<EOF
 Usage: $0 [down|detect]
@@ -85,12 +90,48 @@ wifi_fixup_hwmode() {
 	config_set "$device" hwmode "$hwmode"
 }
 
+config_work_mode()
+{
+    mode=$(dniconfig get wl_conf_mode)  # AP_mode: 0 ; extender_mode: 2
+    band_mode=$(dniconfig get 5g_sta)   # wifi1 works on low band(band1 and band2), wifi2 works on high band(band3 and band4):
+                                        # band_mode=1 ----- indicate  wifi1 will create ath1 and act as STA, wifi2 will create ath2 and act as AP
+                                        # band_mode=2 ----- indecate  wifi2 will create ath2 and act as STA, wifi2 will create ath1 and act as AP
+                                        # Below are work mode list:
+                                            #operation_mode_="normal_ap"
+                                            #operation_mode_0="none"
+                                            #operation_mode_1="normal_ap"
+                                            #operation_mode_2="ex_sta"           # exterder station
+                                            #operation_mode_3="normal_ap+ex_sta" # repeater
+                                            #operation_mode_4="backhaul_ap"      # backhaul is running with WDS mode.
+                                            #operation_mode_5="backhaul_sta"
+                                            #operation_mode_6="backhaul_ap+backhaul_sta"
+                                            #operation_mode_7="normal_ap+backhaul_sta"
+                                            #operation_mode_8="normal_ap+backhaul_ap+backhaul_sta"
+                                            #operation_mode_9="normal_ap+backhaul_ap"
+                                            #operation_mode_10="qwrap_sta+qwrap_ap"
+                                         #################################################################################   
+    if [ "x$mode" = "x0" ];then                     # It means DUT will work on AP modoe                               
+        dniconfig set wlg_operation_mode=1          
+        dniconfig set wla_operation_mode=1          
+        dniconfig set wla_2nd_operation_mode=1      
+    elif [ "x$band_mode" = "x1" ];then              # It means DUT will work on extender mode and the vap of wifi1 will act as STA, wifi2's vap act as AP
+        dniconfig set wlg_operation_mode=10          
+        dniconfig set wla_operation_mode=10          
+        dniconfig set wla_2nd_operation_mode=10      
+    elif [ "x$band_mode" = "x2" ];then              # It means DUT will work on extender mode and the vap of wifi2 will act as STA, wifi1's vap act as AP
+        dniconfig set wlg_operation_mode=10         
+        dniconfig set wla_operation_mode=10         
+        dniconfig set wla_2nd_operation_mode=10     
+    fi
+}
+
 # Do not call this function if there is still anything you want to do after it,
 # because it is exited directly.
 wifi_updateconf() {
 	local cmd=$1
 	local reload_time=3;
 	if eval "type update-wifi" 2>/dev/null >/dev/null; then
+        [ "$DEVICE_TYPE" = "extender" ] && config_work_mode
 		update-wifi
 		uci show wireless > $NEW_WIRELESS_CONF
 		[ -f /etc/wifi_config_comp.awk ] && {
@@ -322,6 +363,12 @@ wifi_toggle() {
 wifi_schedule() {
 	local band=$2
 	local newstate=$3
+
+        if [ "$DEVICE_TYPE" = "extender" ];then
+	        # extender schedule feature is different with router,so call different code
+                wifi_schedule_extender "$@"
+                exit
+        fi
 
 	if eval "type config_get_$CONFIGS" 2>/dev/null >/dev/null; then
 		eval "config_get_$CONFIGS _tmp_state hw_btn_state"
