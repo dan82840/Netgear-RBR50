@@ -552,6 +552,7 @@ MOD_CFLAGS = -D"KBUILD_STR(s)=\#s" -D"KBUILD_BASENAME=KBUILD_STR(umac.mod)"  -D"
 endif
 
 umac-objs := base/ieee80211_ucfg.o \
+             base/ieee80211_rate_estimate.o \
              base/ieee80211_channel.o base/ieee80211_common.o base/ieee80211_config.o \
              base/ieee80211_node.o base/ieee80211_node_ap.o base/ieee80211_node_sta.o \
              base/ieee80211_node_ibss.o base/ieee80211_rateset.o base/ieee80211_vap.o \
