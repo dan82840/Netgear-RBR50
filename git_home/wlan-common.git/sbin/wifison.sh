@@ -43,6 +43,17 @@ lbd_updateDNI_config () {
         ;;
         esac
 
+        local lbd_MatchingSSID
+
+        local guest_enable
+        guest_enable="$(config get wlg1_endis_guestNet)"
+
+        if [ "$guest_enable" -eq '1' ]; then 
+            uci set lbd.config.MatchingSSID="$(config get wl_ssid)"
+        else
+            uci set lbd.config.MatchingSSID=""
+        fi
+
         # Idle Steering
         local lbd_RSSISteeringPoint_DG
         local lbd_NormalInactTimeout

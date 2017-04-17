@@ -990,8 +990,15 @@ if [ "$update_conf" = "wifi" -o "$update_conf" = "all" ]; then
     rm -rf $wifi_topology_file
     # config driver parameters
     uci set wireless.qcawifi=qcawifi
-    [ "$wlg_super_wifi" != "0" ] && uci set wireless.qcawifi.wl_super_wifi=${wlg_super_wifi}
-    [ "$wla_super_wifi" != "0" ] && uci set wireless.qcawifi.wla_super_wifi=${wla_super_wifi}
+    case "$country_code" in
+        4015)
+            uci set wireless.qcawifi.wl_super_wifi=1
+            uci set wireless.qcawifi.wla_super_wifi=1
+            ;;
+        *)
+            [ "$wlg_super_wifi" != "0" ] && uci set wireless.qcawifi.wl_super_wifi=${wlg_super_wifi}
+            [ "$wla_super_wifi" != "0" ] && uci set wireless.qcawifi.wla_super_wifi=${wla_super_wifi}
+    esac
 
     if [ "$wlg_ap_operation_type" != "none" -o "$wlg_sta_operation_type" != "none" -o "$wlg_ap_bh_operation_type" != "none" ]; then
         uci set wireless.${g_device}=wifi-device
@@ -1108,7 +1115,7 @@ if [ "$update_conf" = "wifi" -o "$update_conf" = "all" ]; then
         create_new_iface
         uci set wireless.${wl_section}.device=${g_device}
         uci set wireless.${wl_section}.network=${wlg_bridge#"br"}
-        uci set wireless.${wl_section}.bridge=${wlg_bridge}
+        uci set wireless.${wl_section}.bridge=${wlg_2nd_bridge}
         # assign_vap_option "$wl_vap"
         generate_mode $wl_vap
         generate_ssid $wl_vap
@@ -1132,7 +1139,7 @@ if [ "$update_conf" = "wifi" -o "$update_conf" = "all" ]; then
         create_new_iface
         uci set wireless.${wl_section}.device=${g_device}
         uci set wireless.${wl_section}.network=${wlg_bridge#"br"}
-        uci set wireless.${wl_section}.bridge=${wlg_bridge}
+        uci set wireless.${wl_section}.bridge=${wlg_2nd_bridge}
         generate_mode $wl_vap
         generate_ssid $wl_vap
         generate_security $wl_vap

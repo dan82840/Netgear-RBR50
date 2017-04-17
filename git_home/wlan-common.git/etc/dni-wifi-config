@@ -43,7 +43,7 @@ if [ "$wla_exist" = "on" ]; then
     country_code_2=5000             # Australi
     country_code_3=5001             # Canada
     country_code_4=276              # Europe Germany
-    country_code_5=376              # Israel
+    country_code_5=276              # Israel is 376, but we use EU for wifi support
     country_code_6=4015             # Japan
     country_code_7=412              # Korea
     country_code_8=484              # Mexica
@@ -53,7 +53,7 @@ if [ "$wla_exist" = "on" ]; then
     country_code_12=356             # India
     country_code_13=458             # Malaysia
     country_code_14=12              # Middle East (Algeria/Syria/Yemen), use Algeria
-    country_code_15=364             # Middle East (Iran/Lebanon/Qatar), use Iran
+    country_code_15=276             # Middle East (Iran/Lebanon/Qatar), use Iran(364), but we use EU for wifi support
     country_code_16=792             # Middle East (Turkey/Egypt/Tunisia/Kuwait), use Turkey
     country_code_17=682             # Middle East (Saudi Arabia)
     country_code_18=784             # Middle East (United Arab Emirates)
@@ -323,6 +323,8 @@ if [ -n "$DNI_CONFIG" ]; then
         eval wlg_ap_bh_auth=`dniconfig get wlg_ap_bh_auth`
         eval wlg_ap_bh_dyn_bw_rts=`dniconfig get wlg_ap_bh_dyn_bw_rts`
         eval wlg_ap_bh_rps=`dniconfig get wlg_ap_bh_rps`
+        wlg_2nd_bridge=`dniconfig get i_wlg_2nd_br`
+        [ -z "$wlg_2nd_bridge" ] && wlg_2nd_bridge=$lan_ifname
         get_ifname_section _ifname _section $g_device
         wlg_ap_bh_doth=`dniconfig get wlg_ap_bh_doth`
         wlg_ap_bh_ifname=$_ifname
@@ -338,6 +340,8 @@ if [ -n "$DNI_CONFIG" ]; then
         eval wlg_sta_auth=`dniconfig get wlg_sta_auth`
         eval wlg_sta_dyn_bw_rts=`dniconfig get wlg_sta_dyn_bw_rts`
         eval wlg_sta_rps=`dniconfig get wlg_sta_rps`
+        wlg_2nd_bridge=`dniconfig get i_wlg_2nd_br`
+        [ -z "$wlg_2nd_bridge" ] && wlg_2nd_bridge=$lan_ifname
         get_ifname_section _ifname _section $g_device
         wlg_sta_doth=`dniconfig get wlg_sta_doth`
         wlg_sta_ifname=$_ifname
