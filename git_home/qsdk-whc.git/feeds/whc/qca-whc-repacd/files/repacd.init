@@ -1848,9 +1848,9 @@ start() {
     }
 
     #Set GetewayConnectedMode by Orbi board ID
-    local HWmode=$(artmtd -r board_model_id)
+    local model_id=`/sbin/artmtd -r board_model_id | awk -F: '{print $2}'`
 
-    if [ "$HWmode" = "model_id:RBR50" ] ;then
+    if [ "$model_id" = "RBR50" -o "$model_id" = "RBR30" ] ;then
 	return 1
     fi
 
