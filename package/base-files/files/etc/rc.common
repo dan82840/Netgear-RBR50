@@ -3,7 +3,7 @@
 
 LAN_IF=eth1
 BR_IF=br0
-WAN_IF=eth0
+WAN_IF=brwan
 CONFIG=/bin/config
 
 . $IPKG_INSTROOT/lib/functions.sh

@@ -29,9 +29,9 @@ if [ "$wanname" != "brwan" ]; then
 	$CONFIG set rcagent_log_level="debug"
 	$CONFIG set true_lanif="eth1"
 	$CONFIG set leafp2p_debug="5"
-	$CONFIG set wan_ifname="eth0"
+	$CONFIG set wan_ifname="brwan"
 	$CONFIG set lan_ifnames="eth1 ath0"
-	$CONFIG set wan_ifnames="eth0"
+	$CONFIG set wan_ifnames="brwan"
 	$CONFIG commits
 fi
 
