@@ -1,6 +1,6 @@
 #!/bin/sh
 
-WAN_IF=eth0
+WAN_IF=brwan
 CONFIG=/bin/config
 
 DDNS_STATUS=/tmp/ez-ipupd.status
