@@ -178,6 +178,7 @@ static int qcom_wdt_restart(struct notifier_block *nb, unsigned long action,
 {
 	struct qcom_wdt *wdt = container_of(nb, struct qcom_wdt, restart_nb);
 	u32 timeout;
+	printk("***********Watchdog Reboot*************\n");	
 
 	/*
 	 * Trigger watchdog bite/bark:
