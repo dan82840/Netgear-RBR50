@@ -13,6 +13,8 @@ uci show >> /tmp/basic_debug_log.txt
 while [ 1 ]
 do
 echo "======================Run time check======================" >> /tmp/basic_debug_log.txt
+date=`date`
+echo "-----------------------$date----------------------" >> /tmp/basic_debug_log.txt
 echo "-----------------------iwconfig----------------------" >> /tmp/basic_debug_log.txt
 	iwconfig >> /tmp/basic_debug_log.txt 
 echo "-------------(echo "td s"; sleep 2)| hyt-------------" >> /tmp/basic_debug_log.txt
