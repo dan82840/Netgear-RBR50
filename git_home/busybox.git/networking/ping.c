@@ -134,7 +134,7 @@ int ping_main(int argc, char **argv)
 
 /* full(er) version */
 
-#define OPT_STRING "qc:s:I:"
+#define OPT_STRING "qc:s:I:d"
 enum {
 	OPT_QUIET = 1 << 0,
 };
@@ -142,6 +142,7 @@ enum {
 static struct sockaddr_in pingaddr;
 static struct sockaddr_in sourceaddr;
 static int pingsock = -1;
+static int resolve_only = 0;
 static unsigned datalen; /* intentionally uninitialized to work around gcc bug */
 
 static unsigned long ntransmitted, nreceived, nrepeats, pingcount;
@@ -352,6 +353,10 @@ static void ping(const char *host)
 	printf("PING %s (%s)",
 			hostent->h_name,
 			inet_ntoa(*(struct in_addr *) &pingaddr.sin_addr.s_addr));
+	if(resolve_only == 1){
+		resolve_only = 0;
+		return 0;
+	}
 	if (sourceaddr.sin_addr.s_addr) {
 		printf(" from %s",
 			inet_ntoa(*(struct in_addr *) &sourceaddr.sin_addr.s_addr));
@@ -430,7 +435,7 @@ make it true for ping. */
 		if (parse_nipquad(opt_I, &sourceaddr))
 			bb_show_usage();
 	}
-
+	if (option_mask32 & 16) resolve_only = 1; // -d
 	myid = (int16_t) getpid();
 	ping(argv[optind]);
 	return EXIT_SUCCESS;
