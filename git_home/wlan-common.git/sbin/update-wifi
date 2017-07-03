@@ -172,6 +172,21 @@ generate_htmode()
     fi
 }
 
+
+generate_ul_hyst()
+{
+    eval wl_value=\$`echo $1`_ul_hyst
+
+    if [ "$1" = "wlg" ]; then
+        uci set wireless.${g_device}.ul_hyst=${wl_value:-0}
+    elif [ "$1" = "wla" ]; then
+        uci set wireless.${a_device}.ul_hyst=${wl_value:-0}
+    elif [ "$1" = "wla2" ]; then
+        uci set wireless.${a2_device}.ul_hyst=${wl_value:-3}
+    fi
+}
+
+
 generate_keepalive()
 {
     eval wl_value=\$`echo $1`_keepalive
@@ -349,6 +364,7 @@ generate_mode()
         uci set wireless.${wl_section}.vap_ind=0
         uci set wireless.${wl_section}.wds=1
         uci set wireless.${wl_section}.backhaul=1
+        uci set wireless.${wl_section}.backhaul_ap=1
         uci set wireless.${wl_section}.wsplcd_unmanaged=1
         uci set wireless.${wl_section}.repacd_security_unmanaged=1
     elif [ "$operation_type" = "qwrap_ap" ];then
@@ -501,6 +517,14 @@ generate_rrm()
     eval wl_value=\$`echo $1`_rrm
     uci set wireless.${wl_section}.rrm=${wl_value:-0}
 }
+
+
+generate_caprssi()
+{
+    eval wl_value=\$`echo $1`_caprssi
+    uci set wireless.${wl_section}.caprssi=${wl_value:-30}
+}
+
 
 generate_mcastenhance()
 {
@@ -1171,7 +1195,9 @@ if [ "$update_conf" = "wifi" -o "$update_conf" = "all" ]; then
         generate_chainmask "wla2"
         generate_implicitbf "wla2"
         generate_mu_mimo "wla2"
+        generate_ul_hyst "wla2"
         generate_keepalive "wla2"
+        generate_uplink "wla2"
         generate_cca_threshold "wla2"
         generate_sta_dfs "wla2"
     fi
@@ -1392,6 +1418,7 @@ if [ "$update_conf" = "wifi" -o "$update_conf" = "all" ]; then
         generate_ssid $wl_vap
         generate_security $wl_vap
         generate_ifname $wl_vap
+        generate_caprssi $wl_vap
 	generate_doth $wl_vap	
         generate_wps $wl_vap
         generate_dyn_bw_rts $wl_vap
@@ -1575,6 +1602,7 @@ if [ "$update_conf" = "wifi" -o "$update_conf" = "all" ]; then
         generate_wps $wl_vap
         generate_rts $wl_vap
         generate_rrm $wl_vap
+        generate_caprssi $wl_vap
         generate_doth $wl_vap
         generate_hostapd_debug_level $wl_vap
         generate_dyn_bw_rts $wl_vap

@@ -26,6 +26,8 @@ lbd_updateDNI_config () {
         ;;
         esac
 
+        uci set lbd.config.MatchingSSID="$(config get wl_ssid)"
+
         local lbd_PHYBasedPrioritization
         lbd_PHYBasedPrioritization=$(config get lbd_PHYBasedPrioritization)
 
@@ -801,8 +803,12 @@ hyd_updateDNI_config () {
 repacd_updateDNI_config() {
     #Orbi DNI setting
     if [ "$BOARD" = "RBR50" -o "$BOARD" = "RBR30" ]; then
-        uci set repacd.repacd.Enable=0
-        config set repacd_enable=0
+#        uci set repacd.repacd.Enable=0
+        config set repacd_enable=1
+        uci set repacd.repacd.Enable=1 
+        uci set repacd.repacd.DeviceType=CAP 
+        uci set repacd.repacd.Role=CAP 
+        uci set repacd.repacd.DefaultREMode=son 
         config commit
     elif [ "$BOARD" = "RBS50" -o "$BOARD" = "RBS30" ]; then
         uci set repacd.repacd.ConfigREMode=son
@@ -857,6 +863,97 @@ repacd_updateDNI_config() {
             config commit
         fi
 
+        local RateThresholdMax5GInPercent
+        RateThresholdMax5GInPercent=$(config get RateThresholdMax5GInPercent)
+
+        if [ "$RateThresholdMax5GInPercent" -gt 0 -a  "$RateThresholdMax5GInPercent" -lt 100 ]; then
+            uci set repacd.WiFiLink.RateThresholdMax5GInPercent=$RateThresholdMax5GInPercent
+        elif [ -z "$RateThresholdMax5GInPercent" ]; then
+            RateThresholdMax5GInPercent=$(uci get repacd.WiFiLink.RateThresholdMax5GInPercent)
+            config set RateThresholdMax5GInPercent=$RateThresholdMax5GInPercent
+            config commit
+        fi
+
+        local RateThresholdMin5GInPercent
+        RateThresholdMin5GInPercent=$(config get RateThresholdMin5GInPercent)
+
+        if [ "$RateThresholdMin5GInPercent" -gt 0 -a  "$RateThresholdMin5GInPercent" -lt 100 ]; then
+            uci set repacd.WiFiLink.RateThresholdMax5GInPercent=$RateThresholdMax5GInPercent
+        elif [ -z "$RateThresholdMin5GInPercent" ]; then
+            RateThresholdMin5GInPercent=$(uci get repacd.WiFiLink.RateThresholdMin5GInPercent)
+            config set RateThresholdMin5GInPercent=$RateThresholdMin5GInPercent
+            config commit
+        fi
+
+        local RateThresholdPrefer2GBackhaulInPercent
+        RateThresholdPrefer2GBackhaulInPercent=$(config get RateThresholdPrefer2GBackhaulInPercent)
+
+        if [ "$RateThresholdPrefer2GBackhaulInPercent" -gt 0 -a  "$RateThresholdPrefer2GBackhaulInPercent" -lt 100 ]; then
+            uci set repacd.WiFiLink.RateThresholdPrefer2GBackhaulInPercent=$RateThresholdPrefer2GBackhaulInPercent
+        elif [ -z "$RateThresholdPrefer2GBackhaulInPercent" ]; then
+            RateThresholdPrefer2GBackhaulInPercent=$(uci get repacd.WiFiLink.RateThresholdPrefer2GBackhaulInPercent)
+            config set RateThresholdPrefer2GBackhaulInPercent=$RateThresholdPrefer2GBackhaulInPercent
+            config commit
+        fi
+
+        local repacd_5GBackhaulEvalTimeShort
+        repacd_5GBackhaulEvalTimeShort=$(config get 5GBackhaulEvalTimeShort)
+
+        if [ "$repacd_5GBackhaulEvalTimeShort" -gt 0 ]; then
+            uci set repacd.WiFiLink.5GBackhaulEvalTimeShort=$repacd_5GBackhaulEvalTimeShort
+        elif [ -z "$repacd_5GBackhaulEvalTimeShort" ]; then
+            repacd_5GBackhaulEvalTimeShort=$(uci get repacd.WiFiLink.5GBackhaulEvalTimeShort)
+            config set 5GBackhaulEvalTimeShort=$repacd_5GBackhaulEvalTimeShort
+            config commit
+        fi
+
+        local repacd_5GBackhaulEvalTimeLong
+        repacd_5GBackhaulEvalTimeLong=$(config get 5GBackhaulEvalTimeLong)
+
+        if [ "$repacd_5GBackhaulEvalTimeLong" -gt 0 ]; then
+            uci set repacd.WiFiLink.5GBackhaulEvalTimeLong=$repacd_5GBackhaulEvalTimeLong
+        elif [ -z "$repacd_5GBackhaulEvalTimeLong" ]; then
+            repacd_5GBackhaulEvalTimeLong=$(uci get repacd.WiFiLink.5GBackhaulEvalTimeLong)
+            config set 5GBackhaulEvalTimeLong=$repacd_5GBackhaulEvalTimeLong
+            config commit
+        fi
+
+        local ManageVAPInd
+        ManageVAPInd=$(config get ManageVAPInd)
+
+        if [ -n "$ManageVAPInd" ]; then
+            uci set repacd.WiFiLink.ManageVAPInd=$ManageVAPInd
+        elif [ -z "$ManageVAPInd" ]; then
+            ManageVAPInd=$(uci get repacd.WiFiLink.ManageVAPInd)
+            config set ManageVAPInd=$ManageVAPInd
+            config commit
+        fi
+
+        local EnableEthernetMonitoring
+        EnableEthernetMonitoring=$(config get EthernetBackhaul)
+        case $EnableEthernetMonitoring in
+        1)
+            uci set repacd.repacd.EnableEthernetMonitoring=1
+            config commit 
+        ;;
+        *)
+            uci set repacd.repacd.EnableEthernetMonitoring=0 
+            config commit 
+        ;;
+        esac
+
+        local wla_backhaul_channel
+        if [ "$BOARD" = "RBR30" -o "$BOARD" = "RBS30" -o "$BOARD" = "RBR40" -o "$BOARD" = "RBS40" -o "$BOARD" = "RBK30" -o "$BOARD" = "RBK40"]; then
+            wla_backhaul_channel=$(config get wla_hidden_channel)
+        else
+            wla_backhaul_channel=$(config get wla_2nd_hidden_channel)
+        fi
+
+        #IF 5G band in DFS channel extend BSSID associated timeout to 300 sec for CAC
+        if [ "$wla_backhaul_channel" -gt 50 -a "$wla_backhaul_channel" -lt 144 ]; then
+            uci set repacd.WiFiLink.BSSIDAssociationTimeout=300
+        fi
+
         local MaxMeasuringStateAttempts
         MaxMeasuringStateAttempts=$(config get repacd_MaxMeasuringStateAttempts)
 
@@ -867,6 +964,32 @@ repacd_updateDNI_config() {
             config set repacd_MaxMeasuringStateAttempts=$MaxMeasuringStateAttempts
             config commit
         fi
+
+        local Daisy_Chain_Enable
+        Daisy_Chain_Enable=$(config get repacd_Daisy_Chain_Enable)
+
+        if [ -n "$Daisy_Chain_Enable" ]; then
+            uci set repacd.WiFiLink.DaisyChain=$Daisy_Chain_Enable
+        else
+            Daisy_Chain_Enable=$(uci get repacd.WiFiLink.DaisyChain)
+            config set repacd_Daisy_Chain_Enable=$Daisy_Chain_Enable
+            config commit
+        fi
+
+
+        local RateScalingFactor
+        RateScalingFactor=$(config get repacd_RateScalingFactor)
+
+        if [ "$RateScalingFactor" -gt 0 ]; then
+            uci set repacd.WiFiLink.RateScalingFactor=$RateScalingFactor
+        elif [ -z "$RateScalingFactor" ]; then
+            RateScalingFactor=$(uci get repacd.WiFiLink.RateScalingFactor)
+            config set repacd_RateScalingFactor=$RateScalingFactor
+            config commit
+        fi
+
+
+
 
     fi
 }
@@ -977,7 +1100,7 @@ wifison_restart() {
 
 wifison_boot () {
     if [ "$BOARD" = "RBR50" -o "$BOARD" = "RBS50" -o "$BOARD" = "RBR30" -o "$BOARD" = "RBS30" ]; then
-
+	logd&
         lbd_updateDNI_config
         hyd_updateDNI_config
         repacd_updateDNI_config

@@ -47,7 +47,7 @@ echo "$wifi_status" >> $hyd_restart_log
 
 hyctl flushatbl br0
 hyctl flushdtbl br0
-
+/etc/init.d/hyfi-bridging start
 /etc/init.d/hyd restart
 }
 
