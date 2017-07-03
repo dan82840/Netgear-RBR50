@@ -2,6 +2,20 @@
 START=30
 
 start() {
+	num=1
+	while [ 1 ];do
+		ORBI_DEV_NAME=$($CONFIG get orbi_dev_name$num)
+		if [ "x$ORBI_DEV_NAME" = "x" ]; then
+			break
+		fi
+		LINE_COUNT=`$CONFIG get orbi_dev_name$num | wc -l`
+
+		if [ "x$LINE_COUNT" != "x1" ]; then
+			$CONFIG set orbi_dev_name$num="00:00:00:00:00:00 INVALIDNAME"
+		fi
+		num=$(($num + 1))
+	done
+
 	[ "$($CONFIG get i_opmode)" = "normal" ] && $CONFIG set old_enable_acl_status=$($CONFIG get enable_block_device)
 
 	if [ "x$($CONFIG get enable_block_device)" = "x" ]; then
