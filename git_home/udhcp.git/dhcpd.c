@@ -415,6 +415,7 @@ int main(int argc, char *argv[])
 			break;
 		case DHCPRELEASE:
 			DEBUG(LOG_INFO,"received RELEASE");
+			system("killall -SIGALRM net-scan");
 			if (lease) lease->expires = time(0);
 			break;
 		case DHCPINFORM:

@@ -78,6 +78,12 @@ case "$1" in
 		if [ "$opmode" = "apmode" -o "$opmode" = "brmode" -o "$opmode" = "extmode" ]; then
 			/etc/init.d/upnp restart
 		fi
+
+		if [ "x`$CONFIG get wlg1_endis_guestNet`" = "x1" ] || [ "x`$CONFIG get wla1_endis_guestNet`" = "x1" ]; then
+			wlan lanrestrict on $ip $subnet
+		elif [ "x`$CONFIG get wlg1_endis_guestNet`" = "x0" ] && [ "x`$CONFIG get wla1_endis_guestNet`" = "x0" ]; then
+			wlan lanrestrict off
+		fi
 		/etc/init.d/hyd restart
 		;;
 	runzcip )

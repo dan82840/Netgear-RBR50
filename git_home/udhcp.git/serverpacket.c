@@ -330,6 +330,8 @@ int sendACK(struct dhcpMessage *oldpacket, u_int32_t yiaddr)
 	u_int32_t lease_time_align = server_config.lease;
 	struct in_addr addr;
 
+	system("config set soap_setting=AttachDevice;config commit;killall -SIGUSR1 soap_agent");
+
 	init_packet(&packet, oldpacket, DHCPACK);
 	packet.yiaddr = yiaddr;
 	
