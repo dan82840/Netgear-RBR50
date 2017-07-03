@@ -27,6 +27,7 @@ endef
 define Package/net-scan/install
 	install -d -m0755 $(1)/etc/init.d
 	install -m0755 ./files/net-scan.init $(1)/etc/init.d/net-scan
+	install -m0755 ./files/send_soap $(1)/etc/
 	install -d -m0755 $(1)/usr/sbin
 	install -m0755 $(PKG_BUILD_DIR)/net-scan $(1)/usr/sbin/
 	install -m0755 $(PKG_BUILD_DIR)/dev-scan $(1)/usr/sbin/

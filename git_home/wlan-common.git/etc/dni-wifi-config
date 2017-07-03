@@ -537,6 +537,7 @@ if [ -n "$DNI_CONFIG" ]; then
         eval wla_sta_rps=`dniconfig get wla_sta_rps`
         get_ifname_section _ifname _section $a_device
         wla_sta_doth=`dniconfig get wla_sta_doth`
+        wla_sta_caprssi=`dniconfig get wla_sta_caprssi`
         wla_sta_ifname=$_ifname
         wla_sta_section=$_section
         wla_bridge=`dniconfig get i_wla_br`
@@ -741,6 +742,7 @@ if [ -n "$DNI_CONFIG" ]; then
                     ;;
             esac
             wla2_keepalive=`dniconfig get wla_2nd_keepalive`
+            wla2_ul_hyst=`dniconfig get wla_2nd_ul_hyst`
             wla2_sta_dfs_en=`dniconfig get wla_2nd_sta_dfs_en`
             eval wla2_bf_onoff=\$onoff_no_default_`dniconfig get wla_2nd_bf`
             eval wla2_implicit_bf_onoff=\$onoff_`dniconfig get wla_2nd_implicit_bf`
@@ -814,6 +816,7 @@ if [ -n "$DNI_CONFIG" ]; then
             wla2_sta_section=$_section
             wla2_bridge=`dniconfig get i_wla_2nd_br`
             wla2_priority=`dniconfig get i_wla_2nd_pri`
+            wla2_sta_caprssi=`dniconfig get wla_2nd_sta_caprssi`
             [ -z "$wla2_bridge" ] && wla_2nd_bridge=$lan_ifname
         fi
     fi
@@ -836,9 +839,9 @@ if [ -n "$DNI_CONFIG" ]; then
     wl_dtim_wo_guest=`dniconfig get wl_dtim_wo_guest`
     wl_dtim_w_guest=`dniconfig get wl_dtim_w_guest`
     wl_guest_dtim=`dniconfig get wl_guest_dtim`
-    wl_dtim_wo_guest=${wl_dtim_wo_guest:-2}
-    wl_dtim_w_guest=${wl_dtim_w_guest:-2}
-    wl_guest_dtim=${wl_guest_dtim:-2}
+    wl_dtim_wo_guest=${wl_dtim_wo_guest:-4}
+    wl_dtim_w_guest=${wl_dtim_w_guest:-4}
+    wl_guest_dtim=${wl_guest_dtim:-4}
 
 
     eval wig_if_onoff=\$onoff_`dniconfig get endis_wig_radio`

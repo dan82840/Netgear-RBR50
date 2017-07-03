@@ -828,6 +828,11 @@ User application
 	@SF/xtables-addons
 	GPL
 	Source Code
+[zebra]
+	zebra
+	http://zebra.sourceforge.net
+	GPL
+	Source Code
 [zip]
         zip232.zip
         http://infozip.sourceforge.net/Zip.html

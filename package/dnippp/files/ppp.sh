@@ -140,6 +140,8 @@ if [ "\$(config get wan_proto)" = "pptp" -a "\$(config get wan_pptp_dns_assign)"
 					echo nameserver "\$staticdns2" > /tmp/resolv.conf
 				fi
 			fi
+		else
+			echo nameserver "\$staticdns2" >> /tmp/resolv.conf
 		fi
 elif [ "\$(config get wan_proto)" = "l2tp" -a "\$(config get wan_l2tp_dns_assign)" = "1" ]; then
         if [ "x\$staticdns1" != "x" ]; then
@@ -163,6 +165,8 @@ elif [ "\$(config get wan_proto)" = "l2tp" -a "\$(config get wan_l2tp_dns_assign
 					echo nameserver "\$staticdns2" > /tmp/resolv.conf
 				fi
 			fi
+		else
+			echo nameserver "\$staticdns2" >> /tmp/resolv.conf
 		fi
 elif [ "\$(config get wan_proto)" = "pppoe" -a "\$(config get wan_pppoe_dns_assign)" = "1" ]; then
         echo nameserver "\$staticdns1" > /tmp/resolv.conf

@@ -32,7 +32,7 @@ define Package/aws-iot/install
 	install -d -m0755 $(1)/usr/sbin
 	install -d -m0755 $(1)/etc/init.d
 	install -d -m0755 $(1)/etc/router_analytics
-	install -m0755 $(PKG_BUILD_DIR)/aws-iot.init $(1)/etc/init.d/aws-iot
+	install -m0755 $(PKG_BUILD_DIR)/aws-iot.init $(1)/etc/init.d/aws
 	install -m0755 $(PKG_BUILD_DIR)/certs/*  $(1)/etc/router_analytics
 	install -m0755 $(PKG_BUILD_DIR)/data_collector  $(1)/usr/sbin
 	install -m0755 $(PKG_BUILD_DIR)/aws-iot  $(1)/usr/sbin

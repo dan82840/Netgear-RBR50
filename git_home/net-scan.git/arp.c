@@ -2,13 +2,6 @@
 
 #define NEIGH_HASHMASK	0x1F
 
-#define SUPPORT_STREAMBOOST
-#ifdef SUPPORT_STREAMBOOST
-#define SB_INFO_STATE_1 1
-#define SB_INFO_STATE_2 2
-
-#define INTERFACENUM 8
-
 enum interface_num {
 	BR0,
 	ATH0,
@@ -32,6 +25,13 @@ enum device_type{
 	WIRELESS_5G,
 	WIRED
 };
+
+#define SUPPORT_STREAMBOOST
+#ifdef SUPPORT_STREAMBOOST
+#define SB_INFO_STATE_1 1
+#define SB_INFO_STATE_2 2
+
+#define INTERFACENUM 8
 
 typedef enum {
 	TYPE_SOAP_OLD = 0, /* This type is for SOAP API */
@@ -727,10 +727,12 @@ void recv_bios_pack(char *buf, int len, struct in_addr from)
 	e = p + (num * 18);
 	/* unique name, workstation service - this is computer name */
 	for (; p < e; p += 18)
-		if (p[15] == 0 && (p[16] & 0x80) == 0)
+		if ((p[15] == 0 || p[15] == 0x20) && (p[16] & 0x80) == 0)
 			break;
 	if (p == e)
 		return;
+	if (p[15] == 0x20)
+		p[15] = 0;
 	update_bios_name(e, (char *)p, from);
 }
 
@@ -1102,8 +1104,6 @@ void show_arp_table(void)
 	if(config_match("i_opmode", "apmode"))
 		update_satellite_name();
 
-	system("wlan stainfo > " WLAN_STA_FILE);
-	
 	for (i = 0; i < (NEIGH_HASHMASK + 1); i++) {
 		for (pprev = &arp_tbl[i], u = *pprev; u; ) {
 			if (u->active == 0) {
@@ -1219,7 +1219,6 @@ void show_arp_table(void)
 		}
 	}
 
-
 	if (fw = fopen(WLAN_STA_FILE, "r")) {
 		while (fgets(buffer, sizeof(buffer), fw)) {
 			if(!check_sta_format(buffer))
@@ -1325,6 +1324,8 @@ void reset_arp_table()
 	int i;
 	struct arp_struct *u;
 	
+	system("wlan stainfo > " WLAN_STA_FILE);
+	system("/etc/send_soap &");
 	for (i = 0; i < (NEIGH_HASHMASK + 1); i++) {
 		for (u = arp_tbl[i]; u; u = u->next) {
 			u->active = 0;
@@ -1342,7 +1343,6 @@ void scan_arp_table(int sock, struct sockaddr *me)
 {
 	int i;
 	int count = 0;
-	struct itimerval tv;
 	struct arpmsg *req;
 	struct arp_struct *u;
 	char *ipaddr;
@@ -1350,7 +1350,7 @@ void scan_arp_table(int sock, struct sockaddr *me)
 	struct in_addr addr;
 	FILE *fp;
 	
-	while (count != 3) {
+	while (count != 2) {
 		count++;
 		req = &arpreq;
 		for (i = 0; i < (NEIGH_HASHMASK + 1); i++) {
@@ -1381,15 +1381,8 @@ void scan_arp_table(int sock, struct sockaddr *me)
 			}
 			fclose(fp);
 		}
-		if(count < 3)
+		if(count < 2)
 			usleep(500000);
 	}
-	
-	/* show the result after 3s */
-	tv.it_value.tv_sec = 1;
-	tv.it_value.tv_usec = 0;
-	tv.it_interval.tv_sec = 0;
-	tv.it_interval.tv_usec = 0;
-	setitimer(ITIMER_REAL, &tv, 0);
 }
 

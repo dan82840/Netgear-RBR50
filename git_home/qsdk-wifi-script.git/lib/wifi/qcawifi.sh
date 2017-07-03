@@ -1522,7 +1522,7 @@ enable_qcawifi() {
 
                 # For Netgear Mars' request, when high band's backhaul is enabled,
                 # let explicit BF on and implicit BF off.
-                [ "x$backhaul" = "x1" -a "$device" = "wifi2" ] && {
+                [ "x$backhaul" = "x1" ] && {
                     iwpriv "$ifname" implicitbf 0
                     iwpriv "$ifname" vhtsubfee 1
                     iwpriv "$ifname" vhtsubfer 1
@@ -2728,6 +2728,103 @@ if [ $nss_olcfg != 0 ]; then
 fi
 }
 
+guest_lan_restricted_access()
+{
+	REALM=`/bin/cat /module_name | sed 's/\n//g' |cut -c 3`
+        if [ "$REALM" != "R" ]; then
+                return
+        fi
+	devices=$@
+	add=0
+	ETH_P_ARP=0x0806
+	ETH_P_RARP=0x8035
+	ETH_P_IP=0x0800
+	ETH_P_IPv6=0x86dd
+	IPPROTO_ICMP=1
+	IPPROTO_UDP=17
+	IPPROTO_ICMPv6=58
+	DHCPS_DHCPC=67:68
+	DHCP6S_DHCP6C=546:547
+	PORT_DNS=53
+
+	bridge="$(/bin/config get lan_ifname)" #byod and guest br
+	ip_addr=$(ifconfig $bridge |awk -F '[ :]+' 'NR==2 {print $4}')
+	netmask=$(ifconfig $bridge |awk -F '[ :]+' 'NR==2 {print $8}')
+
+	if [ -z $ip_addr ]; then
+		echo "NO IP INPUT"
+		return
+	fi
+
+	mask=0
+	ip=0
+	CIDR=0
+	for var in 1 2 3 4
+	do
+		cnt=$(echo $netmask | awk -F '.' '{print $'$var'}')
+		ipt=$(echo $ip_addr | awk -F '.' '{print $'$var'}')
+		if [ "$cnt" -gt 255 -o "$cnt" -lt 0 -o "$ipt" -gt 255 -o "$ipt" -lt 0 ]; then
+			return
+		fi
+		mask=$(( mask + (cnt << (4-var)*8) ))
+		ip=$(( ip + (ipt << (4-var)*8) ))
+	done
+
+	for var in $(seq 31 -1 0)
+	do
+		cnt=$((mask & (1 << var) ))
+		[ $cnt -eq 0 ] && break
+		CIDR=$((CIDR + 1))
+	done
+
+	ip=$(( ip & (0xffffffff << (32 - CIDR))))
+	ip1=$((ip >> 24 & 0xff))
+	ip2=$((ip >> 16 & 0xff))
+	ip3=$((ip >> 8 & 0xff))
+	ip4=$((ip & 0xff))
+
+	subnet=$ip1.$ip2.$ip3.$ip4/$CIDR
+
+	ebtables -P FORWARD ACCEPT
+	ebtables -L | grep  "GUEST" |grep "j" > /tmp/wifi_rules
+	while read loop
+	do
+		ebtables -D INPUT $loop 2>/dev/null >/dev/null
+		ebtables -D FORWARD $loop 2>/dev/null >/dev/null
+	done < /tmp/wifi_rules
+	rm  /tmp/wifi_rules
+	ebtables -X GUEST
+
+	ebtables -N GUEST
+	ebtables -P GUEST DROP
+	ebtables -A GUEST -p "$ETH_P_ARP" -j ACCEPT
+	ebtables -A GUEST -p "$ETH_P_RARP" -j ACCEPT
+	ebtables -A GUEST -p $ETH_P_IPv6 --ip6-proto "$IPPROTO_UDP" --ip6-dport "$PORT_DNS" -j ACCEPT
+	ebtables -A GUEST -p $ETH_P_IPv6 --ip6-proto "$IPPROTO_UDP" --ip6-dport "$DHCP6S_DHCP6C" -j ACCEPT
+	ebtables -A GUEST -p $ETH_P_IP --ip-proto "$IPPROTO_UDP" --ip-dport "$PORT_DNS" -j ACCEPT
+	ebtables -A GUEST -p $ETH_P_IP --ip-proto "$IPPROTO_UDP" --ip-dport "$DHCPS_DHCPC" -j ACCEPT
+
+    for device in ${devices}; do
+	config_get vifs "$device" vifs
+	for vif in $vifs; do
+            config_get_bool lan_restricted "$vif" lan_restricted
+            if [ "$lan_restricted" = "1" ]; then
+                config_get ifname "$vif" ifname
+		if [ "x$subnet" != "x" ]; then
+			ebtables -A FORWARD -p IPv4 -i "$ifname" --ip-dst "$subnet" -j GUEST
+			ebtables -A INPUT -p IPv4 -i "$ifname" --ip-dst "$subnet" -j GUEST
+			add=1
+		fi
+            fi
+	done
+    done
+
+	if [ $add -eq 0 ]; then
+		ebtables -X GUEST
+	fi
+}
+
+
 wl_lan_restricted_access()
 {
     devices=$@
@@ -2742,7 +2839,6 @@ wl_lan_restricted_access()
     DHCPS_DHCPC=67:68
     DHCP6S_DHCP6C=546:547
     PORT_DNS=53
-
     if ! eval "type ebtables" 2>>/dev/null >/dev/null; then
         echo "Please install tool ebtables first"
         return
@@ -2792,13 +2888,15 @@ wl_lan_restricted_access()
                 config_get lan_ipaddr "$vif" lan_ipaddr
                 config_get bridge "$vif" bridge
                 lan_ipv6addr=$(ifconfig $bridge | grep Scope:Link | awk '{print $3}' | awk -F '/' '{print $1}')
-                ebtables -A FORWARD -i "$ifname" -j DROP
-                ebtables -A FORWARD -o "$ifname" -j DROP
+#               ebtables -A FORWARD -i "$ifname" -j DROP
+#               ebtables -A FORWARD -o "$ifname" -j DROP
                 ebtables -A INPUT -i "$ifname" -p "$ETH_P_IP" --ip-dst "$lan_ipaddr" -j DROP
                 ebtables -A INPUT -i "$ifname" -p "$ETH_P_IPv6" --ip6-dst "$lan_ipv6addr" -j DROP
             fi
         done
     done
+# Add for Guest and BYOD in FORWARD Chain
+    guest_lan_restricted_access "${devices}"
 }
 
 clear_wifi_ebtables()
@@ -2854,6 +2952,12 @@ lan_restricted_access_qcawifi()
     DHCP6S_DHCP6C=546:547
     PORT_DNS=53
 
+    REALM=`/bin/cat /module_name | sed 's/\n//g' |cut -c 3`
+    if [ "$REALM" = "R" ]; then
+	guest_lan_restricted_access "${devices}"
+	return
+    fi
+
     if ! eval "type ebtables" 2>>/dev/null >/dev/null; then
         echo "Please install tool ebtables first"
         return
@@ -2864,32 +2968,34 @@ lan_restricted_access_qcawifi()
         return
     fi
 
-    for var in 1 2 3 4
-    do
-        val=$(echo $ipaddr | awk -F '.' '{print $'$var'}')
-        if [ "$val" -gt 255 -o "$val" -lt 0 ]; then
-            echo "illegal IP format"
-            return
-        fi
-    done
+	mask=0
+	ip=0
+	CIDR=0
+	for var in 1 2 3 4
+	do
+		cnt=$(echo $netmask | awk -F '.' '{print $'$var'}')
+		ipt=$(echo $ip_addr | awk -F '.' '{print $'$var'}')
+		if [ "$cnt" -gt 255 -o "$cnt" -lt 0 -o "$ipt" -gt 255 -o "$ipt" -lt 0 ]; then
+			return
+		fi
+		mask=$(( mask + (cnt << (4-var)*8) ))
+		ip=$(( ip + (ipt << (4-var)*8) ))
+	done
 
-    for var in 1 2 3 4
-    do
-        cnt=$(echo $netmask | awk -F '.' '{print $'$var'}')
+	for var in $(seq 31 -1 0)
+	do
+		cnt=$((mask & (1 << var) ))
+		[ $cnt -eq 0 ] && break
+		CIDR=$((CIDR + 1))
+	done
 
-        if [ "$cnt" = 255 ]; then
-            CIDR=$(($CIDR + 8))
-        else
-            cnt=$(($cnt/2))
+	ip=$(( ip & (0xffffffff << (32 - CIDR))))
+	ip1=$((ip >> 24 & 0xff))
+	ip2=$((ip >> 16 & 0xff))
+	ip3=$((ip >> 8 & 0xff))
+	ip4=$((ip & 0xff))
 
-            while [ $cnt != 0 ]
-            do
-                CIDR=$(( $CIDR + 1))
-                cnt=$(($cnt/2))
-            done
-        fi
-    done
-    subnet=$(echo $ip_addr | awk -F '.' '{printf("%d.%d.%d.0/'$CIDR'",$1,$2,$3)}')
+	subnet=$ip1.$ip2.$ip3.$ip4/$CIDR
 
     ebtables -D FORWARD -p "$ETH_P_ARP" -j ACCEPT 2>/dev/null >/dev/null
     ebtables -D FORWARD -p "$ETH_P_RARP" -j ACCEPT 2>/dev/null >/dev/null

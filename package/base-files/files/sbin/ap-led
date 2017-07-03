@@ -289,7 +289,10 @@ router_link_led_action()
 }
 
 
-
+sta_list=0
+sta_list_guest=0
+sta_list_5g=0
+sta_list_5g_guest=0
 
 
 while true; do

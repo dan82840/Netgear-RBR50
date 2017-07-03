@@ -141,7 +141,7 @@ function refresh_content(type)
 						else if(fw_sta == "002")
 							discription = serv_unreachable;
 						else if(fw_sta == "003")
-							discription = no_new_version;
+							discription = upg_failed;
 						else if(fw_sta == "005" && wait_time < MAX_CHK_TRIES && type == "check")
 						{
 							discription = down_in_back;
@@ -149,8 +149,8 @@ function refresh_content(type)
 						}
 						else if(fw_sta === "004")
 							discription = upg_failed;
-						else if(wait_time >= MAX_CHK_TRIES || fw_sta == "0" && wait_time>30 && check_satellite_times > 20) { //This satellite lost connection to base
-							discription = "No response";
+						else if(wait_time >= MAX_CHK_TRIES) { //This satellite lost connection to base
+							discription = upg_failed;
 							dropped_num ++;
 						}
 						else{
@@ -178,7 +178,7 @@ function refresh_content(type)
 				else
 					discription = no_internet;
 				if(type=="check" && i==0){
-					if(fw_sta == "005" || fw_sta == "0"){
+					if(fw_sta == "005" || fw_sta == "0" || fw_sta == "006"){
 						check_satellite_times = 0;
 					}else{
 						check_satellite_times ++;
@@ -207,12 +207,15 @@ function refresh_content(type)
 				document.getElementById("refresh").disabled = false;
 				document.getElementById("upgrade_all").disabled = false;
 				document.getElementById("upgrade_all").value = "NEXT";
+				top.topframe.location.reload();
 			}else if(dropped_num > 0 || upg_flag == 0 || type == "check" && newVer_count == 0 || type == "upgrade"){
 				document.getElementById("refresh").disabled = false;
 				document.getElementById("upgrade_all").disabled = true;
+				top.topframe.location.reload();
 			}else{
 				document.getElementById("refresh").disabled = false;
 				document.getElementById("upgrade_all").disabled = false;
+				top.topframe.location.reload();
 			}
 		}
 	};

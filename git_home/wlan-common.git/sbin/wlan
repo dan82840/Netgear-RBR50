@@ -207,6 +207,7 @@ wifi_updown() {
 			fi
 		); done
 		uci show wireless > $OLD_WIRELESS_CONF
+		wifi_detect_interface
 	else
 		for driver in ${DRIVERS}; do (
 			if eval "type force_off_led_${driver}" 2>/dev/null >/dev/null; then
@@ -215,6 +216,7 @@ wifi_updown() {
 				echo "$driver: Interface type not supported force_off_led function"
 			fi
 		); done
+		reset_detect_interface
 	fi
 	rm -rf $wlan_updown_lockfile
 }
@@ -551,6 +553,40 @@ wifi_restart() {
 			wifi_updown "enable"
 		;;
 	esac
+}
+
+wifi_detect_interface() {
+	for device in ${DEVICES}; do
+		config_get vifs "$device" vifs
+		for vif in $vifs; do
+			config_get ifname "$vif" ifname
+        	_optype=`awk -v input_ifname=$ifname -v output_rule=optype -f /etc/search-wifi-interfaces.awk /tmp/wifi_topology`
+        	_opmode=`awk -v input_ifname=$ifname -v output_rule=opmode -f /etc/search-wifi-interfaces.awk /tmp/wifi_topology`
+			_hwmode=`uci get wireless.$device.hwmode`
+			if [ $_hwmode = "11ng" ]; then
+				dniconfig set wl2g_${_optype}_${_opmode}=$ifname 
+			else        
+				dniconfig set wl5g_${_optype}_${_opmode}=$ifname         
+            fi                    
+		done       
+	done
+dniconfig commit
+
+}
+
+reset_detect_interface(){
+	
+	#For 2.4G interface
+	dniconfig unset wl2g_NORMAL_AP
+	dniconfig unset wl2g_BACKHAUL_STA
+	dniconfig unset wl2g_BACKHAUL_AP
+	dniconfig unset wl2g_GUEST_AP
+	#For 5G interface
+	dniconfig unset wl5g_NORMAL_AP
+	dniconfig unset wl5g_BACKHAUL_STA
+	dniconfig unset wl5g_BACKHAUL_AP
+	dniconfig unset wl5g_GUEST_AP
+
 }
 
 show_usage() {

@@ -76,7 +76,7 @@ static int parse_file(char *file, char **name)
 	
 	while (1) {
 		s_tlv *tlv = (s_tlv *)p;
-		if (tlv->type == 0 || p >= (buf + sizeof(buf)))
+		if (tlv->type == 0 || tlv->len == 0 ||  p >= (buf + sizeof(buf)) || name[tlv->type] == NULL)
 			break;
 
 		/* spec define max length of release note is 512 bytes, 1024 is enough */

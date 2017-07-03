@@ -79,21 +79,10 @@ function show_block_no_connect()
 function add_access(type)
 {
 	var next;
-	if(type=="allow")
+	if(acc_rule_num >=128)
 	{
-		if(allowed_no_connect_num >=128)
-		{
-			alert("The maximum number of the device of the list is 128.");
-			return false;
-		}
-	}
-	else
-	{
-		if(blocked_no_connect_num >=128)
-		{
-			alert("The maximum number of the device of the list is 128.");
-			return false;
-		}
+		alert("The maximum number of the device of the list is 128.");
+		return false;
 	}
 	if(type=="allow")
 		next="add_allowed.htm";
@@ -293,7 +282,12 @@ function loadvalue()
 					document.write("<td nowrap>"+str_name.replace(/\s/g, '&nbsp;')+"</td>");
 					document.write("<td nowrap>"+each_info[1]+"</td>");
 					document.write("<td nowrap>"+each_info[2]+"</td>");
-					document.write("<td nowrap>"+each_info[3]+"</td></TR>");
+					if(each_info[3] == "wireless")
+						document.write("<td nowrap>$wireless</td></TR>");
+					else if(each_info[3] == "wired")
+						document.write("<td nowrap>$acc_wired</td></TR>");
+					else
+						document.write("<td nowrap>"+each_info[3]+"</td></TR>");
 				}
 			}
 		</script>

@@ -93,6 +93,18 @@ IP firewall administration tool.
 
 endef
 
+define Package/iptables-mod-DNATP2P
+$(call Package/iptables/Module, +kmod-ipt-DNATP2P)
+	TITLE:=DNATP2P iptables extensions
+endef
+
+define Package/iptables-mod-DNATP2P/description
+DNATP2P iptables extensions
+ 
+ Matches:
+  - DNATP2P 
+endef
+
 define Package/iptables-mod-conntrack-extra
 $(call Package/iptables/Module, +kmod-ipt-conntrack-extra)
   TITLE:=Extra connection tracking extensions
@@ -458,6 +470,7 @@ $(eval $(call BuildPlugin,iptables-mod-led,$(IPT_LED-m)))
 $(eval $(call BuildPlugin,iptables-mod-tproxy,$(IPT_TPROXY-m)))
 $(eval $(call BuildPlugin,iptables-mod-tee,$(IPT_TEE-m)))
 $(eval $(call BuildPlugin,iptables-mod-u32,$(IPT_U32-m)))
+$(eval $(call BuildPlugin,iptables-mod-DNATP2P,ipt_DNATP2P))
 $(eval $(call BuildPackage,ip6tables))
 $(eval $(call BuildPlugin,ip6tables-mod-nat,$(IPT_NAT6-m)))
 $(eval $(call BuildPackage,libiptc))

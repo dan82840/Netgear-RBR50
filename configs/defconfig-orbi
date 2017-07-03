@@ -379,7 +379,7 @@ CONFIG_DEFAULT_netifd=y
 CONFIG_DEFAULT_opkg=y
 CONFIG_DEFAULT_qca-hostap-10.4=y
 CONFIG_DEFAULT_qca-hostapd-cli-10.4=y
-CONFIG_DEFAULT_qca-wifi-fw-hw5-10.4-asic=y
+# CONFIG_DEFAULT_qca-wifi-fw-hw5-10.4-asic is not set
 CONFIG_DEFAULT_qca-wpa-cli-10.4=y
 CONFIG_DEFAULT_qca-wpa-supplicant-10.4=y
 CONFIG_DEFAULT_qca-wrapd-10.4=y
@@ -1189,7 +1189,7 @@ CONFIG_PACKAGE_udevtrigger=y
 # CONFIG_PACKAGE_usb-modeswitch is not set
 CONFIG_PACKAGE_utelnetd=y
 CONFIG_PACKAGE_wireless-tools=y
-# CONFIG_PACKAGE_zebra is not set
+CONFIG_PACKAGE_zebra=y
 
 #
 # DNI packages
@@ -1257,7 +1257,7 @@ CONFIG_PACKAGE_radvd=y
 # CONFIG_PACKAGE_kmod-nexus is not set
 # CONFIG_PACKAGE_kmod-nexus-example-sensor is not set
 # CONFIG_PACKAGE_macoui-db is not set
-CONFIG_PACKAGE_p0f-db=y
+# CONFIG_PACKAGE_p0f-db is not set
 
 #
 # overwrite package version
@@ -1497,6 +1497,7 @@ CONFIG_PACKAGE_iptables-mod-nat-extra=y
 # CONFIG_PACKAGE_iptables-mod-psd is not set
 # CONFIG_PACKAGE_iptables-mod-quota2 is not set
 CONFIG_PACKAGE_iptables-mod-rawnat=y
+CONFIG_PACKAGE_iptables-mod-DNATP2P=y
 # CONFIG_PACKAGE_iptables-mod-steal is not set
 # CONFIG_PACKAGE_iptables-mod-sysrq is not set
 # CONFIG_PACKAGE_iptables-mod-tarpit is not set
@@ -1686,7 +1687,7 @@ CONFIG_PACKAGE_wlan-common=y
 #
 # Configurations
 #
-CONFIG_WLAN_COMMON_GIT_TREEISH="fdaf222897e2392c999b0737424144ca9b5be0fc"
+CONFIG_WLAN_COMMON_GIT_TREEISH="d3d3dda393ae9697f16619a22a4527b3da561a5b"
 CONFIG_WLAN_COMMON_GIT_REPOSITORY="wlan-common.git"
 CONFIG_WLAN_COMMON_GIT_URL="ssh://dniserver/scm/dnigit/apps/wlan-common/spencer/wlan-common.git"
 
@@ -1783,12 +1784,12 @@ CONFIG_PACKAGE_qca-wsplcd=y
 #
 # Whole Home Coverage features
 #
-#CONFIG_PACKAGE_luci-whc is not set
-#CONFIG_PACKAGE_luci-whc-lbd is not set
-#CONFIG_PACKAGE_luci-whc-lbd-advanced is not set
-#CONFIG_PACKAGE_luci-whc-lbd-diaglog is not set
-#CONFIG_PACKAGE_luci-whc-repacd is not set
-#CONFIG_PACKAGE_luci-whc-repacd-advanced is not set
+CONFIG_PACKAGE_luci-whc=y
+CONFIG_PACKAGE_luci-whc-lbd=y
+CONFIG_PACKAGE_luci-whc-lbd-advanced=y
+CONFIG_PACKAGE_luci-whc-lbd-diaglog=y
+CONFIG_PACKAGE_luci-whc-repacd=y
+CONFIG_PACKAGE_luci-whc-repacd-advanced=y
 CONFIG_PACKAGE_qca-whc-init=y
 
 #
@@ -1859,7 +1860,7 @@ CONFIG_PACKAGE_qca-wifi-fw-hw4-10.4-asic=y
 # overwrite package version
 #
 # CONFIG_PACKAGE_qca-wifi-fw-hw4-10.4-emu_m2m is not set
-CONFIG_PACKAGE_qca-wifi-fw-hw5-10.4-asic=y
+# CONFIG_PACKAGE_qca-wifi-fw-hw5-10.4-asic is not set
 
 #
 # custom source directory
@@ -1873,7 +1874,7 @@ CONFIG_PACKAGE_qca-wifi-fw-hw5-10.4-asic=y
 CONFIG_PACKAGE_qca-wpa-cli-10.4=y
 CONFIG_PACKAGE_qca-wpa-supplicant-10.4=y
 # CONFIG_PACKAGE_qca-wpa-supplicant-10.4-macsec is not set
-CONFIG_PACKAGE_qcmbr-10.4=y
+# CONFIG_PACKAGE_qcmbr-10.4 in not set
 # CONFIG_PACKAGE_qcmbr-10.4-netlink is not set
 CONFIG_PACKAGE_whc=y
 CONFIG_PACKAGE_whc-ui=y

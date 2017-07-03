@@ -286,7 +286,7 @@ start() {
 
 			# set SSID of guest netwroks according to Home Router GUI Redesign Specification Rev10 section 6.3
 			/bin/config set wlg1_ssid="NETGEAR-Guest"
-			/bin/config set wla1_ssid="NETGEAR-5G-Guest"
+			/bin/config set wla1_ssid="NETGEAR-Guest"
 		fi
 		/bin/rm /tmp/ssid-setted
 		/bin/rm /tmp/passphrase-setted
@@ -343,7 +343,7 @@ start() {
 		/bin/config set lbd_MaxBTMActiveUnfriendly="120"
 		/bin/config set lbd_MaxSteeringUnfriendly="86400"
 		/bin/config set lbd_11kProhibitTimeShort="15"
-		/bin/config set lbd_11kProhibitTimeLong="15"
+		/bin/config set lbd_11kProhibitTimeLong="60"
 		/bin/config set lbd_BTMSteeringProhibitShortTime="15"
 		/bin/config set lbd_BTMUnfriendlyTime="30"
 		/bin/config set lbd_SteeringProhibitTime="120"
@@ -355,10 +355,19 @@ start() {
 		/bin/config set lbd_MUSafetyThreshold_W5="90"
 		/bin/config set lbd_APSteerToRootMinRSSIIncThreshold="10"
 		/bin/config set lbd_DownlinkRSSIThreshold_W5="-70"
+		/bin/config set lbd_AuthRejMax="2"
 		/bin/config set overwrite_14010="0"
 		/bin/config commit
 	fi
 
+	if [ "$(/bin/config get overwrite_18012)" = "0" ]; then
+		echo "still not need do overwrite lbd"
+	else
+		/bin/config set lbd_11kProhibitTimeLong="60"
+		/bin/config set lbd_AuthRejMax="2"
+		/bin/config set overwrite_18012="0"
+		/bin/config commit
+	fi
 
 	#For debug page pre setting
 	local wifi_debug_option=$(/bin/config get wifi_debug_option)
