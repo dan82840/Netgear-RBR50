@@ -133,10 +133,10 @@ function change_web_format()
         else
                 document.getElementById("coexistence_line").style.display="none";
 
-		if( qos_router_flag == 0 )
-                document.getElementById("wmm_qos").style.display="";
-        else
-                document.getElementById("wmm_qos").style.display="none";
+	//	if( qos_router_flag == 0 )
+        //        document.getElementById("wmm_qos").style.display="";
+        //else
+        //        document.getElementById("wmm_qos").style.display="none";
 
 	if( transmit_router_flag == 1 )
 		document.getElementById("power_ctrl_bgn").style.display="";
@@ -163,10 +163,10 @@ function change_web_format()
 			document.getElementById("fragment_an").style.display="";
 		else
 			document.getElementById("fragment_an").style.display="none";
-	        if( qos_router_flag == 0 )
-	                document.getElementById("wmm_qos_an").style.display="";
-	        else
-        	        document.getElementById("wmm_qos_an").style.display="none";
+	        //if( qos_router_flag == 0 )
+	        //        document.getElementById("wmm_qos_an").style.display="";
+	        //else
+        	//        document.getElementById("wmm_qos_an").style.display="none";
 		if( transmit_router_flag == 1 )
 			document.getElementById("power_ctrl_an").style.display="";
 		else
@@ -680,7 +680,7 @@ else if(an_router_flag == 1)
         <input type="checkbox" name="enable_coexistence" id="enable_coexistence">$adva_enable_coexistence
         </TD>
 </TR>
-<TR id=wmm_qos style="display:none;">
+<TR id=wmm_qos>
 	<TD nowrap><input type="checkbox" name="wmm_enable" value="1">$qos_enable_wmm <script>if(an_router_flag == 1) document.write("(2.4GHz b/g/n)");</script></TD>
 </TR>
 <TR id="frag_bgn">
@@ -833,16 +833,16 @@ $bluebar
 	$adva_wlan_hw_disabled
         </TD>
 </TR>
-<TR id=wmm_qos_an style="display:none;">
+<TR id=wmm_qos_an>
 	<TD nowrap>
-	<input type="checkbox" name="wmm_enable_a" value="1"><a tabindex=-1 href="javascript:loadhelp('_wladv','wifi')"><b>
+	<input type="checkbox" name="wmm_enable_a" value="1"><a tabindex=-1 href="javascript:loadhelp('_wladv','wifi')">
 	<script>
 	if(top.ac_router_flag == 1)
 		document.write("$qos_enable_wmm (5GHz 802.11a/n/ac)")
 	else
 		document.write("$qos_enable_wmm (5GHz a/n)")
 	</script>
-	</b></a>
+	</a>
 	</TD>
 </TR>
 <TR id=fragment_an>

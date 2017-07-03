@@ -51,7 +51,7 @@ function to_next()
 				<div class="pin-wrapper pin-wrapper-admin">
 					<img class="pin-admin" src="images/pin_admin.png">
 					<div class="pin-title"><% cfg_get("http_username") %></div>
-					<div class="pin-desc"><% cfg_get("http_passwd") %></div>
+					<div class="pin-desc"><% cfg_sed_xss("http_passwd") %></div>
 				</div>
 				<div class="pin-wrapper pin-wrapper-WiFi">
 					<img class="pin-WiFi" src="images/pin_WiFi.png">
