@@ -47,13 +47,15 @@ DEFAULT_LBD_DOWNLINKRSSITHRESHOLD_W5=-70
 DEFAULT_LBD_MUREPORTPERIOD=15
 DEFAULT_LBD_LOADBALANCINGALLOWEDMAXPERIOD=10
 DEFAULT_LBD_11KPROHIBITTIMESHORT=15
-DEFAULT_LBD_11KPROHIBITTIMELONG=15
+DEFAULT_LBD_11KPROHIBITTIMELONG=60
 DEFAULT_LBD_STEERINGUNFRIENDLYTIME=600
 DEFAULT_LBD_STARTINBTMACTIVESTATE=1
 DEFAULT_LBD_MAXCONSECUTIVEBTMFAILURESASACTIVE=6
 DEFAULT_LBD_BTMUNFRIENDLYTIME=30
 DEFAULT_LBD_MAXBTMUNFRIENDLY=120
 DEFAULT_LBD_MAXBTMACTIVEUNFRIENDLY=120
+DEFAULT_LBD_TSEERING=15
+DEFAULT_LBD_AUTHREJMAX=2
 
 #REPACD
 DEFAULT_REPACD_ENABLE=1
@@ -237,6 +239,12 @@ show_result "lbd.SteerExec_Adv.StartInBTMActiveState" "$SteerExec_Adv_StartInBTM
 
 SteerExec_Adv_MaxConsecutiveBTMFailuresAsActive=$(uci -q get lbd.SteerExec_Adv.MaxConsecutiveBTMFailuresAsActive)
 show_result "lbd.SteerExec_Adv.MaxConsecutiveBTMFailuresAsActive" "$SteerExec_Adv_MaxConsecutiveBTMFailuresAsActive" "$DEFAULT_LBD_MAXCONSECUTIVEBTMFAILURESASACTIVE"
+
+SteerExec_Adv_TSteering=$(uci -q get lbd.SteerExec_Adv.TSteering)
+show_result "lbd.SteerExec_Adv.TSteering" "$SteerExec_Adv_TSteering" "$DEFAULT_LBD_TSEERING"
+
+SteerExec_Adv_AuthRejMax=$(uci -q get lbd.SteerExec_Adv.AuthRejMax)
+show_result "lbd.SteerExec_Adv.AuthRejMax" "$SteerExec_Adv_AuthRejMax" "$DEFAULT_LBD_AUTHREJMAX"
 
 SteerExec_Adv_BTMUnfriendlyTime=$(uci -q get lbd.SteerExec_Adv.BTMUnfriendlyTime)
 show_result "lbd.SteerExec_Adv.BTMUnfriendlyTime" "$SteerExec_Adv_BTMUnfriendlyTime" "$DEFAULT_LBD_BTMUNFRIENDLYTIME"
