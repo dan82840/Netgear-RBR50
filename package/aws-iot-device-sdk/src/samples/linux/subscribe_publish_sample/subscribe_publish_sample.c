@@ -72,7 +72,7 @@ char certDirectory[PATH_MAX + 1] = "/etc/router_analytics";
  * @brief Default MQTT HOST URL is pulled from the aws_iot_config.h
  */
 char HostAddress[255] = AWS_IOT_MQTT_HOST;
-
+char ClientID[255] = AWS_IOT_MQTT_CLIENT_ID;
 /**
  * @brief Default MQTT port is pulled from the aws_iot_config.h
  */
@@ -117,11 +117,15 @@ void disconnectCallbackHandler(AWS_IoT_Client *pClient, void *data) {
 void parseInputArgsForConnectParams(int argc, char **argv) {
 	int opt;
 
-	while(-1 != (opt = getopt(argc, argv, "h:p:c:x:k:"))) {
+	while(-1 != (opt = getopt(argc, argv, "h:p:c:x:k:i:"))) {
 		switch(opt) {
 			case 'h':
 				strcpy(HostAddress, optarg);
 				IOT_DEBUG("Host %s", optarg);
+				break;
+			case 'i':
+				strcpy(ClientID, optarg);
+				IOT_DEBUG("client id %s", optarg);
 				break;
 			case 'p':
 				port = atoi(optarg);
@@ -206,8 +210,8 @@ int main(int argc, char **argv) {
 	connectParams.keepAliveIntervalInSec = 10;
 	connectParams.isCleanSession = true;
 	connectParams.MQTTVersion = MQTT_3_1_1;
-	connectParams.pClientID = AWS_IOT_MQTT_CLIENT_ID;
-	connectParams.clientIDLen = (uint16_t) strlen(AWS_IOT_MQTT_CLIENT_ID);
+	connectParams.pClientID = ClientID;
+	connectParams.clientIDLen = (uint16_t) strlen(ClientID);
 	connectParams.isWillMsgPresent = false;
 
 	IOT_INFO("Connecting...");
