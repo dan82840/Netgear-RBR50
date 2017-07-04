@@ -225,8 +225,6 @@ qca-ssdk-shell, qca-ssdk-shell, Atheros, No
 
 qca-wifi, qca-wifi, Atheros, No
 
-qca-wifi-fw, qca-wifi-fw, GPL, No
-
 qca-wsplc-luci, qca-wsplc-luci, GPL, No
 
 qca-wsplcd, qca-wsplcd, Atheros, No
@@ -238,8 +236,6 @@ qca-whc-init, qca-whc-init, GPL, No
 qca-whc-luci, qca-whc-luci, GPL, No
 
 qca-whc-repacd, qca-whc-repacd, GPL, No
-
-qcmbr, qcmbr, Atheros, No
 
 qsdk-wifi-script, qsdk-wifi-script, DNI, No
 
