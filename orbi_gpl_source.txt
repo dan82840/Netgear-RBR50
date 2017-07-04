@@ -618,11 +618,6 @@ User application
 	Athreos
         Athreos
         Binary
-[qca-wifi-fw]
-	qca-wifi-fw-QCA9984_hw_1-CNSS.BL.3.0.r1-00003-S-1.tar.bz2
-	http://www.qca.qualcomm.com
-	Dual BSD/GPL
-        Source Code
 [qca-wsplc-luci]
 	qca-wsplc-luci
 	http://www.qca.qualcomm.com
@@ -653,11 +648,6 @@ User application
 	http://www.qca.qualcomm.com
 	Dual BSD/GPL
         Source Code
-[qcmbr]
-	qcmbr
-	Atheros
-	Atheros
-	Binary
 [qsdk-wifi-script]
         qsdk-wifi-script
         DNI

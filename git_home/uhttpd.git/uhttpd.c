@@ -917,13 +917,13 @@ void fw_checking()
 		#define THREE_HOUR        180*60
 __nprintf("count time:%ld\n",c_time++);
 		sleep(HALF_HOUR);
-		if(access("/tmp/ntp_updated", F_OK) != 0)
+		/*if(access("/tmp/ntp_updated", F_OK) != 0)
 		{
 			__nprintf("FW cycle check--can not get ntp time!!!!!!!!\n");
 			continue;
 		}
 		else
-			__nprintf("get NTP time!\n");
+			__nprintf("get NTP time!\n");*/
 
 		p = config_get("time_zone");
 		time(&now);
