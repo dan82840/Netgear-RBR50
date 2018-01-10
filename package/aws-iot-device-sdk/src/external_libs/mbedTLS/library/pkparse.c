@@ -124,11 +124,13 @@ int mbedtls_pk_parse_keyfile( mbedtls_pk_context *ctx,
     int ret;
     size_t n = 0;
     unsigned char *buf;
-
+	unsigned char temp[4096];
   //  if( ( ret = mbedtls_pk_load_key( path, &buf, &n ) ) != 0 )
     //    return( ret );
+	
+	strcpy(temp, path);
+    buf = temp;
 
-    buf = path;
     n = strlen(path);
     if(strstr(buf, "-----BEGIN ") != NULL)
 	n++;
@@ -137,8 +139,9 @@ int mbedtls_pk_parse_keyfile( mbedtls_pk_context *ctx,
     else
         ret = mbedtls_pk_parse_key( ctx, buf, n,
                 (const unsigned char *) pwd, strlen( pwd ) );
-
-    mbedtls_zeroize( buf, n );
+	
+    mbedtls_zeroize( buf, n );	
+	fprintf(stdout, "%s\n", buf);
     mbedtls_free( buf );
 
     return( ret );
