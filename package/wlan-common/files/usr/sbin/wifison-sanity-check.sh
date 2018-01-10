@@ -4,6 +4,8 @@ DEFAULT_WIFI_REPACD_CREATE_VAP=0
 DEFAULT_WIFI_DBDC_ENABLE=0
 DEFAULT_WIFI_BH_WSPLCD_UNMANAGED=1
 DEFAULT_WIFI_BH_REPACD_SEC_UNMANAGED=1
+DEFAULT_WIFI_UL_HYST=3
+DEFAULT_WIFI_CAPRSSI=20
 
 #HYD
 DEFAULT_HYD_ENABLE=1
@@ -22,7 +24,7 @@ DEFAULT_WSPLCD_HYFISECURITY=1
 
 #LBD
 DEFAULT_LBD_ENABLE=0
-DEFAULT_LBD_RSSISTEERINGPOINT_UG=10
+DEFAULT_LBD_RSSISTEERINGPOINT_UG=15
 DEFAULT_LBD_NORMALINACTTIMEOUT=5
 DEFAULT_LBD_OVERLOADINACTTIMEOUT=5
 DEFAULT_LBD_TXRATEXINGTHRESHOLD_UG=20000
@@ -51,19 +53,30 @@ DEFAULT_LBD_11KPROHIBITTIMELONG=60
 DEFAULT_LBD_STEERINGUNFRIENDLYTIME=600
 DEFAULT_LBD_STARTINBTMACTIVESTATE=1
 DEFAULT_LBD_MAXCONSECUTIVEBTMFAILURESASACTIVE=6
+DEFAULT_LBD_TSEERING=15
+DEFAULT_LBD_AUTHREJMAX=2
 DEFAULT_LBD_BTMUNFRIENDLYTIME=30
 DEFAULT_LBD_MAXBTMUNFRIENDLY=120
 DEFAULT_LBD_MAXBTMACTIVEUNFRIENDLY=120
-DEFAULT_LBD_TSEERING=15
-DEFAULT_LBD_AUTHREJMAX=2
+DEFAULT_LBD_IAS_ENABLE_W2=0
+DEFAULT_LBD_IAS_ENABLE_W5=0
 
 #REPACD
 DEFAULT_REPACD_ENABLE=1
 DEFAULT_REPACD_ENABLESTEERING=1
 DEFAULT_REPACD_RSSITHRESHOLDPREFER2GBACKHAUL=-82
-DEFAULT_REPACD_5GBACKHAULEVALTIMESHORT=300
-DEFAULT_REPACD_5GBACKHAULEVALTIMELONG=21600
+DEFAULT_REPACD_5GBACKHAULEVALTIMESHORT=330
+DEFAULT_REPACD_5GBACKHAULEVALTIMELONG=1800
+DEFAULT_REPACD_MOVEFROMCAPSNRHYSTERESIS5G=7
+DEFAULT_REPACD_PREFERCAPSNRTHRESHOLD=20
+DEFAULT_REPACD_RATETHRESHOLDMIN5GINPERCENT=25
+DEFAULT_REPACD_RATETHRESHOLDMAX5GINPERCENT=95
+DEFAULT_REPACD_RATESCALINGFACTOR=85
 
+#SMP_AFFINITY
+DEFAULT_SMP_AFFINITY_174=
+DEFAULT_SMP_AFFINITY_200=
+DEFAULT_SMP_AFFINITY_201=
 
 total_error_cnt=0
 
@@ -82,6 +95,19 @@ show_result(){
 }
 
 wifi_devices=`uci show wireless | grep "wifi-device" | sed 's/[.=]/ /g' | awk '{print $2}'`
+orbi_project=`cat /tmp/orbi_project`
+orbi_type=`cat /tmp/orbi_type`
+orbi_project=`cat /tmp/orbi_project`
+
+if [ "$orbi_project" = "Orbimini"  ]; then
+    DEFAULT_SMP_AFFINITY_174=8
+    DEFAULT_SMP_AFFINITY_200=4
+    DEFAULT_SMP_AFFINITY_201=3
+elif [ "$orbi_project" = "Desktop" -o "$orbi_project" = "Orbipro"  ]; then
+    DEFAULT_SMP_AFFINITY_174=3
+    DEFAULT_SMP_AFFINITY_200=4
+    DEFAULT_SMP_AFFINITY_201=8
+fi
 
 # Check WiFi device related setting
 for wi in $wifi_devices; do
@@ -105,6 +131,30 @@ for wi in $wifi_iface; do
     fi
 done
 
+#Check smp affinity parameters
+printf " Checking smp affinity parameters\n"
+Irq_174_Smp_Affinity=`cat /proc/irq/174/smp_affinity`
+show_result "smp.affinity.174" "$Irq_174_Smp_Affinity" "$DEFAULT_SMP_AFFINITY_174"
+
+Irq_200_Smp_Affinity=`cat /proc/irq/200/smp_affinity`
+show_result "smp.affinity.200" "$Irq_200_Smp_Affinity" "$DEFAULT_SMP_AFFINITY_200"
+
+Irq_201_Smp_Affinity=`cat /proc/irq/201/smp_affinity`
+show_result "smp.affinity.201" "$Irq_201_Smp_Affinity" "$DEFAULT_SMP_AFFINITY_201"
+
+#Check ebtable sanity status in base
+if [ "$orbi_type" = "Base" ]; then
+    printf " Checking ebtables sanity status\n"
+    wl2g_bh_athx=`config get wl2g_BACKHAUL_AP`
+    wl5g_bh_athx=`config get wl5g_BACKHAUL_AP`
+
+    ebtable_wl2g_status=`ebtables -L | grep wl2g_bh_athx`
+    show_result "ebtables.wl2g.status" "$ebtable_wl2g_status" ""
+
+    ebtable_wl5g_status=`ebtables -L | grep wl5g_bh_athx`
+    show_result "ebtables.wl5g.status" "$ebtable_wl5g_status" ""
+fi
+
 #Check hyd related setting
 printf " Checking hyd related setting\n"
 enable=$(uci -q get hyd.config.Enable)
@@ -112,12 +162,12 @@ show_result "hyd.config.Enable" "$enable" "$DEFAULT_HYD_ENABLE"
 
 board=$(cat /tmp/board_model_id)
 
-if [ "$board" = "RBR50" ]; then
+if [ "$orbi_type" = "Base" ]; then
     rbr_mode=$(uci -q get hyd.config.Mode)
     show_result "hyd.config.Mode" "$rbr_mode" "$DEFAULT_HYD_RBR_MODE"
 fi
 
-if [ "$board" = "RBS50" ]; then
+if [ "$orbi_type" = "Satellite" ]; then
     rbs_mode=$(uci -q get hyd.config.Mode)
     show_result "hyd.config.Mode" "$rbs_mode" "$DEFAULT_HYD_RBS_MODE"
 fi
@@ -240,12 +290,6 @@ show_result "lbd.SteerExec_Adv.StartInBTMActiveState" "$SteerExec_Adv_StartInBTM
 SteerExec_Adv_MaxConsecutiveBTMFailuresAsActive=$(uci -q get lbd.SteerExec_Adv.MaxConsecutiveBTMFailuresAsActive)
 show_result "lbd.SteerExec_Adv.MaxConsecutiveBTMFailuresAsActive" "$SteerExec_Adv_MaxConsecutiveBTMFailuresAsActive" "$DEFAULT_LBD_MAXCONSECUTIVEBTMFAILURESASACTIVE"
 
-SteerExec_Adv_TSteering=$(uci -q get lbd.SteerExec_Adv.TSteering)
-show_result "lbd.SteerExec_Adv.TSteering" "$SteerExec_Adv_TSteering" "$DEFAULT_LBD_TSEERING"
-
-SteerExec_Adv_AuthRejMax=$(uci -q get lbd.SteerExec_Adv.AuthRejMax)
-show_result "lbd.SteerExec_Adv.AuthRejMax" "$SteerExec_Adv_AuthRejMax" "$DEFAULT_LBD_AUTHREJMAX"
-
 SteerExec_Adv_BTMUnfriendlyTime=$(uci -q get lbd.SteerExec_Adv.BTMUnfriendlyTime)
 show_result "lbd.SteerExec_Adv.BTMUnfriendlyTime" "$SteerExec_Adv_BTMUnfriendlyTime" "$DEFAULT_LBD_BTMUNFRIENDLYTIME"
 
@@ -255,12 +299,32 @@ show_result "lbd.SteerExec_Adv.MaxBTMUnfriendly" "$SteerExec_Adv_MaxBTMUnfriendl
 SteerExec_Adv_MaxBTMActiveUnfriendly=$(uci -q get lbd.SteerExec_Adv.MaxBTMActiveUnfriendly)
 show_result "lbd.SteerExec_Adv.MaxBTMActiveUnfriendly" "$SteerExec_Adv_MaxBTMActiveUnfriendly" "$DEFAULT_LBD_MAXBTMACTIVEUNFRIENDLY"
 
+IAS_ENABLE_W2=$(uci -q get lbd.IAS.Enable_W2)
+show_result "lbd.IAS.Enable_W2" "$IAS_ENABLE_W2" "$DEFAULT_LBD_IAS_ENABLE_W2"
+    
+IAS_ENABLE_W5=$(uci -q get lbd.IAS.Enable_W5)
+show_result "lbd.IAS.Enable_W5" "$IAS_ENABLE_W5" "$DEFAULT_LBD_IAS_ENABLE_W5"
+    
 #Check repacd related setting
 printf " Checking repacd related setting\n"
 
 board=$(cat /tmp/board_model_id)
 
-if [ "$board" = "RBS50" ]; then
+if [ "$orbi_type" = "Satellite" ]; then
+
+    wla_bh_sta_caprssi_in_athx=`config get wl5g_BACKHAUL_STA`
+    wla_bh_sta_caprssi_in_wix=`uci show | grep "ifname='$wla_bh_sta_caprssi_in_athx'"`        # wix : wireless interface
+    wla_bh_sta_caprssi_prefix=`echo $wla_bh_sta_caprssi_in_wix | awk -F'.' '{print $1"."$2".caprssi"}'`
+    wl2g_bh_athx=`config get wl2g_BACKHAUL_STA`
+    wl5g_bh_athx=`config get wl5g_BACKHAUL_STA`
+        
+    #Check wireless related setting
+    WiFi_Ul_Hyst=$(uci -q get wireless.wifi2.ul_hyst)
+    show_result "wireless.wifi2.ul_hyst" "$WiFi_Ul_Hyst" "$DEFAULT_WIFI_UL_HYST"
+
+    WiFi_Caprssi=$(uci -q get $wla_bh_sta_caprssi_prefix)
+    show_result "WiFi_Caprssi" "$WiFi_Caprssi" "$DEFAULT_WIFI_CAPRSSI"   
+    
     repacd_Enable=$(uci -q get repacd.repacd.Enable)
     show_result "repacd.repacd.Enable" "$repacd_Enable" "$DEFAULT_REPACD_ENABLE"
 
@@ -275,6 +339,31 @@ if [ "$board" = "RBS50" ]; then
 
     WiFiLink_5GBackhaulEvalTimeLong=$(uci -q get repacd.WiFiLink.5GBackhaulEvalTimeLong)
     show_result "repacd.WiFiLink.5GBackhaulEvalTimeLong" "$WiFiLink_5GBackhaulEvalTimeLong" "$DEFAULT_REPACD_5GBACKHAULEVALTIMELONG"
+
+    WiFiLink_MoveFromCAPSNRHysteresis5G=$(uci -q get repacd.WiFiLink.MoveFromCAPSNRHysteresis5G)
+    show_result "repacd.WiFiLink.MoveFromCAPSNRHysteresis5G" "$WiFiLink_MoveFromCAPSNRHysteresis5G" "$DEFAULT_REPACD_MOVEFROMCAPSNRHYSTERESIS5G"
+
+    WiFiLink_PreferCAPSNRThreshold=$(uci -q get repacd.WiFiLink.PreferCAPSNRThreshold)
+    show_result "repacd.WiFiLink.PreferCAPSNRThreshold" "$WiFiLink_PreferCAPSNRThreshold" "$DEFAULT_REPACD_PREFERCAPSNRTHRESHOLD"
+
+    WiFiLink_RATETHRESHOLDMIN5GINPERCENT=$(uci -q get repacd.WiFiLink.RateThresholdMin5GInPercent)
+    show_result "repacd.WiFiLink.RateThresholdMin5GInPercent" "$WiFiLink_RATETHRESHOLDMIN5GINPERCENT" "$DEFAULT_REPACD_RATETHRESHOLDMIN5GINPERCENT"
+
+    WiFiLink_RATETHRESHOLDMAX5GINPERCENT=$(uci -q get repacd.WiFiLink.RateThresholdMax5GInPercent)
+    show_result "repacd.WiFiLink.RateThresholdMax5GInPercent" "$WiFiLink_RATETHRESHOLDMAX5GINPERCENT" "$DEFAULT_REPACD_RATETHRESHOLDMAX5GINPERCENT"
+
+    WiFiLink_RATESCALINGFACTOR=$(uci -q get repacd.WiFiLink.RateScalingFactor)
+    show_result "repacd.WiFiLink.RateScalingFactor" "$WiFiLink_RATESCALINGFACTOR" "$DEFAULT_REPACD_RATESCALINGFACTOR"    
+
+    #Check ebtable sanity status in satellite
+    printf " Checking ebtables sanity status\n"
+    
+    ebtable_wl2g_status=`ebtables -L | grep wl2g_bh_athx`
+    show_result "ebtables.wl2g.status" "$ebtable_wl2g_status" ""
+
+    ebtable_wl5g_status=`ebtables -L | grep wl5g_bh_athx`
+    show_result "ebtables.wl5g.status" "$ebtable_wl5g_status" ""
+    
 fi
 
 # At the END
