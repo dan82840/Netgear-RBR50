@@ -2491,8 +2491,7 @@
        "	-s SIZE	Send SIZE data bytes in packets (default=56)\n" \
        "	-I IP	Use IP as source address\n" \
        "	-q	Quiet mode, only displays output at start\n" \
-       "		and when finished\n "\
-       "	-d	domain resolve only domain name\n"
+       "		and when finished"
 #endif
 #define ping_example_usage \
        "$ ping localhost\n" \
