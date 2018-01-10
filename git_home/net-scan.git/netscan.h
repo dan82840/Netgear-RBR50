@@ -20,21 +20,53 @@
 #define ARP_IFNAME	"br0"
 #define ARP_FILE	"/tmp/netscan/attach_device"
 #define ARP_FILE_WIRED	"/tmp/netscan/attach_device_wired"
-#define ARP_FILE_2G	"/tmp/netscan/attach_device_2g"
-#define ARP_FILE_5G	"/tmp/netscan/attach_device_5g"
+#define SATELLITE_NUM_FILE	"/tmp/netscan/satellite_num"
+#define ATTACHED_DEVICE_NUM_FILE	"/tmp/netscan/attached_device_num"
 #define DHCP_LIST_FILE	"/tmp/dhcpd_hostlist"
 #define WLAN_STA_FILE	"/tmp/sta_dev"
-
+#define MAC_OUI_FILE	"/tmp/device_tables/oui.csv"
+#define MAC_MAM_FILE	"/tmp/device_tables/mam.csv"
+#define MAC_OUI36_FILE	"/tmp/device_tables/oui36.csv"
+#define LOCAL_DEVICE_FILE	"/tmp/device_tables/local_device_table"
+#define DEFAULT_DEVICE_TYPE 24
 /* The max length of NETBIOS name is 15, the max length of DHCP hostanme is 255 (BOOTP/DHCP option 12) */
 #define MAX_HOSTNAME_LEN	255
+#define MAX_MODEL_LEN 30
 
-//#define DEBUG_SWITCH 0
+//#define DEBUG_SWITCH 1
 #ifdef DEBUG_SWITCH
-#define DEBUGP(fmt,args...) fprintf(stderr, fmt, ##args)
+#define DEBUGP(fmt,args...) fprintf(stderr, fmt, ## args)
 #else
 #define DEBUGP(fmt,args...) /* do nothing*/
 #endif
 
+#define NEIGH_HASHMASK	0x1F
+
+enum interface_num {
+	ETH1,
+	ATH0,
+	ATH01,
+	ATH1,
+	ATH2,
+	ATH02,
+	ATH11,
+	ETH0
+};
+
+typedef enum connection_type{
+	NONETYPE,
+	WIRELESS_2G,
+	WIRELESS_5G,
+	WIRED,
+	SATELLITE,
+	SATELLITE_DEVICES
+} ConnectionType;
+
+typedef enum attached_type {
+	BASE_ATT,		//devices attached to base
+	SATELLITE_ATT,	//devices attached to satellite
+	BASE_ATT_S,		//satellites
+} AttachedType;
 
 typedef unsigned int	uint32;
 typedef unsigned short	uint16;
@@ -57,11 +89,11 @@ struct arpmsg
 	uint8	ar_sip[4];	/* sender's IP address */
 	uint8	ar_tha[6];	/* target's hardware address */
 	uint8	ar_tip[4];	/* target's IP address */
-	
+
 	uint8	pad[18];	/* pad for min. Ethernet payload (60 bytes) */
 } __attribute__ ((packed, aligned(4)));
 
-struct nb_request 
+struct nb_request
 {
 	uint16	xid;
  	uint16	flags;
@@ -69,7 +101,7 @@ struct nb_request
 	uint16	answer;
  	uint16	authority;
 	uint16	additional;
-	
+
 	char		qname[34];
 
 	uint16	qtype;
@@ -84,12 +116,12 @@ struct nb_response_header
 	uint16	answer;
 	uint16	authority;
 	uint16	additional;
-	
+
 	char		qname[34];
 
 	uint16	qtype;
 	uint16	qclass;
-	
+
 	uint32	ttl;
 	uint16	datalen;
 	uint8	num_names;
@@ -106,12 +138,23 @@ extern void update_bios_name(uint8 *mac, char *host, struct in_addr ip);
 extern void send_bios_query(int sock, struct in_addr dst_ip);
 
 extern void reset_arp_table();
-extern void scan_arp_table(int sock, struct sockaddr *me);
+extern void scan_arp_table(int sock, struct sockaddr *me, int force_soap_flag);
 extern void show_arp_table(void);
 
 extern char *config_get(char *name);
 extern void update_satellite_name();
 extern void update_satellite_name_arp_table(uint8 *mac, struct in_addr ip, char *host);
 
-#endif
+extern uint32 arp_hash(uint8 *pkey);
+extern void get_dhcp_host(char host[], struct in_addr ip, int *isrepl);
+extern void remove_disconn_dhcp(struct in_addr ip);
+extern char *ether_etoa(uint8 *e, char *a);
+extern void strupr(char *str);
+extern int check_sta_format(char *info);
+extern char *host_stod(char *s);
+extern char *get_mac(char *ifname, char *eabuf);
+//extern int get_connection_type(uint8 *mac);
+//extern int get_interface_info();
+extern void get_model_name(uint8 *mac, char *model);
 
+#endif

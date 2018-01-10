@@ -12,20 +12,20 @@ int open_bios_socket(void)
 {
 	int s;
 	struct sockaddr_in addr;
-	
+
 	s = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
 	if (s < 0)
 		return -1;
-	
+
 	memset(&addr, 0, sizeof(addr));
 	addr.sin_family = AF_INET;
 	if (bind(s, (struct sockaddr *)&addr, sizeof(addr)) < 0)
 		return -1;
-	
+
 	return s;
 }
 
-static void mangle_qname(char *p) 
+static void mangle_qname(char *p)
 {
 	int i;
 
@@ -37,7 +37,7 @@ static void mangle_qname(char *p)
 	p[i] = '\0';
 }
 
-void send_bios_query(int sock, struct in_addr dst_ip) 
+void send_bios_query(int sock, struct in_addr dst_ip)
 {
 	static uint16 xid = 0;
 	struct sockaddr_in dest;
@@ -49,7 +49,7 @@ void send_bios_query(int sock, struct in_addr dst_ip)
 	dest.sin_addr = dst_ip;
 
 	xid++;
-	
+
 	req.xid = htons(xid);
 	req.flags = htons(0x0010);
 	req.questions = htons(1);
