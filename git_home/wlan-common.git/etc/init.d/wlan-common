@@ -6,11 +6,7 @@
 boot() {
        wlan updateconf boot
        if [ "x$(/bin/config get factory_mode)" = "x1" ]; then
-           model_id=`/sbin/artmtd -r board_model_id | awk -F: '{print $2}'`
-           if [ "x$model_id" = "xRBS50" ]; then
-               uci set wireless.@wifi-iface[3].mode=ap
-               uci commit wireless
-           fi
+           /bin/sh /usr/sbin/factory-test.sh boot
        fi
        wlan down
        wlan up
@@ -19,15 +15,9 @@ boot() {
            wigig down
            wigig up
        fi
-	# disable wifi interface when boot in factory mode
-	# and set power to amber to tell now the dut boot is finish
-	if [ "x$(/bin/config get factory_mode)" = "x1" ]; then
-		ifconfig ath2 down
-		ifconfig ath01 down
-		ifconfig ath0 down
-		ifconfig ath1 down
-		/sbin/ledcontrol -n power -c amber -s on
-	fi
+       
+       # disable wifi interface and and set power to amber
+       # have been updated to /usr/sbin/factory-test.sh
 }
 
 start()    # don't use this command unless you know what it means
