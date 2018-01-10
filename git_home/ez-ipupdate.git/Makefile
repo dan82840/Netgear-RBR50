@@ -63,7 +63,7 @@ CC = arm-openwrt-linux-uclibcgnueabi-gcc
 CPP = arm-openwrt-linux-uclibcgnueabi-gcc -E
 EXTRAOBJ = 
 EXTRASRC = 
-MAKEINFO = /home3/haiyan.zhuang/project/orbi1.5.git/build_dir/target-arm_v7-a_uClibc-0.9.33.2_eabi/ez-ipupdate-3.0.10/missing makeinfo
+MAKEINFO = /home3/chengjia.lu/project/3orbi.git/build_dir/target-arm_v7-a_uClibc-0.9.33.2_eabi/ez-ipupdate-3.0.10/missing makeinfo
 PACKAGE = ez-ipupdate
 VERSION = 3.0.10
 
@@ -82,8 +82,8 @@ PROGRAMS =  $(bin_PROGRAMS)
 
 
 DEFS = -DHAVE_CONFIG_H -I. -I$(srcdir) -I.
-CPPFLAGS = -I/home3/haiyan.zhuang/project/orbi1.5.git/staging_dir/target-arm_v7-a_uClibc-0.9.33.2_eabi/usr/include -I/home3/haiyan.zhuang/project/orbi1.5.git/staging_dir/target-arm_v7-a_uClibc-0.9.33.2_eabi/include -I/home3/haiyan.zhuang/project/orbi1.5.git/staging_dir/toolchain-arm_v7-a_gcc-4.8-linaro_uClibc-0.9.33.2_eabi/usr/include -I/home3/haiyan.zhuang/project/orbi1.5.git/staging_dir/toolchain-arm_v7-a_gcc-4.8-linaro_uClibc-0.9.33.2_eabi/include 
-LDFLAGS = -L/home3/haiyan.zhuang/project/orbi1.5.git/staging_dir/target-arm_v7-a_uClibc-0.9.33.2_eabi/usr/lib -L/home3/haiyan.zhuang/project/orbi1.5.git/staging_dir/target-arm_v7-a_uClibc-0.9.33.2_eabi/lib -L/home3/haiyan.zhuang/project/orbi1.5.git/staging_dir/toolchain-arm_v7-a_gcc-4.8-linaro_uClibc-0.9.33.2_eabi/usr/lib -L/home3/haiyan.zhuang/project/orbi1.5.git/staging_dir/toolchain-arm_v7-a_gcc-4.8-linaro_uClibc-0.9.33.2_eabi/lib 
+CPPFLAGS = -I/home3/chengjia.lu/project/3orbi.git/staging_dir/target-arm_v7-a_uClibc-0.9.33.2_eabi/usr/include -I/home3/chengjia.lu/project/3orbi.git/staging_dir/target-arm_v7-a_uClibc-0.9.33.2_eabi/include -I/home3/chengjia.lu/project/3orbi.git/staging_dir/toolchain-arm_v7-a_gcc-4.8-linaro_uClibc-0.9.33.2_eabi/usr/include -I/home3/chengjia.lu/project/3orbi.git/staging_dir/toolchain-arm_v7-a_gcc-4.8-linaro_uClibc-0.9.33.2_eabi/include 
+LDFLAGS = -L/home3/chengjia.lu/project/3orbi.git/staging_dir/target-arm_v7-a_uClibc-0.9.33.2_eabi/usr/lib -L/home3/chengjia.lu/project/3orbi.git/staging_dir/target-arm_v7-a_uClibc-0.9.33.2_eabi/lib -L/home3/chengjia.lu/project/3orbi.git/staging_dir/toolchain-arm_v7-a_gcc-4.8-linaro_uClibc-0.9.33.2_eabi/usr/lib -L/home3/chengjia.lu/project/3orbi.git/staging_dir/toolchain-arm_v7-a_gcc-4.8-linaro_uClibc-0.9.33.2_eabi/lib 
 LIBS = 
 ez_ipupdate_OBJECTS =  ez-ipupdate.o conf_file.o md5.o cache_file.o \
 pid_file.o
