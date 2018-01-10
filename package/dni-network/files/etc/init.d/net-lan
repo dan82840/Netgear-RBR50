@@ -123,12 +123,12 @@ start_stage0() # $1: boot/start
 
 	[ "$1" = "boot" ] && $CONFIG set change_ip_flag=1
 	change_ip_flag=$($CONFIG get change_ip_flag)
-	[ "$change_ip_flag" = "1" ] &&  /etc/init.d/net-scan $1 # daemon for getting attached devices
+	[ "$change_ip_flag" = "1" ] &&  /etc/init.d/netscan $1 # daemon for getting attached devices
 	$CONFIG unset change_ip_flag
 	$CONFIG commit
 	if [ "$changing_mode" = "1" ] && [ "$1" != "boot" ]; then
-	      	/etc/init.d/net-scan stop 
-		/etc/init.d/net-scan start
+	      	/etc/init.d/netscan stop 
+		/etc/init.d/netscan start
 	fi
 
 	/etc/init.d/lltd $1          # Link Layer Topology Discovery Daemon
@@ -161,7 +161,7 @@ stop()
 	/etc/init.d/telnet stop
 	/etc/init.d/lltd stop
 	change_ip_flag=$($CONFIG get change_ip_flag)
-	[ "$change_ip_flag" = "1" ] && /etc/init.d/net-scan stop
+	[ "$change_ip_flag" = "1" ] && /etc/init.d/netscan stop
 
 	killall udhcpd
 

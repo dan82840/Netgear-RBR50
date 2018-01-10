@@ -110,7 +110,7 @@ start() {
 
 	# Attach Device
 	mkdir -p /tmp/netscan
-	/usr/sbin/net-scan
+	/etc/init.d/netscan start
 
 	# Restart UPnP
 	[ ! -f /tmp/boot_status ] && /sbin/cmdupnp restart
