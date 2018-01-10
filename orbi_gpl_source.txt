@@ -24,25 +24,25 @@ User application
         DNI
         Binary
 [atheros-gpio]
-	atheros-gpio
-	DNI
-	DNI
-	Binary
+		atheros-gpio
+		DNI
+		DNI
+		Binary
 [avl]
         libavl_0.3.5
         http://avahi.org/download/
         GPL
         Source Code
 [aws-iot]
-	aws-iot
-	DNI
-	DNI
-	Binary
+        aws-iot
+        DNI
+        DNI
+        Binary
 [aws-iot-device-sdk]
-	aws-iot-device-sdk
-	https://github.com/aws/aws-iot-device-sdk-embedded-C
-	GPL
-	Source Code
+        aws-iot-device-sdk
+        DNI
+        Apache
+        Source Code
 [base-files]
         base-files
         DNI
@@ -58,6 +58,11 @@ User application
 	DNI
 	DNI
 	Binary
+[dni-libmtd]
+	dni-libmtd
+	DNI
+	GPL
+	Source Code
 [bridge-mode]
         bridge-mode
         DNI
@@ -123,6 +128,11 @@ User application
 	lists.infradead.org
 	GPL
 	Source Code
+[dni-network]
+	dni-network
+	DNI
+	DNI
+	Source Code
 [dnippp]
         ppp-2.4.3
         ftp://ftp.samba.org/pub/ppp
@@ -133,11 +143,6 @@ User application
         DNI
         DNI
         Binary
-[dni-network]
-	dni-network
-	DNI
-	DNI
-	Source Code
 [dni-ntpclient]
         ntpclient_2003_194
         http://doolittle.faludi.com/ntpclient
@@ -183,6 +188,11 @@ User application
         DNI
         DNI
         Binary
+[fbwifi]
+		fbwifi
+		netgear
+		netgear
+		Binary
 [gettext]
 	gettext
 	http://www.gnu.org/software/gettext
@@ -203,19 +213,24 @@ User application
         http://isteve.bofh.cz/~isteve/hotplug2
         GPL
         Source Code
-[ipp]
-        ipp
+[igmpproxy]
+        N/A
         DNI
         GPL
         Source Code
-[iproute2]
-        iproute2-2.6.29-1
-        http://www.kernel.org/pub/linux/net/iproute2
+[ipp]
+        ipp, iproute2-2.6.29-1
+        http://developer.osdl.org/dev/iproute2/download
         GPL
         Source Code
 [iptables]
         iptables-1.4.10
         http://www.netfilter.org/projects/iptables/files
+        GPL
+        Source Code
+[jansson]
+        jansson-2.4.tar.gz
+        http://www.digip.org/jansson/releases/
         GPL
         Source Code
 [led-control]
@@ -263,11 +278,6 @@ User application
 	http://oss.metaparadigm.com/json-c
 	GPL
 	Source Code
-[libieee1905]
-	libieee1905
-	Atheros
-	Atheros
-	Binary
 [libnetfilter-conntrack]
         libnetfilter_conntrack-0.9.1.tar.bz2
         http://www.netfilter.org/projects/libnetfilter_conntrack/
@@ -303,21 +313,11 @@ User application
         http://www.libpng.org/pub/png/libpng.html
         GPL
         Source Code
-[libqcacommon]
-	libqcacommon
-	Atheros
-	Atheros
-	Binary
 [libreadline]
         readline-5.2
         http://cnswww.cns.cwru.edu/php/chet/readline/rltop.html
         GPL
         Source Code
-[libstorage]
-	libstorage
-	www.qca.qualcomm.com
-	Atheros
-	Binary
 [libubox]
         libubox-2013-07-04-11e8afea0f7eb34f8c23a8e589ee659c46f3f8aa.tar.gz
         git://nbd.name/luci2/libubox.git
@@ -333,11 +333,6 @@ User application
         http://www.xiph.org
         GPL
         Source Code
-[libwpa2]
-	libwpa2
-	Atheros
-	Atheros
-	Binary
 [lltd]
         lltd
         http://www.microsoft.com/whdc/connect/rally/rallykit.mspx
@@ -351,8 +346,13 @@ User application
 [lua]
         lua
         http://www.lua.org/ftp/
-        MIT
+        GPL
         Source Code
+[luci-theme-steelbule]
+	luci-theme-steelbule
+	Atheros
+	Atheros
+	Binary
 [lzo]
         lzo-2.06.tar.gz
         http://www.oberhumer.com/opensource/lzo/
@@ -373,16 +373,16 @@ User application
         http://www.linux-mtd.infradead.org/
         GPL
         Source Code
-[mxml]
-        mxml-2.6.tar.gz
-        http://www.minixml.org/
-        GPL
-        Source Code
 [mcproxy]
 	mcproxy
 	git://github.com/mcproxy/mcproxy.git
 	GPL
 	Source Code
+[mxml]
+        mxml-2.6.tar.gz
+        http://www.minixml.org/
+        GPL
+        Source Code
 [ncurses]
         ncurses-5.7
         http://www.gnu.org/software/ncurses
@@ -398,16 +398,16 @@ User application
         DNI
         BSD
         Binary
-[orbi-new-fonts]
-	glyphicons-halflings-regular*
-	Netgear
-	Netgear
-	Binary
 [net-dump]
         net-dump
         DNI
         GPL
         Source Code
+[orbi-new-fonts]
+	glyphicons-halflings-regular*
+	Netgear
+	Netgear
+	Binary
 [netgear-integration-api]
 	netgear-integration-api
 	DNI
@@ -454,30 +454,30 @@ User application
         Ookla
         Binary
 [openssl]
-        openssl-0.0.2h
+        openssl-0.9.8p
         http://www.openssl.org/source/
         GPL
         Source Code
+[openvpn]
+        openvpn-2.3.2.tar.gz
+        http://openvpn.net
+        GPL
+        Source Code
+[openvpn-easy-rsa]
+        openvpn-easy-rsa-2013-01-30-ff5bfd1dd8e548cb24d302742af3894f893ef92f.tar.gz
+        http://openvpn.net
+        GPL
+        Source Code
+[openvpn-miscprogs]
+        openvpn-miscprogs
+        DNI
+        DNI
+        Binary
 [p0f]
         p0f-3.06b.tgz
         http://lcamtuf.coredump.cx/p0f.shtml
         GPL
         Source Code
-[openvpn]
-	openvpn-2.3.2.tar.gz
-	http://openvpn.net
-	GPL
-	Source Code
-[openvpn-easy-rsa]
-	openvpn-easy-rsa
-	http://openvpn.net
-	GPL
-	Source Code
-[openvpn-miscprogs]
-	openvpn-miscprogs
-	DNI
-	DNI
-	Binary
 [p0f-db]
         p0f-db
         Atheros
@@ -504,10 +504,10 @@ User application
         GPL
         Source Code
 [ppp-nas]
-	ppp-nas
-	DNI
-	GPL
-	Source Code
+        ppp-nas, iproute2-2.6.29-1
+        http://developer.osdl.org/dev/iproute2/download
+        GPL
+        Source Code
 [proccgi]
 	proccgi
 	www.fpx.de/fp/Software
@@ -523,11 +523,11 @@ User application
         openwrt
         GPL
         Source Code
-[qca-hostap]
-        hostap-10.2.2.39.1
-        Atheros
-        Atheros
-        Binary
+[qca-edma]
+	qca-edma
+	Atheros
+	GPL
+	Source Code
 [qca-acd]
 	qca-acd
 	Atheros
@@ -548,46 +548,12 @@ User application
 	Atheros
 	GPL
 	Source Code
-[qca-hyd]
-	qca-hyd
-	Atheros
-	Atheros
-	Binary
-[qca-vhyfid]
-	qca-vhyfid
-	Atheros
-	GPL
-	Source Code
-[qca-hyctl]
-	qca-hyfi-ctl
-	Atheros
-	Atheros
-	Binary
-[qca-hyfi-bridge]
-	qca-hyfi-bridge
-	Atheros
-	GPL
-	Source Code
-[qca-hyfi-iptv-helper]
-	qca-hyfi-iptv-helper
-	Atheros
-	Atheros
-	Binary
-[qca-hyfi-qdisc]
-	qca-hyfi-qdisc
-	Atheros
-	GPL
-	Source Code
-[qca-libhyfi-bridge]
+[qca-lib]
 	qca-libhyfi-bridge
 	Atheros
-	Atheros
-	Binary
-[qca-ieee1905-init]
-	qca-ieee1905-init
-	http://www.qca.qualcomm.com
-	Dual BSD/GPL
-        Source Code
+	GPL
+	Sourde Code
+
 [qca-nss-drv]
         qca-nss-drv
         https://www.codeaurora.org/cgit/quic/qsdk/oss
@@ -603,6 +569,11 @@ User application
         https://www.codeaurora.org/cgit/quic/qsdk/oss
 		GPL
         Source Code
+[qca-rfs]
+	qca-rfs
+	Atheros
+	GPL
+	Source Code
 [qca-ssdk]
         qca-ssdk
         https://www.codeaurora.org/cgit/quic/qsdk/oss
@@ -613,48 +584,8 @@ User application
         Atheros
         Atheros
         Source Code
-[qca-wifi]
-        qca-wifi
-	Athreos
-        Athreos
-        Binary
-[qca-wsplc-luci]
-	qca-wsplc-luci
-	http://www.qca.qualcomm.com
-	Dual BSD/GPL
-        Source Code
-[qca-wsplcd]
-	qca-wsplcd
-	Athreos
-        Athreos
-        Binary
-[qca-whc-lbd]
-	qca-whc-lbd
-	Athreos
-        Athreos
-        Binary
-[qca-whc-init]
-	qca-whc-init
-	http://www.qca.qualcomm.com
-	Dual BSD/GPL
-        Source Code
-[qca-whc-luci]
-	qca-whc-luci
-	http://www.qca.qualcomm.com
-	Dual BSD/GPL
-        Source Code
-[qca-whc-repacd]
-	qca-whc-repacd
-	http://www.qca.qualcomm.com
-	Dual BSD/GPL
-        Source Code
 [qsdk-wifi-script]
         qsdk-wifi-script
-        DNI
-        DNI
-        Binary
-[radardetect]
-        radardetect
         DNI
         DNI
         Binary
@@ -678,16 +609,21 @@ User application
         DNI
         GPL
         Source Code
-[simulated-driver]
-	simulated-driver
-	Atheros
-	Atheros
-	Source Code
+[sea]
+        sea
+        Atheros
+        Atheros
+        Binary
 [shortcut-fe]
         shortcut-fe
         Atheros
         Atheros
         Source Code
+[simulated-driver]
+	simulated-driver
+	Atheros
+	Atheros
+	Source Code
 [soapclient]
 	soapclient
 	DNI
@@ -743,16 +679,16 @@ User application
 	openwrt
 	GPL
 	Source Code 
-[ubus]
-        dl/ubus-2013-01-13-bf566871bd6a633e4504c60c6fc55b2a97305a50.tar.gz
-        git://nbd.name/luci2/ubus.git
-        GPL
-        Source Code
 [ubox]
 	ubox-2013-12-09-0c6d5bd1fc1fd28c71290610faeee11b399c869a.tar.gz
 	git://nbd.name/luci2/ubox.git
 	GPL
 	Source Code
+[ubus]
+        dl/ubus-2013-01-13-bf566871bd6a633e4504c60c6fc55b2a97305a50.tar.gz
+        git://nbd.name/luci2/ubus.git
+        GPL
+        Source Code
 [uci]
         uci
         http://downloads.openwrt.org/sources
@@ -813,16 +749,6 @@ User application
         DNI
         GPL
         Source Code
-[xtables-addons]
-	xtables-addons
-	@SF/xtables-addons
-	GPL
-	Source Code
-[zebra]
-	zebra
-	http://zebra.sourceforge.net
-	GPL
-	Source Code
 [zip]
         zip232.zip
         http://infozip.sourceforge.net/Zip.html
@@ -841,9 +767,9 @@ atm
         http://www.kernel.org
         GPL
         Source Code
- [linux-atm]
-	linux-atm-2.5.2
-	http://ftp.debian.org/debian/pool/main/l/linux-atm
+[xtables-addons]
+	xtables-addons
+	@SF/xtables-addons
 	GPL
 	Source Code
 [kmod-conenat]
@@ -876,11 +802,11 @@ atm
         DNI
         DNI
         Binary
-[kmod-iparray-match]
-	kmod-iparry-match
-	DNI
-	GPL
-	Source Code
+[kmod-kcode]
+        kmod-kcode
+        kcode
+        kcode
+        Binary
 [kmod-l2tp]
         linux-2.6.31
         http://www.kernel.org
@@ -921,3 +847,13 @@ atm
         DNI
         DNI
         Binary
+[kmod-xhttp]
+		kmod-xhttp
+		DNI
+		DNI
+		Source Code
+[madwifi-11n]
+	qca-wifi
+	DNI
+	DNI
+	Binary

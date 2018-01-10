@@ -1,0 +1,13 @@
+menu "Configuration"
+
+config QCA_HYFI_USE_DNI_GIT
+	bool "Fetch source from DNI git repository"
+	default y
+
+config WIFISON_HIFY_GIT_TREEISH
+        string
+        prompt "treeish of wifison hify git repository"
+        default "55d7c7d943c4f2345b542668eff38e04dac059e8"
+        help
+           Input the treeish of wifison hify git repository which you want to build
+endmenu

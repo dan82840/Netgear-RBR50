@@ -1,44 +1,3 @@
-1) List the model number. If the open source code archive applies to multiple models, list each model individually.
-
-orbi
-
-2) List the version number of the firmware/software that correlates with the open source code archive.
-
-orbi-V1.0.0.32 orbi-V1.1.0.16 orbi-V1.2.0.6 orbi-V1.3.0.10 orbi-V1.4.0.14
-
-7) List the main HW platform utilized such as CPU, main chipset, RF chipset, DSP, Switch IC¡­etc.
-
-IPQ4019(CPU) + QCA8075(Swicth) + IPQ4019(5GHz) + IPQ4019(2.4GHz) + QCA9984(5GHz)
-
-8) List the name, version, license, and modification status of the OS for the product
-
-Linux kernel 3.14.43, GPL, Yes
-
-9) List the name, version, license, and modification status of the boot loader for the product
-
-u-boot, 2009.08, GPL, Yes
-
-10) List the name, version, license, and modification status of the toolchain for the product
-
-gcc, 4.8, GPL, No
-
-11) List the name, version, license, and modification status of the tools for the product
-
-genext2fs, 1.4.1, GPL, No
-
-ipkg-utils, 1.7, GPL, No
-
-lzma, 4.65, GPL, No
-
-m4, 1.4.16, GPL, No
-
-sed, 4.2.1, GPL, No
-
-squashfs, 4.2, GPL, No
-
-tcpdump, 3.9.8, BSD, Yes
-
-12) List the name, version, license, and modification status of the application modules for the product
 acl, acl, DNI, No
 
 alsa-lib, alsa-lib, GPL, No
@@ -47,11 +6,9 @@ artmtd, artmtd, DNI, No
 
 atheros-gpio, atheros-gpio, DNI, No
 
-avl, libal, GPL ,No
+aws-iot, asw-iot, DNI, NO
 
-aws-iot, aws-iot, DNI, No
-
-aws-iot-device-sdk, aws-iot-device-sdk, GPL, No
+aws-iot-device-sdk, aws-iot-device-sdk, Apache, NO
 
 base-files, base-files, GPL, No
 
@@ -64,6 +21,8 @@ bridge-mode, bridge-mode, DNI, No
 bridge-utils, bridge-utils, GPL, No
 
 curl, curl, GPL, No
+
+cyassl, cyassl, GPL, No
 
 datalib, datalib, DNI, No
 
@@ -79,9 +38,9 @@ disktype, disktype, GPL, No
 
 dnibusybox, dnibusybox, GPL, No
 
-dni_enet, dni_enet, DNI, No
-
 dni-mtdoops, dni-mtdoops, GPL, No
+
+dni-network, dni-network, DNI, No
 
 dni-ntpclient, dni-ntpclient, GPL, No
 
@@ -92,8 +51,6 @@ dnippp, dnippp, GPL, No
 dni-ripd, dni-ripd, DNI, No
 
 dnsmasq, dnsmasq, GPL, No
-
-dni-network, dni-network, DNI, No
 
 e2fsprogs, e2fsprogs, GPL, No
 
@@ -109,11 +66,11 @@ factory-tools, factory-tools, DNI, No
 
 gettext, gettext, GPL, No
 
-ready-genie-cloud, 20161005, netgear, No
-
 hd-idle, hd-idle, GPL, No
 
 hotplug2, hotplug2, GPL, No
+
+igmpproxy, igmpproxy, GPL, No
 
 ipp, ipp, GPL, No
 
@@ -121,9 +78,81 @@ iproute2, iproute2, GPL, No
 
 iptables, iptables, GPL, No
 
+jansson, jansson, GPL, No
+
+kmod-conenat, kmod-conenat, DNI, No
+
+kmod-dni_enet, kmod-dni_enet, DNI, No
+
+kmod-dni-qos, kmod-dni-qos, DNI, No
+
+kmod-dnisip, kmod-dnisip, GPL, No
+
+kmod-dnshijack, kmod-dnshijack, DNI, No
+
+kmod-ipv6-cone, kmod-ipv6-cone, DNI, No
+
+kmod-kcode, kmod-kcode, kcode, No
+
+kmod-l2tp, kmod-l2tp, GPL, No
+
+kmod-nat2.5, kmod-nat2.5, DNI, No
+
+kmod-netgear-reject, kmod-netgear-reject, GPL, No
+
+kmod-pptp, kmod-pptp, GPL, No
+
+kmod-spiadvdos, kmod-spiadvdos, DNI, No
+
+kmod-spidos, kmod-spidos, DNI, No
+
+kmod-trigger, kmod-trigger, GPL, No
+
+kmod-urlblock, kmod-urlblock, DNI, No
+
+kmod-xhttp, kmod-xhttp, DNI, No
+
 led-control, led-control, DNI, No
 
 led-extender, led-extender, DNI, No
+
+libcurl, libcurl, GPL, No
+
+libevent2, libevent2, GPL, No
+
+libexif, libexif, GPL, No
+
+libgcrypt, libgcrypt, GPL, No
+
+libgpg-error, libgpg-error, GPL, No
+
+libiconv, libiconv, GPL, No
+
+libjson-c, libjson-c, GPL, No
+
+libnetfilter-conntrack, libnetfilter-conntrack, GPL, No
+
+libnfnetlink, libnfnetlink, GPL, No
+
+libnl-bf, libnl-bf, GPL, No
+
+libnl-tiny, libnl-tiny, GPL, No
+
+libogg, libogg, GPL, No
+
+libpcap, libpcap, GPL, No
+
+libpng, libpng, GPL, No
+
+libreadline, libreadline, GPL, No
+
+libtool, libtool, GPL, No
+
+libubox, libubox, GPL, No
+
+libunistring, libunistring, GPL, No
+
+libvorbis, libvorbis, GPL, No
 
 lltd, lltd, MICROSOFT WINDOWS RALLY PROGRAM LICENSE, No
 
@@ -141,7 +170,7 @@ mtd-utils, mtd-utils, GPL, No
 
 mxml, mxml, GPL, No
 
-mcproxy, mcproxy, GPL, No
+ncurses, ncurses, GPL, No
 
 net6conf, net6conf, GPL, No
 
@@ -165,7 +194,15 @@ noip2, noip2, GPL, No
 
 ntgrddns, ntgrddns, DNI, No
 
-kmod-dni-qos, kmod-dni-qos, DNI, No
+openssl, openssl, GPL, No
+
+openvpn, openvpn, GPL, No
+
+openvpn-easy-rsa, openvpn-easy-rsa, GPL, No
+
+openvpn-miscprogs, openvpn-miscprogs, DNI, No
+
+opkg, opkg, GPL, No
 
 p0f, p0f, GPL, No
 
@@ -187,31 +224,11 @@ proftpd, proftpd, GPL, No
 
 px5g, px5g, GPL, No
 
-qca-hostap, qca-hostap, Atheros, No
-
 qca-acd, qca-acd, GPL, No
 
 qca-edma, qca-edma, GPL, No
 
 qca-mcs, qca-mcs, GPL, No
-
-qca-rfs, qca-rfs, GPL, No
-
-qca-hyd, qca-hyd, Atheros, No
-
-qca-vhyfid, qca-vhyfid, GPL, No
-
-qca-hyctl, qca-hyctl, Atheros, No
-
-qca-hyfi-bridde, qca-hyfi-bridge, Atheros, No
-
-qca-hyfi-iptv-helper, qca-hyfi-iptv-heler, Atheros, No
-
-qca-yfi-qdisc, qca-hyfi-qdisc, GPL, No
-
-qca-libyfi-bridge, qca-libhyfi-bridge, GPL, No
-
-qca-ieee1905-init, qca-ieee1905-init, GPL, No
 
 qca-nss-drv, qca-nss-drv, Dual BSD/GPL, No
 
@@ -219,27 +236,13 @@ qca-nss-ecm, qca-nss-ecm, Dual BSD/GPL, No
 
 qca-nss-gmac, qca-nss-gmac, GPL, No
 
+qca-rfs, qca-rfs, GPL, No
+
 qca-ssdk, qca-ssdk, Dual BSD/GPL, No
 
 qca-ssdk-shell, qca-ssdk-shell, Atheros, No
 
-qca-wifi, qca-wifi, Atheros, No
-
-qca-wsplc-luci, qca-wsplc-luci, GPL, No
-
-qca-wsplcd, qca-wsplcd, Atheros, No
-
-qca-whc-lbd, qca-whc-lbd, Atheros, No
-
-qca-whc-init, qca-whc-init, GPL, No
-
-qca-whc-luci, qca-whc-luci, GPL, No
-
-qca-whc-repacd, qca-whc-repacd, GPL, No
-
 qsdk-wifi-script, qsdk-wifi-script, DNI, No
-
-radardetect, radardetect, DNI, No
 
 radvd, radvd, GPL, No
 
@@ -254,6 +257,8 @@ shortcut-fe, shortcut-fe, Atheros, No
 simulated-driver, simulated-driver, Atheros, No
 
 soapclient, soapclient, DNI, No
+
+sqlite3, sqlite3, GPL, No
 
 ssmtp, ssmtp, GPL, No
 
@@ -301,11 +306,11 @@ wireless-tools, wireless-tools, GPL, No
 
 wlan-common, wlan-common, GPL, No
 
-xtables-addons, xtables-addons, GPL, No
-
 zip, zip, GPL, No
 
-13) List the name, version, license, and modification status of the library modules for the product
+zlib, zlib, GPL, No
+
+xtables-addons, xtables-addons, GPL, No
 
 cyassl, cyassl, GPL, No
 
@@ -325,8 +330,6 @@ libiconv, libiconv, GPL, No
 
 libjson-c, libjson-c, GPL, No
 
-libieee1905, libieee1905, Atheros, No
-
 libnetfilter-conntrack, libnetfilter-conntrack, GPL, No
 
 libnfnetlink, libnfnetlink, GPL, No
@@ -341,26 +344,7 @@ libpcap, libpcap, GPL, No
 
 libpng, libpng, GPL, No
 
-libqcacommon, libqcacommon, Atheros, No
-
 libreadline, libreadline, GPL, No
-
-libstorage, libstorage, Atheros, No
-
-libtool, libtool, GPL, No
 
 libubox, libubox, GPL, No
 
-libunistring, libunistring, GPL, No
-
-libvorbis, libvorbis, GPL, No
-
-libwpa2, libwpa2, Atheros, No
-
-ncurses, ncurses, GPL, No
-
-openssl, openssl, GPL, No
-
-sqlite3, sqlite3, GPL, No
-
-zlib, zlib, GPL, No
