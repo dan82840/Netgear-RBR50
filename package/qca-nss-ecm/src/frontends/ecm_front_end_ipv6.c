@@ -49,6 +49,11 @@
 #include "ecm_front_end_ipv6.h"
 
 /*
+ * General operational control
+ */
+int ecm_front_end_ipv6_stopped = 0;	/* When non-zero further traffic will not be processed */
+
+/*
  * ecm_front_end_ipv6_interface_construct_ip_addr_set()
  *	Sets the IP addresses.
  *
@@ -170,7 +175,9 @@ bool ecm_front_end_ipv6_interface_construct_set_and_hold(struct sk_buff *skb, ec
 		 * for routed connections.
 		 */
 		if (!ECM_IP_ADDR_MATCH(rt->rt6i_dst.addr.in6_u.u6_addr32, rt->rt6i_gateway.in6_u.u6_addr32) || (rt->rt6i_flags & RTF_GATEWAY)) {
-			ECM_NIN6_ADDR_TO_IP_ADDR(rt_dst_addr, rt->rt6i_gateway);
+			if (!ECM_IP_ADDR_IS_NULL(rt->rt6i_gateway.in6_u.u6_addr32)) {
+				ECM_NIN6_ADDR_TO_IP_ADDR(rt_dst_addr, rt->rt6i_gateway);
+			}
 		}
 
 		from = skb->dev;
@@ -197,23 +204,7 @@ bool ecm_front_end_ipv6_interface_construct_set_and_hold(struct sk_buff *skb, ec
  */
 void ecm_front_end_ipv6_stop(int num)
 {
-	/*
-	 * If the device tree is used, check which accel engine will be stopped.
-	 * For ipq8064 platforms, we will stop NSS.
-	 */
-#ifdef CONFIG_OF
-	/*
-	 * Check the other platforms and use the correct APIs for those platforms.
-	 */
-	if (!of_machine_is_compatible("qcom,ipq8064") &&
-		!of_machine_is_compatible("qcom,ipq8062")) {
-		ecm_sfe_ipv6_stop(num);
-	} else {
-		ecm_nss_ipv6_stop(num);
-	}
-#else
-	ecm_nss_ipv6_stop(num);
-#endif
+	ecm_front_end_ipv6_stopped = num;
 }
 
 /*
@@ -221,23 +212,21 @@ void ecm_front_end_ipv6_stop(int num)
  */
 int ecm_front_end_ipv6_init(struct dentry *dentry)
 {
-	/*
-	 * If the device tree is used, check which accel engine can be used.
-	 * For ipq8064 platform, we will use NSS.
-	 */
-#ifdef CONFIG_OF
-	/*
-	 * Check the other platforms and use the correct APIs for those platforms.
-	 */
-	if (!of_machine_is_compatible("qcom,ipq8064") &&
-		!of_machine_is_compatible("qcom,ipq8062")) {
-		return ecm_sfe_ipv6_init(dentry);
-	} else {
-		return ecm_nss_ipv6_init(dentry);
+	if (!debugfs_create_u32("front_end_ipv6_stop", S_IRUGO | S_IWUSR, dentry,
+					(u32 *)&ecm_front_end_ipv6_stopped)) {
+		DEBUG_ERROR("Failed to create ecm front end ipv6 stop file in debugfs\n");
+		return -1;
 	}
-#else
-	return ecm_nss_ipv6_init(dentry);
-#endif
+
+	switch (ecm_front_end_type_get()) {
+	case ECM_FRONT_END_TYPE_NSS:
+		return ecm_nss_ipv6_init(dentry);
+	case ECM_FRONT_END_TYPE_SFE:
+		return ecm_sfe_ipv6_init(dentry);
+	default:
+		DEBUG_ERROR("Failed to init ipv6 front end\n");
+		return -1;
+	}
 }
 
 /*
@@ -245,22 +234,16 @@ int ecm_front_end_ipv6_init(struct dentry *dentry)
  */
 void ecm_front_end_ipv6_exit(void)
 {
-	/*
-	 * If the device tree is used, check which accel engine will be exited.
-	 * For ipq8064 platforms, we will exit NSS.
-	 */
-#ifdef CONFIG_OF
-	/*
-	 * Check the other platforms and use the correct APIs for those platforms.
-	 */
-	if (!of_machine_is_compatible("qcom,ipq8064") &&
-		!of_machine_is_compatible("qcom,ipq8062")) {
-		ecm_sfe_ipv6_exit();
-	} else {
+	switch (ecm_front_end_type_get()) {
+	case ECM_FRONT_END_TYPE_NSS:
 		ecm_nss_ipv6_exit();
+		break;
+	case ECM_FRONT_END_TYPE_SFE:
+		ecm_sfe_ipv6_exit();
+		break;
+	default:
+		DEBUG_ERROR("Failed to exit from front end\n");
+		break;
 	}
-#else
-	ecm_nss_ipv6_exit();
-#endif
 }
 

@@ -49,8 +49,13 @@
 #include <net/netfilter/nf_conntrack_helper.h>
 #include <net/netfilter/nf_conntrack_l4proto.h>
 #include <net/netfilter/nf_conntrack_l3proto.h>
+#if (LINUX_VERSION_CODE <= KERNEL_VERSION(4, 2, 0))
 #include <net/netfilter/nf_conntrack_zones.h>
+#else
+#include <linux/netfilter/nf_conntrack_zones_common.h>
+#endif
 #include <net/netfilter/nf_conntrack_core.h>
+#include <net/netfilter/nf_conntrack_timeout.h>
 #include <net/netfilter/ipv4/nf_conntrack_ipv4.h>
 #include <net/netfilter/ipv4/nf_defrag_ipv4.h>
 #ifdef ECM_INTERFACE_VLAN_ENABLE
@@ -80,21 +85,10 @@
 #include "ecm_tracker_udp.h"
 #include "ecm_tracker_tcp.h"
 #include "ecm_db.h"
-#include "ecm_classifier_default.h"
 #ifdef ECM_CLASSIFIER_NL_ENABLE
 #include "ecm_classifier_nl.h"
 #endif
-#ifdef ECM_CLASSIFIER_HYFI_ENABLE
-#include "ecm_classifier_hyfi.h"
-#endif
-#ifdef ECM_CLASSIFIER_DSCP_ENABLE
-#include "ecm_classifier_dscp.h"
-#endif
-#ifdef ECM_CLASSIFIER_PCC_ENABLE
-#include "ecm_classifier_pcc.h"
-#endif
 #include "ecm_interface.h"
-#include "ecm_nss_ipv4.h"
 #include "ecm_nss_ported_ipv4.h"
 #ifdef ECM_MULTICAST_ENABLE
 #include "ecm_nss_multicast_ipv4.h"
@@ -102,8 +96,8 @@
 #ifdef ECM_NON_PORTED_SUPPORT_ENABLE
 #include "ecm_nss_non_ported_ipv4.h"
 #endif
-
 #include "ecm_front_end_common.h"
+#include "ecm_front_end_ipv4.h"
 
 #define ECM_NSS_IPV4_STATS_SYNC_PERIOD msecs_to_jiffies(1000)
 #define ECM_NSS_IPV4_STATS_SYNC_UDELAY 4000	/* Delay for 4 ms */
@@ -153,21 +147,16 @@ static unsigned long ecm_nss_ipv4_decel_cmd_time_avg_set = 1;	/* How many sample
 static struct dentry *ecm_nss_ipv4_dentry;
 
 /*
- * General operational control
- */
-static int ecm_nss_ipv4_stopped = 0;			/* When non-zero further traffic will not be processed */
-
-/*
  * Workqueue for the connection sync
  */
 struct workqueue_struct *ecm_nss_ipv4_workqueue;
 struct delayed_work ecm_nss_ipv4_work;
 struct nss_ipv4_msg *ecm_nss_ipv4_sync_req_msg;
 static unsigned long int ecm_nss_ipv4_next_req_time;
+static unsigned long int ecm_nss_ipv4_roll_check_jiffies;
 static unsigned long int ecm_nss_ipv4_stats_request_success = 0;	/* Number of success stats request */
 static unsigned long int ecm_nss_ipv4_stats_request_fail = 0;		/* Number of failed stats request */
 static unsigned long int ecm_nss_ipv4_stats_request_nack = 0;		/* Number of NACK'd stats request */
-static bool ecm_nss_ipv4_stats_request_in_progress = false;		/* If a request is holding in nss or not */
 
 /*
  * ecm_nss_ipv4_node_establish_and_ref()
@@ -192,9 +181,11 @@ struct ecm_db_node_instance *ecm_nss_ipv4_node_establish_and_ref(struct ecm_fron
 	ip_addr_t local_ip, remote_ip;
 	struct net_device *local_dev;
 #endif
+
 #if defined(ECM_INTERFACE_MAP_T_ENABLE)
 	struct net_device *in;
 #endif
+
 	DEBUG_INFO("Establish node for " ECM_IP_ADDR_DOT_FMT "\n", ECM_IP_ADDR_TO_DOT(addr));
 
 	/*
@@ -259,13 +250,46 @@ struct ecm_db_node_instance *ecm_nss_ipv4_node_establish_and_ref(struct ecm_fron
 			       ECM_IP_ADDR_TO_DOT(local_ip), ECM_IP_ADDR_TO_DOT(remote_ip), ECM_IP_ADDR_TO_DOT(addr));
 
 			local_dev = ecm_interface_dev_find_by_local_addr(local_ip);
-
 			if (!local_dev) {
 				DEBUG_WARN("Failed to find local netdevice of l2tp tunnel for " ECM_IP_ADDR_DOT_FMT "\n", ECM_IP_ADDR_TO_DOT(local_ip));
 				return NULL;
 			}
 
 			DEBUG_TRACE("local_dev found is %s\n", local_dev->name);
+
+			if (local_dev->type == ARPHRD_PPP) {
+				struct ppp_channel *ppp_chan[1];
+				struct pppoe_opt addressing;
+				int px_proto;
+#ifndef ECM_INTERFACE_PPPOE_ENABLE
+				DEBUG_TRACE("l2tp over netdevice %s unsupported\n", local_dev->name);
+				dev_put(local_dev);
+				return NULL;
+#else
+				if (ppp_hold_channels(local_dev, ppp_chan, 1) != 1) {
+					DEBUG_WARN("l2tpv2 over netdevice %s unsupported; could not hold ppp channels\n", local_dev->name);
+					dev_put(local_dev);
+					return NULL;
+				}
+
+				px_proto = ppp_channel_get_protocol(ppp_chan[0]);
+				if (px_proto != PX_PROTO_OE) {
+					DEBUG_WARN("l2tpv2 over PPP protocol %d unsupported\n", px_proto);
+					ppp_release_channels(ppp_chan, 1);
+					dev_put(local_dev);
+					return NULL;
+				}
+
+				pppoe_channel_addressing_get(ppp_chan[0], &addressing);
+				DEBUG_TRACE("Obtained mac address for %s remote address " ECM_IP_ADDR_OCTAL_FMT "\n", addressing.dev->name, ECM_IP_ADDR_TO_OCTAL(addr));
+				memcpy(node_addr, addressing.dev->dev_addr, ETH_ALEN);
+				dev_put(addressing.dev);
+				ppp_release_channels(ppp_chan, 1);
+				dev_put(local_dev);
+				done = true;
+				break;
+#endif
+			}
 
 			if (ECM_IP_ADDR_MATCH(local_ip, addr)) {
 				if (unlikely(!ecm_interface_mac_addr_get_no_route(local_dev, local_ip, node_addr))) {
@@ -316,9 +340,25 @@ struct ecm_db_node_instance *ecm_nss_ipv4_node_establish_and_ref(struct ecm_fron
 
 			} else {
 				if (unlikely(!ecm_interface_mac_addr_get_no_route(local_dev, remote_ip, node_addr))) {
-					DEBUG_TRACE("failed to obtain node address for host " ECM_IP_ADDR_DOT_FMT "\n", ECM_IP_ADDR_TO_DOT(remote_ip));
-					dev_put(local_dev);
-					return NULL;
+					ip_addr_t gw_addr = ECM_IP_ADDR_NULL;
+
+					if (!ecm_interface_find_gateway(remote_ip, gw_addr)) {
+						DEBUG_TRACE("failed to obtain Gateway address for host " ECM_IP_ADDR_DOT_FMT "\n", ECM_IP_ADDR_TO_DOT(remote_ip));
+						dev_put(local_dev);
+						return NULL;
+					}
+
+					if (ECM_IP_ADDR_MATCH(gw_addr, remote_ip)) {
+						DEBUG_TRACE("host ip address match with gw address " ECM_IP_ADDR_DOT_FMT "\n", ECM_IP_ADDR_TO_DOT(remote_ip));
+						dev_put(local_dev);
+						return NULL;
+					}
+
+					if (!ecm_interface_mac_addr_get_no_route(local_dev, gw_addr, node_addr)) {
+						DEBUG_TRACE("failed to obtain node address for host " ECM_IP_ADDR_DOT_FMT "\n", ECM_IP_ADDR_TO_DOT(gw_addr));
+						dev_put(local_dev);
+						return NULL;
+					}
 				}
 			}
 
@@ -412,21 +452,22 @@ done:
 	}
 
 	/*
-	 * Locate the node
-	 */
-	ni = ecm_db_node_find_and_ref(node_addr);
-	if (ni) {
-		DEBUG_TRACE("%p: node established\n", ni);
-		return ni;
-	}
-
-	/*
-	 * No node - establish iface
+	 *  Establish iface
 	 */
 	ii = ecm_interface_establish_and_ref(feci, dev, skb);
 	if (!ii) {
 		DEBUG_WARN("Failed to establish iface\n");
 		return NULL;
+	}
+
+	/*
+	 * Locate the node
+	 */
+	ni = ecm_db_node_find_and_ref(node_addr, ii);
+	if (ni) {
+		DEBUG_TRACE("%p: node established\n", ni);
+		ecm_db_iface_deref(ii);
+		return ni;
 	}
 
 	/*
@@ -443,7 +484,7 @@ done:
 	 * Add node into the database, atomically to avoid races creating the same thing
 	 */
 	spin_lock_bh(&ecm_nss_ipv4_lock);
-	ni = ecm_db_node_find_and_ref(node_addr);
+	ni = ecm_db_node_find_and_ref(node_addr, ii);
 	if (ni) {
 		spin_unlock_bh(&ecm_nss_ipv4_lock);
 		ecm_db_node_deref(nni);
@@ -628,148 +669,6 @@ void ecm_nss_ipv4_decel_done_time_update(struct ecm_front_end_connection_instanc
 }
 
 /*
- * ecm_nss_ipv4_assign_classifier()
- *	Instantiate and assign classifier of type upon the connection, also returning it if it could be allocated.
- */
-struct ecm_classifier_instance *ecm_nss_ipv4_assign_classifier(struct ecm_db_connection_instance *ci, ecm_classifier_type_t type)
-{
-	DEBUG_TRACE("%p: Assign classifier of type: %d\n", ci, type);
-	DEBUG_ASSERT(type != ECM_CLASSIFIER_TYPE_DEFAULT, "Must never need to instantiate default type in this way");
-
-#ifdef ECM_CLASSIFIER_PCC_ENABLE
-	if (type == ECM_CLASSIFIER_TYPE_PCC) {
-		struct ecm_classifier_pcc_instance *pcci;
-		pcci = ecm_classifier_pcc_instance_alloc(ci);
-		if (!pcci) {
-			DEBUG_TRACE("%p: Failed to create Parental Controls classifier\n", ci);
-			return NULL;
-		}
-		DEBUG_TRACE("%p: Created Parental Controls classifier: %p\n", ci, pcci);
-		ecm_db_connection_classifier_assign(ci, (struct ecm_classifier_instance *)pcci);
-		return (struct ecm_classifier_instance *)pcci;
-	}
-#endif
-
-#ifdef ECM_CLASSIFIER_NL_ENABLE
-	if (type == ECM_CLASSIFIER_TYPE_NL) {
-		struct ecm_classifier_nl_instance *cnli;
-		cnli = ecm_classifier_nl_instance_alloc(ci);
-		if (!cnli) {
-			DEBUG_TRACE("%p: Failed to create Netlink classifier\n", ci);
-			return NULL;
-		}
-		DEBUG_TRACE("%p: Created Netlink classifier: %p\n", ci, cnli);
-		ecm_db_connection_classifier_assign(ci, (struct ecm_classifier_instance *)cnli);
-		return (struct ecm_classifier_instance *)cnli;
-	}
-#endif
-
-#ifdef ECM_CLASSIFIER_DSCP_ENABLE
-	if (type == ECM_CLASSIFIER_TYPE_DSCP) {
-		struct ecm_classifier_dscp_instance *cdscpi;
-		cdscpi = ecm_classifier_dscp_instance_alloc(ci);
-		if (!cdscpi) {
-			DEBUG_TRACE("%p: Failed to create DSCP classifier\n", ci);
-			return NULL;
-		}
-		DEBUG_TRACE("%p: Created DSCP classifier: %p\n", ci, cdscpi);
-		ecm_db_connection_classifier_assign(ci, (struct ecm_classifier_instance *)cdscpi);
-		return (struct ecm_classifier_instance *)cdscpi;
-	}
-#endif
-
-#ifdef ECM_CLASSIFIER_HYFI_ENABLE
-	if (type == ECM_CLASSIFIER_TYPE_HYFI) {
-		struct ecm_classifier_hyfi_instance *chfi;
-		chfi = ecm_classifier_hyfi_instance_alloc(ci);
-		if (!chfi) {
-			DEBUG_TRACE("%p: Failed to create HyFi classifier\n", ci);
-			return NULL;
-		}
-		DEBUG_TRACE("%p: Created HyFi classifier: %p\n", ci, chfi);
-		ecm_db_connection_classifier_assign(ci, (struct ecm_classifier_instance *)chfi);
-		return (struct ecm_classifier_instance *)chfi;
-	}
-#endif
-
-	// GGG TODO Add other classifier types.
-	DEBUG_ASSERT(NULL, "%p: Unsupported type: %d\n", ci, type);
-	return NULL;
-}
-
-/*
- * ecm_nss_ipv4_reclassify()
- *	Signal reclassify upon the assigned classifiers.
- *
- * Classifiers that unassigned themselves we TRY to re-instantiate them.
- * Returns false if the function is not able to instantiate all missing classifiers.
- * This function does not release and references to classifiers in the assignments[].
- */
-bool ecm_nss_ipv4_reclassify(struct ecm_db_connection_instance *ci, int assignment_count, struct ecm_classifier_instance *assignments[])
-{
-	ecm_classifier_type_t classifier_type;
-	int i;
-	bool full_reclassification = true;
-
-	/*
-	 * assignment_count will always be <= the number of classifier types available
-	 */
-	for (i = 0, classifier_type = ECM_CLASSIFIER_TYPE_DEFAULT; i < assignment_count; ++i, ++classifier_type) {
-		ecm_classifier_type_t aci_type;
-		struct ecm_classifier_instance *aci;
-
-		aci = assignments[i];
-		aci_type = aci->type_get(aci);
-		DEBUG_TRACE("%p: Reclassify: %d\n", ci, aci_type);
-		aci->reclassify(aci);
-
-		/*
-		 * If the connection has a full complement of assigned classifiers then these will match 1:1 with the classifier_type (all in same order).
-		 * If not, we have to create the missing ones.
-		 */
-		if (aci_type == classifier_type) {
-			continue;
-		}
-
-		/*
-		 * Need to instantiate the missing classifier types until we get to the same type as aci_type then we are back in sync to continue reclassification
-		 */
-		while (classifier_type != aci_type) {
-			struct ecm_classifier_instance *naci;
-			DEBUG_TRACE("%p: Instantiate missing type: %d\n", ci, classifier_type);
-			DEBUG_ASSERT(classifier_type < ECM_CLASSIFIER_TYPES, "Algorithm bad");
-
-			naci = ecm_nss_ipv4_assign_classifier(ci, classifier_type);
-			if (!naci) {
-				full_reclassification = false;
-			} else {
-				naci->deref(naci);
-			}
-
-			classifier_type++;
-		}
-	}
-
-	/*
-	 * Add missing types
-	 */
-	for (; classifier_type < ECM_CLASSIFIER_TYPES; ++classifier_type) {
-		struct ecm_classifier_instance *naci;
-		DEBUG_TRACE("%p: Instantiate missing type: %d\n", ci, classifier_type);
-
-		naci = ecm_nss_ipv4_assign_classifier(ci, classifier_type);
-		if (!naci) {
-			full_reclassification = false;
-		} else {
-			naci->deref(naci);
-		}
-	}
-
-	DEBUG_TRACE("%p: reclassify done: %u\n", ci, full_reclassification);
-	return full_reclassification;
-}
-
-/*
  * ecm_nss_ipv4_connection_regenerate()
  *	Re-generate a connection.
  *
@@ -868,7 +767,7 @@ void ecm_nss_ipv4_connection_regenerate(struct ecm_db_connection_instance *ci, e
 	}
 
 	DEBUG_TRACE("%p: Update the 'from' interface heirarchy list\n", ci);
-	from_list_first = ecm_interface_heirarchy_construct(feci, from_list, efeici.from_dev, efeici.from_other_dev, ip_dest_addr, efeici.from_mac_lookup_ip_addr, 4, protocol, in_dev, is_routed, in_dev, src_node_addr, dest_node_addr, layer4hdr, skb);
+	from_list_first = ecm_interface_heirarchy_construct(feci, from_list, efeici.from_dev, efeici.from_other_dev, ip_dest_addr, efeici.from_mac_lookup_ip_addr, ip_src_addr, 4, protocol, in_dev, is_routed, in_dev, src_node_addr, dest_node_addr, layer4hdr, skb);
 	if (from_list_first == ECM_DB_IFACE_HEIRARCHY_MAX) {
 		ecm_front_end_ipv4_interface_construct_netdev_put(&efeici);
 		goto ecm_ipv4_retry_regen;
@@ -879,9 +778,9 @@ void ecm_nss_ipv4_connection_regenerate(struct ecm_db_connection_instance *ci, e
 
 	DEBUG_TRACE("%p: Update the 'from NAT' interface heirarchy list\n", ci);
 	if ((protocol == IPPROTO_IPV6) || (protocol == IPPROTO_ESP)) {
-		from_nat_list_first = ecm_interface_heirarchy_construct(feci, from_nat_list, efeici.from_nat_dev, efeici.from_nat_other_dev, ip_dest_addr, efeici.from_nat_mac_lookup_ip_addr, 4, protocol, in_dev, is_routed, in_dev, src_node_addr_nat, dest_node_addr_nat, layer4hdr, skb);
+		from_nat_list_first = ecm_interface_heirarchy_construct(feci, from_nat_list, efeici.from_nat_dev, efeici.from_nat_other_dev, ip_dest_addr, efeici.from_nat_mac_lookup_ip_addr, ip_src_addr_nat, 4, protocol, in_dev, is_routed, in_dev, src_node_addr_nat, dest_node_addr_nat, layer4hdr, skb);
 	} else {
-		from_nat_list_first = ecm_interface_heirarchy_construct(feci, from_nat_list, efeici.from_nat_dev, efeici.from_nat_other_dev, ip_dest_addr, efeici.from_nat_mac_lookup_ip_addr, 4, protocol, in_dev_nat, is_routed, in_dev_nat, src_node_addr_nat, dest_node_addr_nat, layer4hdr, skb);
+		from_nat_list_first = ecm_interface_heirarchy_construct(feci, from_nat_list, efeici.from_nat_dev, efeici.from_nat_other_dev, ip_dest_addr, efeici.from_nat_mac_lookup_ip_addr, ip_src_addr_nat, 4, protocol, in_dev_nat, is_routed, in_dev_nat, src_node_addr_nat, dest_node_addr_nat, layer4hdr, skb);
 	}
 
 	if (from_nat_list_first == ECM_DB_IFACE_HEIRARCHY_MAX) {
@@ -893,7 +792,7 @@ void ecm_nss_ipv4_connection_regenerate(struct ecm_db_connection_instance *ci, e
 	ecm_db_connection_interfaces_deref(from_nat_list, from_nat_list_first);
 
 	DEBUG_TRACE("%p: Update the 'to' interface heirarchy list\n", ci);
-	to_list_first = ecm_interface_heirarchy_construct(feci, to_list, efeici.to_dev, efeici.to_other_dev, ip_src_addr, efeici.to_mac_lookup_ip_addr, 4, protocol, out_dev, is_routed, in_dev, dest_node_addr, src_node_addr, layer4hdr, skb);
+	to_list_first = ecm_interface_heirarchy_construct(feci, to_list, efeici.to_dev, efeici.to_other_dev, ip_src_addr, efeici.to_mac_lookup_ip_addr, ip_dest_addr, 4, protocol, out_dev, is_routed, in_dev, dest_node_addr, src_node_addr, layer4hdr, skb);
 	if (to_list_first == ECM_DB_IFACE_HEIRARCHY_MAX) {
 		ecm_front_end_ipv4_interface_construct_netdev_put(&efeici);
 		goto ecm_ipv4_retry_regen;
@@ -903,7 +802,7 @@ void ecm_nss_ipv4_connection_regenerate(struct ecm_db_connection_instance *ci, e
 	ecm_db_connection_interfaces_deref(to_list, to_list_first);
 
 	DEBUG_TRACE("%p: Update the 'to NAT' interface heirarchy list\n", ci);
-	to_nat_list_first = ecm_interface_heirarchy_construct(feci, to_nat_list, efeici.to_nat_dev, efeici.to_nat_other_dev, ip_src_addr, efeici.to_nat_mac_lookup_ip_addr, 4, protocol, out_dev_nat, is_routed, in_dev, dest_node_addr_nat, src_node_addr_nat, layer4hdr, skb);
+	to_nat_list_first = ecm_interface_heirarchy_construct(feci, to_nat_list, efeici.to_nat_dev, efeici.to_nat_other_dev, ip_src_addr, efeici.to_nat_mac_lookup_ip_addr, ip_dest_addr_nat, 4, protocol, out_dev_nat, is_routed, in_dev, dest_node_addr_nat, src_node_addr_nat, layer4hdr, skb);
 	if (to_nat_list_first == ECM_DB_IFACE_HEIRARCHY_MAX) {
 		ecm_front_end_ipv4_interface_construct_netdev_put(&efeici);
 		goto ecm_ipv4_retry_regen;
@@ -949,7 +848,7 @@ void ecm_nss_ipv4_connection_regenerate(struct ecm_db_connection_instance *ci, e
 	 * Reclassify
 	 */
 	DEBUG_INFO("%p: reclassify\n", ci);
-	if (!ecm_nss_ipv4_reclassify(ci, assignment_count, assignments)) {
+	if (!ecm_classifier_reclassify(ci, assignment_count, assignments)) {
 		/*
 		 * We could not set up the classifiers to reclassify, it is safer to fail out and try again next time
 		 */
@@ -1027,6 +926,26 @@ static unsigned int ecm_nss_ipv4_ip_process(struct net_device *out_dev, struct n
 	}
 
 	/*
+	 * Do not accelerate flows to/from any virtual tunnel or tap devices.
+	 */
+	if ((in_dev->priv_flags & IFF_TUN_TAP) ||
+		(out_dev->priv_flags & IFF_TUN_TAP)) {
+
+		DEBUG_TRACE("virtual tunnels are not accelerated by ECM\n");
+		return NF_ACCEPT;
+	}
+
+	/*
+	 * If it's a PPTP GRE/GRE pass-through flow then check if out_dev or
+	 * in_dev are not a PPTP device. If ecm_interface_is_pptp() return
+	 * false then don't accelerate it.
+	 */
+	if ((ip_hdr.protocol == IPPROTO_GRE) && !ecm_interface_is_pptp(skb, out_dev)) {
+		DEBUG_TRACE("PPTP GRE pass through flow\n");
+		return NF_ACCEPT;
+	}
+
+	/*
 	 * Extract information, if we have conntrack then use that info as far as we can.
 	 */
         ct = nf_ct_get(skb, &ctinfo);
@@ -1084,7 +1003,7 @@ static unsigned int ecm_nss_ipv4_ip_process(struct net_device *out_dev, struct n
 	 * Check for a multicast Destination address here.
 	 */
 	ECM_NIN4_ADDR_TO_IP_ADDR(ip_dest_addr, orig_tuple.dst.u3.ip);
-	if (ecm_ip_addr_is_multicast(ip_dest_addr)) {
+	if (ecm_ip_addr_is_multicast(ip_dest_addr)  && (skb->pkt_type == PACKET_MULTICAST)) {
 		DEBUG_TRACE("Multicast, Processing: %p\n", skb);
 		return ecm_nss_multicast_ipv4_connection_process(out_dev,
 				in_dev,
@@ -1418,20 +1337,27 @@ static unsigned int ecm_nss_ipv4_ip_process(struct net_device *out_dev, struct n
  * ecm_nss_ipv4_post_routing_hook()
  *	Called for IP packets that are going out to interfaces after IP routing stage.
  */
-#if (LINUX_VERSION_CODE <= KERNEL_VERSION(3,6,0))
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0))
+static unsigned int ecm_nss_ipv4_post_routing_hook(void *priv,
+				struct sk_buff *skb,
+				const struct nf_hook_state *nhs)
+{
+	struct net_device *out = nhs->out;
+#elif (LINUX_VERSION_CODE <= KERNEL_VERSION(3, 6, 0))
 static unsigned int ecm_nss_ipv4_post_routing_hook(unsigned int hooknum,
 				struct sk_buff *skb,
 				const struct net_device *in_unused,
 				const struct net_device *out,
 				int (*okfn)(struct sk_buff *))
+{
 #else
 static unsigned int ecm_nss_ipv4_post_routing_hook(const struct nf_hook_ops *ops,
 				struct sk_buff *skb,
 				const struct net_device *in_unused,
 				const struct net_device *out,
 				int (*okfn)(struct sk_buff *))
-#endif
 {
+#endif
 	struct net_device *in;
 	bool can_accel = true;
 	unsigned int result;
@@ -1442,7 +1368,7 @@ static unsigned int ecm_nss_ipv4_post_routing_hook(const struct nf_hook_ops *ops
 	 * If operations have stopped then do not process packets
 	 */
 	spin_lock_bh(&ecm_nss_ipv4_lock);
-	if (unlikely(ecm_nss_ipv4_stopped)) {
+	if (unlikely(ecm_front_end_ipv4_stopped)) {
 		spin_unlock_bh(&ecm_nss_ipv4_lock);
 		DEBUG_TRACE("Front end stopped\n");
 		return NF_ACCEPT;
@@ -1469,7 +1395,7 @@ static unsigned int ecm_nss_ipv4_post_routing_hook(const struct nf_hook_ops *ops
 	/*
 	 * skip pptp because we don't accelerate them
 	 */
-	if (ecm_interface_skip_pptp(skb, out)) {
+	if (ecm_interface_is_pptp(skb, out)) {
 		return NF_ACCEPT;
 	}
 #endif
@@ -1477,15 +1403,15 @@ static unsigned int ecm_nss_ipv4_post_routing_hook(const struct nf_hook_ops *ops
 	/*
 	 * skip l2tp v2 and v3, because we don't accelerate them
 	 */
-	if (ecm_interface_skip_l2tp_packet_by_version(skb, out, 2) ||
-		ecm_interface_skip_l2tp_packet_by_version(skb, out, 3)) {
+	if (ecm_interface_is_l2tp_packet_by_version(skb, out, 2) ||
+		ecm_interface_is_l2tp_packet_by_version(skb, out, 3)) {
 		return NF_ACCEPT;
 	}
 #else
 	/*
 	 * skip l2tpv3 because we don't accelerate them
 	 */
-	if (ecm_interface_skip_l2tp_packet_by_version(skb, out, 3)) {
+	if (ecm_interface_is_l2tp_packet_by_version(skb, out, 3)) {
 		return NF_ACCEPT;
 	}
 #endif
@@ -1551,20 +1477,27 @@ static unsigned int ecm_front_end_ipv4_pppoe_bridge_process(struct net_device *o
  * These may have come from another bridged interface or from a non-bridged interface.
  * Conntrack information may be available or not if this skb is bridged.
  */
-#if (LINUX_VERSION_CODE <= KERNEL_VERSION(3,6,0))
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0))
+static unsigned int ecm_nss_ipv4_bridge_post_routing_hook(void *priv,
+					struct sk_buff *skb,
+					const struct nf_hook_state *nhs)
+{
+	struct net_device *out = nhs->out;
+#elif (LINUX_VERSION_CODE <= KERNEL_VERSION(3, 6, 0))
 static unsigned int ecm_nss_ipv4_bridge_post_routing_hook(unsigned int hooknum,
 					struct sk_buff *skb,
 					const struct net_device *in_unused,
 					const struct net_device *out,
 					int (*okfn)(struct sk_buff *))
+{
 #else
 static unsigned int ecm_nss_ipv4_bridge_post_routing_hook(const struct nf_hook_ops *ops,
 					struct sk_buff *skb,
 					const struct net_device *in_unused,
 					const struct net_device *out,
 					int (*okfn)(struct sk_buff *))
-#endif
 {
+#endif
 	struct ethhdr *skb_eth_hdr;
 	uint16_t eth_type;
 	struct net_device *bridge;
@@ -1578,7 +1511,7 @@ static unsigned int ecm_nss_ipv4_bridge_post_routing_hook(const struct nf_hook_o
 	 * If operations have stopped then do not process packets
 	 */
 	spin_lock_bh(&ecm_nss_ipv4_lock);
-	if (unlikely(ecm_nss_ipv4_stopped)) {
+	if (unlikely(ecm_front_end_ipv4_stopped)) {
 		spin_unlock_bh(&ecm_nss_ipv4_lock);
 		DEBUG_TRACE("Front end stopped\n");
 		return NF_ACCEPT;
@@ -1604,7 +1537,7 @@ static unsigned int ecm_nss_ipv4_bridge_post_routing_hook(const struct nf_hook_o
 	/*
 	 * skip l2tp/pptp because we don't accelerate them
 	 */
-	if (ecm_interface_skip_l2tp_pptp(skb, out)) {
+	if (ecm_interface_is_l2tp_pptp(skb, out)) {
 		return NF_ACCEPT;
 	}
 #endif
@@ -1655,7 +1588,11 @@ static unsigned int ecm_nss_ipv4_bridge_post_routing_hook(const struct nf_hook_o
 	 * Case 3:
 	 *	If the packet was not local (case 1) or routed (case 2) then we process.
 	 */
-	in = br_port_dev_get(bridge, skb_eth_hdr->h_source, NULL);
+
+	/*
+	 * Pass in NULL (for skb) and 0 for cookie since doing FDB lookup only
+	 */
+	in = br_port_dev_get(bridge, skb_eth_hdr->h_source, NULL, 0);
 	if (!in) {
 		DEBUG_TRACE("skb: %p, no in device for bridge: %p (%s)\n", skb, bridge, bridge->name);
 		dev_put(bridge);
@@ -1735,6 +1672,8 @@ static inline void ecm_nss_ipv4_process_one_conn_sync_msg(struct nss_ipv4_conn_s
 	int flow_ident;
 	int return_ident_xlate;
 	struct ecm_classifier_rule_sync class_sync;
+	int flow_dir;
+	int return_dir;
 
 	/*
 	 * Look up ecm connection with a view to synchronising the connection, classifier and data tracker.
@@ -1798,6 +1737,8 @@ static inline void ecm_nss_ipv4_process_one_conn_sync_msg(struct nss_ipv4_conn_s
 	if (sync->flow_tx_packet_count || sync->return_tx_packet_count) {
 		DEBUG_TRACE("%p: flow_rx_packet_count: %u, flow_rx_byte_count: %u, return_rx_packet_count: %u, return_rx_byte_count: %u\n",
 				ci, sync->flow_rx_packet_count, sync->flow_rx_byte_count, sync->return_rx_packet_count, sync->return_rx_byte_count);
+		DEBUG_TRACE("%p: flow_tx_packet_count: %u, flow_tx_byte_count: %u, return_tx_packet_count: %u, return_tx_byte_count: %u\n",
+				ci, sync->flow_tx_packet_count, sync->flow_tx_byte_count, sync->return_tx_packet_count, sync->return_tx_byte_count);
 #ifdef ECM_MULTICAST_ENABLE
 		if (ecm_ip_addr_is_multicast(return_ip)) {
 			/*
@@ -1911,46 +1852,56 @@ static inline void ecm_nss_ipv4_process_one_conn_sync_msg(struct nss_ipv4_conn_s
 		feci->accel_ceased(feci);
 		break;
 	default:
+		if (ecm_db_connection_is_routed_get(ci)) {
+			/*
+			 * Update the neighbour entry for source IP address
+			 */
+			neigh = ecm_interface_ipv4_neigh_get(flow_ip);
+			if (!neigh) {
+				DEBUG_WARN("Neighbour entry for %pI4h not found\n", &sync->flow_ip);
+			} else {
+				if (sync->flow_tx_packet_count) {
+					DEBUG_TRACE("Neighbour entry event send for %pI4h: %p\n", &sync->flow_ip, neigh);
+					neigh_event_send(neigh, NULL);
+				}
 
-		/*
-		 * Update the neighbour entry for source IP address
-		 */
-		neigh = ecm_interface_ipv4_neigh_get(flow_ip);
-		if (!neigh) {
-			DEBUG_WARN("Neighbour entry for %pI4h not found\n", &sync->flow_ip);
-		} else {
-			DEBUG_TRACE("Neighbour entry for %pI4h update: %p\n", &sync->flow_ip, neigh);
-			neigh_update(neigh, NULL, neigh->nud_state, NEIGH_UPDATE_F_WEAK_OVERRIDE);
-			neigh_release(neigh);
-		}
+				neigh_release(neigh);
+			}
 
 #ifdef ECM_MULTICAST_ENABLE
-		/*
-		 * Update the neighbour entry for destination IP address
-		 */
-		if (!ecm_ip_addr_is_multicast(return_ip)) {
+			/*
+			 * Update the neighbour entry for destination IP address
+			 */
+			if (!ecm_ip_addr_is_multicast(return_ip)) {
+				neigh = ecm_interface_ipv4_neigh_get(return_ip);
+				if (!neigh) {
+					DEBUG_WARN("Neighbour entry for %pI4h not found\n", &sync->return_ip);
+				} else {
+					if (sync->return_tx_packet_count) {
+						DEBUG_TRACE("Neighbour entry event send for %pI4h: %p\n", &sync->return_ip, neigh);
+						neigh_event_send(neigh, NULL);
+					}
+
+					neigh_release(neigh);
+				}
+			}
+#else
+			/*
+			 * Update the neighbour entry for destination IP address
+			 */
 			neigh = ecm_interface_ipv4_neigh_get(return_ip);
 			if (!neigh) {
 				DEBUG_WARN("Neighbour entry for %pI4h not found\n", &sync->return_ip);
 			} else {
-				DEBUG_TRACE("Neighbour entry for %pI4h update: %p\n", &sync->return_ip, neigh);
-				neigh_update(neigh, NULL, neigh->nud_state, NEIGH_UPDATE_F_WEAK_OVERRIDE);
+				if (sync->return_tx_packet_count) {
+					DEBUG_TRACE("Neighbour entry event send for %pI4h: %p\n", &sync->return_ip, neigh);
+					neigh_event_send(neigh, NULL);
+				}
+
 				neigh_release(neigh);
 			}
-		}
-#else
-		/*
-		 * Update the neighbour entry for destination IP address
-		 */
-		neigh = ecm_interface_ipv4_neigh_get(return_ip);
-		if (!neigh) {
-			DEBUG_WARN("Neighbour entry for %pI4h not found\n", &sync->return_ip);
-		} else {
-			DEBUG_TRACE("Neighbour entry for %pI4h update: %p\n", &sync->return_ip, neigh);
-			neigh_update(neigh, NULL, neigh->nud_state, NEIGH_UPDATE_F_WEAK_OVERRIDE);
-			neigh_release(neigh);
-		}
 #endif
+		}
 	}
 
 	/*
@@ -1985,13 +1936,17 @@ sync_conntrack:
 			"src_addr: %pI4:%d\n"
 			"dest_addr: %pI4:%d\n",
 			(int)tuple.dst.protonum,
-			&tuple.src.u3.ip, (int)tuple.src.u.all,
-			&tuple.dst.u3.ip, (int)tuple.dst.u.all);
+			&tuple.src.u3.ip, (int)(ntohs(tuple.src.u.all)),
+			&tuple.dst.u3.ip, (int)(ntohs(tuple.dst.u.all)));
 
 	/*
 	 * Look up conntrack connection
 	 */
+#if (LINUX_VERSION_CODE <= KERNEL_VERSION(4, 2, 0))
 	h = nf_conntrack_find_get(&init_net, NF_CT_DEFAULT_ZONE, &tuple);
+#else
+	h = nf_conntrack_find_get(&init_net, &nf_ct_zone_dflt, &tuple);
+#endif
 	if (!h) {
 		DEBUG_WARN("%p: NSS Sync: no conntrack connection\n", sync);
 		return;
@@ -2000,6 +1955,8 @@ sync_conntrack:
 	ct = nf_ct_tuplehash_to_ctrack(h);
 	NF_CT_ASSERT(ct->timeout.data == (unsigned long)ct);
 	DEBUG_TRACE("%p: NSS Sync: conntrack connection\n", ct);
+
+	ecm_front_end_flow_and_return_directions_get(ct, flow_ip, 4, &flow_dir, &return_dir);
 
 	/*
 	 * Only update if this is not a fixed timeout
@@ -2028,36 +1985,67 @@ sync_conntrack:
 #endif
 	if (acct) {
 		spin_lock_bh(&ct->lock);
-		atomic64_add(sync->flow_rx_packet_count, &acct[IP_CT_DIR_ORIGINAL].packets);
-		atomic64_add(sync->flow_rx_byte_count, &acct[IP_CT_DIR_ORIGINAL].bytes);
+		atomic64_add(sync->flow_rx_packet_count, &acct[flow_dir].packets);
+		atomic64_add(sync->flow_rx_byte_count, &acct[flow_dir].bytes);
 
-		atomic64_add(sync->return_rx_packet_count, &acct[IP_CT_DIR_REPLY].packets);
-		atomic64_add(sync->return_rx_byte_count, &acct[IP_CT_DIR_REPLY].bytes);
+		atomic64_add(sync->return_rx_packet_count, &acct[return_dir].packets);
+		atomic64_add(sync->return_rx_byte_count, &acct[return_dir].bytes);
 		spin_unlock_bh(&ct->lock);
 	}
 
 	switch (sync->protocol) {
 	case IPPROTO_TCP:
 		spin_lock_bh(&ct->lock);
-		if (ct->proto.tcp.seen[0].td_maxwin < sync->flow_max_window) {
-			ct->proto.tcp.seen[0].td_maxwin = sync->flow_max_window;
+		if (ct->proto.tcp.seen[flow_dir].td_maxwin < sync->flow_max_window) {
+			ct->proto.tcp.seen[flow_dir].td_maxwin = sync->flow_max_window;
 		}
-		if ((int32_t)(ct->proto.tcp.seen[0].td_end - sync->flow_end) < 0) {
-			ct->proto.tcp.seen[0].td_end = sync->flow_end;
+		if ((int32_t)(ct->proto.tcp.seen[flow_dir].td_end - sync->flow_end) < 0) {
+			ct->proto.tcp.seen[flow_dir].td_end = sync->flow_end;
 		}
-		if ((int32_t)(ct->proto.tcp.seen[0].td_maxend - sync->flow_max_end) < 0) {
-			ct->proto.tcp.seen[0].td_maxend = sync->flow_max_end;
+		if ((int32_t)(ct->proto.tcp.seen[flow_dir].td_maxend - sync->flow_max_end) < 0) {
+			ct->proto.tcp.seen[flow_dir].td_maxend = sync->flow_max_end;
 		}
-		if (ct->proto.tcp.seen[1].td_maxwin < sync->return_max_window) {
-			ct->proto.tcp.seen[1].td_maxwin = sync->return_max_window;
+		if (ct->proto.tcp.seen[return_dir].td_maxwin < sync->return_max_window) {
+			ct->proto.tcp.seen[return_dir].td_maxwin = sync->return_max_window;
 		}
-		if ((int32_t)(ct->proto.tcp.seen[1].td_end - sync->return_end) < 0) {
-			ct->proto.tcp.seen[1].td_end = sync->return_end;
+		if ((int32_t)(ct->proto.tcp.seen[return_dir].td_end - sync->return_end) < 0) {
+			ct->proto.tcp.seen[return_dir].td_end = sync->return_end;
 		}
-		if ((int32_t)(ct->proto.tcp.seen[1].td_maxend - sync->return_max_end) < 0) {
-			ct->proto.tcp.seen[1].td_maxend = sync->return_max_end;
+		if ((int32_t)(ct->proto.tcp.seen[return_dir].td_maxend - sync->return_max_end) < 0) {
+			ct->proto.tcp.seen[return_dir].td_maxend = sync->return_max_end;
 		}
 		spin_unlock_bh(&ct->lock);
+		break;
+	case IPPROTO_UDP:
+		/*
+		 * In Linux connection track, UDP flow has two timeout values:
+		 * /proc/sys/net/netfilter/nf_conntrack_udp_timeout:
+		 * 	this is for uni-direction UDP flow, normally its value is 60 seconds
+		 * /proc/sys/net/netfilter/nf_conntrack_udp_timeout_stream:
+		 * 	this is for bi-direction UDP flow, normally its value is 180 seconds
+		 *
+		 * Linux will update timer of UDP flow to stream timeout once it seen packets
+		 * in reply direction. But if flow is accelerated by NSS or SFE, Linux won't
+		 * see any packets. So we have to do the same thing in our stats sync message.
+		 */
+		if (!test_bit(IPS_ASSURED_BIT, &ct->status) && acct) {
+			u_int64_t reply_pkts = atomic64_read(&acct[IP_CT_DIR_REPLY].packets);
+
+			if (reply_pkts != 0) {
+				struct nf_conntrack_l4proto *l4proto;
+				unsigned int *timeouts;
+
+				set_bit(IPS_SEEN_REPLY_BIT, &ct->status);
+				set_bit(IPS_ASSURED_BIT, &ct->status);
+
+				l4proto = __nf_ct_l4proto_find(AF_INET, IPPROTO_UDP);
+				timeouts = nf_ct_timeout_lookup(&init_net, ct, l4proto);
+
+				spin_lock_bh(&ct->lock);
+				ct->timeout.expires = jiffies + timeouts[UDP_CT_REPLIED];
+				spin_unlock_bh(&ct->lock);
+			}
+		}
 		break;
 	}
 
@@ -2096,11 +2084,6 @@ static void ecm_nss_ipv4_connection_sync_many_callback(void *app_data, struct ns
 	int i;
 
 	/*
-	 * The request message returned from NSS, so ECM can be removed safely
-	 */
-	ecm_nss_ipv4_stats_request_in_progress = false;
-
-	/*
 	 * If ECM is terminating, don't process this final stats
 	 */
 	if (ecm_nss_ipv4_terminate_pending) {
@@ -2132,14 +2115,17 @@ static void ecm_nss_ipv4_stats_sync_req_work(struct work_struct *work)
 	/*
 	 * Prepare a nss_ipv4_msg with CONN_STATS_SYNC_MANY request
 	 */
-	struct nss_ipv4_conn_sync_many_msg *nicsm_req;
+	struct nss_ipv4_conn_sync_many_msg *nicsm_req = &ecm_nss_ipv4_sync_req_msg->msg.conn_stats_many;
 	nss_tx_status_t nss_tx_status;
 	int retry = 3;
 	unsigned long int current_jiffies;
 
-	usleep_range(ECM_NSS_IPV4_STATS_SYNC_UDELAY - 100, ECM_NSS_IPV4_STATS_SYNC_UDELAY);
+	if (ecm_nss_ipv4_accelerated_count == 0) {
+		DEBUG_TRACE("There is no accelerated IPv4 connection\n");
+		goto reschedule;
+	}
 
-	nicsm_req = &ecm_nss_ipv4_sync_req_msg->msg.conn_stats_many;
+	usleep_range(ECM_NSS_IPV4_STATS_SYNC_UDELAY - 100, ECM_NSS_IPV4_STATS_SYNC_UDELAY);
 
 	/*
 	 * If index is 0, we are starting a new round, but if we still have time remain
@@ -2147,10 +2133,16 @@ static void ecm_nss_ipv4_stats_sync_req_work(struct work_struct *work)
 	 */
 	if (nicsm_req->index == 0) {
 		current_jiffies = jiffies;
+
+		if (time_is_after_jiffies(ecm_nss_ipv4_roll_check_jiffies))  {
+			ecm_nss_ipv4_next_req_time = 0;
+		}
+
 		if (ecm_nss_ipv4_next_req_time > current_jiffies) {
 			msleep(jiffies_to_msecs(ecm_nss_ipv4_next_req_time - current_jiffies));
 		}
-		ecm_nss_ipv4_next_req_time = jiffies + ECM_NSS_IPV4_STATS_SYNC_PERIOD;
+		ecm_nss_ipv4_roll_check_jiffies = jiffies;
+		ecm_nss_ipv4_next_req_time = ecm_nss_ipv4_roll_check_jiffies + ECM_NSS_IPV4_STATS_SYNC_PERIOD;
 	}
 
 	while (retry) {
@@ -2159,7 +2151,6 @@ static void ecm_nss_ipv4_stats_sync_req_work(struct work_struct *work)
 		}
 		nss_tx_status = nss_ipv4_tx_with_size(ecm_nss_ipv4_nss_ipv4_mgr, ecm_nss_ipv4_sync_req_msg, PAGE_SIZE);
 		if (nss_tx_status == NSS_TX_SUCCESS) {
-			ecm_nss_ipv4_stats_request_in_progress = true;
 			ecm_nss_ipv4_stats_request_success++;
 			return;
 		}
@@ -2169,6 +2160,7 @@ static void ecm_nss_ipv4_stats_sync_req_work(struct work_struct *work)
 		usleep_range(100, 200);
 	}
 
+reschedule:
 	/*
 	 * TX failed after retries, reschedule ourselves with fresh start
 	 */
@@ -2187,7 +2179,9 @@ static struct nf_hook_ops ecm_nss_ipv4_netfilter_hooks[] __read_mostly = {
 	 */
 	{
 		.hook           = ecm_nss_ipv4_post_routing_hook,
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(4, 4, 0))
 		.owner          = THIS_MODULE,
+#endif
 		.pf             = PF_INET,
 		.hooknum        = NF_INET_POST_ROUTING,
 		.priority       = NF_IP_PRI_NAT_SRC + 1,
@@ -2199,134 +2193,14 @@ static struct nf_hook_ops ecm_nss_ipv4_netfilter_hooks[] __read_mostly = {
 	 */
 	{
 		.hook		= ecm_nss_ipv4_bridge_post_routing_hook,
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(4, 4, 0))
 		.owner		= THIS_MODULE,
+#endif
 		.pf		= PF_BRIDGE,
 		.hooknum	= NF_BR_POST_ROUTING,
 		.priority	= NF_BR_PRI_FILTER_OTHER,
 	},
 };
-
-/*
- * ecm_nss_ipv4_conntrack_event_destroy()
- *	Handles conntrack destroy events
- */
-static void ecm_nss_ipv4_conntrack_event_destroy(struct nf_conn *ct)
-{
-	struct ecm_db_connection_instance *ci;
-	struct ecm_front_end_connection_instance *feci;
-
-	DEBUG_INFO("Destroy event for ct: %p\n", ct);
-
-	ci = ecm_db_connection_ipv4_from_ct_get_and_ref(ct);
-	if (!ci) {
-		DEBUG_TRACE("%p: not found\n", ct);
-		return;
-	}
-	DEBUG_INFO("%p: Connection defunct %p\n", ct, ci);
-
-	/*
-	 * If this connection is accelerated then we need to issue a destroy command
-	 */
-	feci = ecm_db_connection_front_end_get_and_ref(ci);
-	feci->decelerate(feci);
-	feci->deref(feci);
-
-	/*
-	 * Force destruction of the connection my making it defunct
-	 */
-	ecm_db_connection_make_defunct(ci);
-	ecm_db_connection_deref(ci);
-}
-
-/*
- * ecm_nss_ipv4_conntrack_event_mark()
- *	Handles conntrack mark events
- */
-static void ecm_nss_ipv4_conntrack_event_mark(struct nf_conn *ct)
-{
-	struct ecm_db_connection_instance *ci;
-	struct ecm_classifier_instance *__attribute__((unused))cls;
-
-	DEBUG_INFO("Mark event for ct: %p\n", ct);
-
-	/*
-	 * Ignore transitions to zero
-	 */
-	if (ct->mark == 0) {
-		return;
-	}
-
-	ci = ecm_db_connection_ipv4_from_ct_get_and_ref(ct);
-	if (!ci) {
-		DEBUG_TRACE("%p: not found\n", ct);
-		return;
-	}
-
-#ifdef ECM_CLASSIFIER_NL_ENABLE
-	/*
-	 * As of now, only the Netlink classifier is interested in conmark changes
-	 * GGG TODO Add a classifier method to propagate this information to any and all types of classifier.
-	 */
-	cls = ecm_db_connection_assigned_classifier_find_and_ref(ci, ECM_CLASSIFIER_TYPE_NL);
-	if (cls) {
-		ecm_classifier_nl_process_mark((struct ecm_classifier_nl_instance *)cls, ct->mark);
-		cls->deref(cls);
-	}
-#endif
-
-	/*
-	 * All done
-	 */
-	ecm_db_connection_deref(ci);
-}
-
-/*
- * ecm_nss_ipv4_conntrack_event()
- *	Callback event invoked when conntrack connection state changes, currently we handle destroy events to quickly release state
- */
-int ecm_nss_ipv4_conntrack_event(unsigned long events, struct nf_conn *ct)
-{
-	/*
-	 * If operations have stopped then do not process event
-	 */
-	spin_lock_bh(&ecm_nss_ipv4_lock);
-	if (unlikely(ecm_nss_ipv4_stopped)) {
-		DEBUG_WARN("Ignoring event - stopped\n");
-		spin_unlock_bh(&ecm_nss_ipv4_lock);
-		return NOTIFY_DONE;
-	}
-	spin_unlock_bh(&ecm_nss_ipv4_lock);
-
-	if (!ct) {
-		DEBUG_WARN("Error: no ct\n");
-		return NOTIFY_DONE;
-	}
-
-	/*
-	 * handle destroy events
-	 */
-	if (events & (1 << IPCT_DESTROY)) {
-		DEBUG_TRACE("%p: Event is destroy\n", ct);
-		ecm_nss_ipv4_conntrack_event_destroy(ct);
-	}
-
-	/*
-	 * handle mark change events
-	 */
-	if (events & (1 << IPCT_MARK)) {
-		DEBUG_TRACE("%p: Event is mark\n", ct);
-		ecm_nss_ipv4_conntrack_event_mark(ct);
-	}
-
-	return NOTIFY_DONE;
-}
-EXPORT_SYMBOL(ecm_nss_ipv4_conntrack_event);
-
-void ecm_nss_ipv4_stop(int num)
-{
-	ecm_nss_ipv4_stopped = num;
-}
-EXPORT_SYMBOL(ecm_nss_ipv4_stop);
 
 /*
  * ecm_nss_ipv4_get_accel_limit_mode()
@@ -2522,10 +2396,15 @@ static bool ecm_nss_ipv4_sync_queue_init(void)
 		return false;
 	}
 
+	/*
+	 * Register the conn_sync_many message callback
+	 */
+	nss_ipv4_conn_sync_many_notify_register(ecm_nss_ipv4_connection_sync_many_callback);
+
 	nss_ipv4_msg_init(ecm_nss_ipv4_sync_req_msg, NSS_IPV4_RX_INTERFACE,
 		NSS_IPV4_TX_CONN_STATS_SYNC_MANY_MSG,
 		sizeof(struct nss_ipv4_conn_sync_many_msg) ,
-		ecm_nss_ipv4_connection_sync_many_callback,
+		NULL,
 		NULL);
 
 	nicsm = &ecm_nss_ipv4_sync_req_msg->msg.conn_stats_many;
@@ -2538,6 +2417,7 @@ static bool ecm_nss_ipv4_sync_queue_init(void)
 
 	ecm_nss_ipv4_workqueue = create_singlethread_workqueue("ecm_nss_ipv4_workqueue");
 	if (!ecm_nss_ipv4_workqueue) {
+		nss_ipv4_conn_sync_many_notify_unregister();
 		kfree(ecm_nss_ipv4_sync_req_msg);
 		return false;
 	}
@@ -2554,12 +2434,10 @@ static bool ecm_nss_ipv4_sync_queue_init(void)
 static void ecm_nss_ipv4_sync_queue_exit(void)
 {
 	/*
-	 * We need to make sure the request message returned before we exit
+	 * Unregister the conn_sync_many message callback
 	 * Otherwise nss will call our callback which does not exist anymore
 	 */
-	while(ecm_nss_ipv4_stats_request_in_progress) {
-		usleep_range(ECM_NSS_IPV4_STATS_SYNC_UDELAY - 100, ECM_NSS_IPV4_STATS_SYNC_UDELAY);
-	}
+	nss_ipv4_conn_sync_many_notify_unregister();
 
 	/*
 	 * Cancel the conn sync req work and destroy workqueue
@@ -2582,12 +2460,6 @@ int ecm_nss_ipv4_init(struct dentry *dentry)
 	if (!ecm_nss_ipv4_dentry) {
 		DEBUG_ERROR("Failed to create ecm nss ipv4 directory in debugfs\n");
 		return result;
-	}
-
-	if (!debugfs_create_u32("stop", S_IRUGO | S_IWUSR, ecm_nss_ipv4_dentry,
-					(u32 *)&ecm_nss_ipv4_stopped)) {
-		DEBUG_ERROR("Failed to create ecm nss ipv4 stop file in debugfs\n");
-		goto task_cleanup;
 	}
 
 	if (!debugfs_create_u32("no_action_limit_default", S_IRUGO | S_IWUSR, ecm_nss_ipv4_dentry,
@@ -2668,6 +2540,13 @@ int ecm_nss_ipv4_init(struct dentry *dentry)
 		goto task_cleanup;
 	}
 #endif
+	/*
+	 * Register this module with the Linux NSS Network driver.
+	 * Notify manager should be registered before the netfilter hooks. Because there
+	 * is a possibility that the ECM can try to send acceleration messages to the
+	 * acceleration engine without having an acceleration engine manager.
+	 */
+	ecm_nss_ipv4_nss_ipv4_mgr = nss_ipv4_notify_register(ecm_nss_ipv4_net_dev_callback, NULL);
 
 	/*
 	 * Register netfilter hooks
@@ -2675,17 +2554,13 @@ int ecm_nss_ipv4_init(struct dentry *dentry)
 	result = nf_register_hooks(ecm_nss_ipv4_netfilter_hooks, ARRAY_SIZE(ecm_nss_ipv4_netfilter_hooks));
 	if (result < 0) {
 		DEBUG_ERROR("Can't register netfilter hooks.\n");
+		nss_ipv4_notify_unregister();
 		goto task_cleanup;
 	}
 
 #ifdef ECM_MULTICAST_ENABLE
 	ecm_nss_multicast_ipv4_init();
 #endif
-
-	/*
-	 * Register this module with the Linux NSS Network driver
-	 */
-	ecm_nss_ipv4_nss_ipv4_mgr = nss_ipv4_notify_register(ecm_nss_ipv4_net_dev_callback, NULL);
 
 	if (!ecm_nss_ipv4_sync_queue_init()) {
 		DEBUG_ERROR("Failed to create ecm ipv4 connection sync workqueue\n");

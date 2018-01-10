@@ -1,5 +1,5 @@
 ##########################################################################
-# Copyright (c) 2014-2015, The Linux Foundation. All rights reserved.
+# Copyright (c) 2014-2016, The Linux Foundation. All rights reserved.
 # Permission to use, copy, modify, and/or distribute this software for
 # any purpose with or without fee is hereby granted, provided that the
 # above copyright notice and this permission notice appear in all copies.
@@ -18,6 +18,14 @@
 
 obj-m += ecm.o
 
+# #####################################################
+# Example builds.
+# Enable example build by using the menuconfig options.
+# #####################################################
+ifeq ($(EXAMPLES_BUILD_PCC),y)
+obj-m += examples/ecm_pcc_test.o
+endif
+
 ecm-y := \
 	 ecm_tracker_udp.o \
 	 ecm_tracker_tcp.o \
@@ -27,8 +35,10 @@ ecm-y := \
 	 frontends/ecm_front_end_ipv6.o \
 	 frontends/ecm_front_end_common.o \
 	 ecm_db.o \
+	 ecm_classifier.o \
 	 ecm_classifier_default.o \
 	 ecm_interface.o \
+	 ecm_conntrack_notifier.o \
 	 ecm_init.o
 
 # #############################################################################
@@ -40,19 +50,19 @@ ECM_FRONT_END_NSS_ENABLE=y
 endif
 ecm-$(ECM_FRONT_END_NSS_ENABLE) += frontends/nss/ecm_nss_ipv4.o
 ecm-$(ECM_FRONT_END_NSS_ENABLE) += frontends/nss/ecm_nss_ported_ipv4.o
-ecm-$(ECM_FRONT_END_NSS_ENABLE) += frontends/nss/ecm_nss_conntrack_notifier.o
 ccflags-$(ECM_FRONT_END_NSS_ENABLE) += -DECM_FRONT_END_NSS_ENABLE
 
 # #############################################################################
 # Define ECM_FRONT_END_SFE_ENABLE=y in order to select
 # sfe as ECM's front end.
 # #############################################################################
+ifeq ($(findstring 4.4., $(KERNELVERSION)),)
 ifeq ($(ECM_FRONT_END_SFE_ENABLE),)
 ECM_FRONT_END_SFE_ENABLE=y
 endif
+endif
 ecm-$(ECM_FRONT_END_SFE_ENABLE) += frontends/sfe/ecm_sfe_ipv4.o
 ecm-$(ECM_FRONT_END_SFE_ENABLE) += frontends/sfe/ecm_sfe_ported_ipv4.o
-ecm-$(ECM_FRONT_END_SFE_ENABLE) += frontends/sfe/ecm_sfe_conntrack_notifier.o
 ccflags-$(ECM_FRONT_END_SFE_ENABLE) += -DECM_FRONT_END_SFE_ENABLE
 
 # #############################################################################
@@ -104,9 +114,6 @@ ccflags-$(ECM_INTERFACE_PPP_ENABLE) += -DECM_INTERFACE_PPP_ENABLE
 # Define ECM_INTERFACE_MAP_T_ENABLE=y in order
 # to enable support for MAP-T interface.
 # #############################################################################
-ifneq ($(findstring 3.14, $(KERNELVERSION)),)
-ECM_INTERFACE_MAP_T_ENABLE=n
-endif
 ccflags-$(ECM_INTERFACE_MAP_T_ENABLE) += -DECM_INTERFACE_MAP_T_ENABLE
 
 # #############################################################################
@@ -135,6 +142,7 @@ ifeq ($(ECM_FRONT_END_NSS_ENABLE), y)
 MCS_CONFIG:=$(shell  grep "CONFIG_PACKAGE_kmod-qca-mcs=y" $(TOPDIR)/.config)
 MCS_ENABLED:=CONFIG_PACKAGE_kmod-qca-mcs=y
 ifeq ($(MCS_CONFIG),$(MCS_ENABLED))
+ECM_MULTICAST_ENABLE=y
 ecm-$(ECM_MULTICAST_ENABLE) += frontends/nss/ecm_nss_multicast_ipv4.o
 ecm-$(ECM_MULTICAST_ENABLE) += frontends/nss/ecm_nss_multicast_ipv6.o
 ccflags-$(ECM_MULTICAST_ENABLE) += -DECM_MULTICAST_ENABLE
@@ -170,14 +178,18 @@ ccflags-$(ECM_IPV6_ENABLE) += -DECM_IPV6_ENABLE
 # #############################################################################
 # Define ECM_CLASSIFIER_NL_ENABLE=y in order to enable NL classifier.
 # #############################################################################
+ifeq ($(findstring 4.4., $(KERNELVERSION)),)
 ECM_CLASSIFIER_NL_ENABLE=y
+endif
 ecm-$(ECM_CLASSIFIER_NL_ENABLE) += ecm_classifier_nl.o
 ccflags-$(ECM_CLASSIFIER_NL_ENABLE) += -DECM_CLASSIFIER_NL_ENABLE
 
 # #############################################################################
 # Define ECM_CLASSIFIER_DSCP_ENABLE=y in order to enable DSCP classifier.
 # #############################################################################
+ifeq ($(findstring 4.4., $(KERNELVERSION)),)
 ECM_CLASSIFIER_DSCP_ENABLE=y
+endif
 ecm-$(ECM_CLASSIFIER_DSCP_ENABLE) += ecm_classifier_dscp.o
 ccflags-$(ECM_CLASSIFIER_DSCP_ENABLE) += -DECM_CLASSIFIER_DSCP_ENABLE
 
@@ -191,12 +203,12 @@ ccflags-$(ECM_CLASSIFIER_DSCP_ENABLE) += -DECM_CLASSIFIER_DSCP_ENABLE
 # code is not available. This will be fixed later by breaking the dependency from ECM
 # to qca-hyfi-bridge
 #
-HYFI_BRIDGE_CONFIG:=$(shell  grep "CONFIG_PACKAGE_kmod-qca-hyfi-bridge=y" $(TOPDIR)/.config)
-HYFI_BRIDGE_ENABLED:=CONFIG_PACKAGE_kmod-qca-hyfi-bridge=y
-ifeq ($(HYFI_BRIDGE_CONFIG),$(HYFI_BRIDGE_ENABLED))
-ecm-$(ECM_CLASSIFIER_HYFI_ENABLE) += ecm_classifier_hyfi.o
-ccflags-$(ECM_CLASSIFIER_HYFI_ENABLE) += -DECM_CLASSIFIER_HYFI_ENABLE
-endif
+#HYFI_BRIDGE_CONFIG:=$(shell  grep "CONFIG_PACKAGE_kmod-qca-hyfi-bridge=y" $(TOPDIR)/.config)
+#HYFI_BRIDGE_ENABLED:=CONFIG_PACKAGE_kmod-qca-hyfi-bridge=y
+#ifeq ($(HYFI_BRIDGE_CONFIG),$(HYFI_BRIDGE_ENABLED))
+#ecm-$(ECM_CLASSIFIER_HYFI_ENABLE) += ecm_classifier_hyfi.o
+#ccflags-$(ECM_CLASSIFIER_HYFI_ENABLE) += -DECM_CLASSIFIER_HYFI_ENABLE
+#endif
 
 # #############################################################################
 # Define ECM_CLASSIFIER_PCC_ENABLE=y in order to enable
@@ -268,6 +280,7 @@ ccflags-$(ECM_BAND_STEERING_ENABLE) += -DECM_BAND_STEERING_ENABLE
 # file.
 # By turning off debugs you gain maximum ECM performance.
 # #############################################################################
+ccflags-y += -DECM_CLASSIFIER_DEBUG_LEVEL=1
 ccflags-y += -DECM_CLASSIFIER_DSCP_DEBUG_LEVEL=1
 ccflags-y += -DECM_CLASSIFIER_HYFI_DEBUG_LEVEL=1
 ccflags-y += -DECM_CLASSIFIER_PCC_DEBUG_LEVEL=1
@@ -305,4 +318,3 @@ ccflags-y += -DECM_OPENWRT_SUPPORT=1
 ccflags-y += -I$(obj)/ -I$(obj)/frontends/include -I$(obj)/frontends/nss -I$(obj)/frontends/sfe
 
 obj ?= .
-

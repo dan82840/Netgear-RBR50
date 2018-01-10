@@ -22,6 +22,7 @@
 
 #include <net/netfilter/nf_conntrack.h>
 
+void ecm_db_front_end_instance_ref_and_set(struct ecm_db_connection_instance *ci, struct ecm_front_end_connection_instance *feci);
 struct ecm_db_connection_instance *ecm_db_connection_ipv4_from_ct_get_and_ref(struct nf_conn *ct);
 struct ecm_db_connection_instance *ecm_db_connection_ipv6_from_ct_get_and_ref(struct nf_conn *ct);
 uint32_t ecm_db_time_get(void);
@@ -68,6 +69,7 @@ ecm_db_iface_type_t ecm_db_connection_to_iface_type_get(struct ecm_db_connection
 ecm_db_iface_type_t ecm_db_connection_iface_type_get(struct ecm_db_iface_instance *ii);
 int32_t ecm_db_iface_mtu_reset(struct ecm_db_iface_instance *ii, int32_t mtu);
 int32_t ecm_db_iface_ae_interface_identifier_get(struct ecm_db_iface_instance *ii);
+void ecm_db_iface_ae_interface_identifier_set(struct ecm_db_iface_instance *ii, uint32_t num);
 int32_t ecm_db_iface_interface_identifier_get(struct ecm_db_iface_instance *ii);
 void ecm_db_iface_interface_name_get(struct ecm_db_iface_instance *ii, char *name_buffer);
 void ecm_db_iface_identifier_hash_table_entry_check_and_update(struct ecm_db_iface_instance *ii, int32_t new_interface_identifier);
@@ -176,7 +178,7 @@ struct ecm_db_iface_instance *ecm_db_iface_find_and_ref_sit(ip_addr_t saddr, ip_
 #ifdef ECM_INTERFACE_TUNIPIP6_ENABLE
 struct ecm_db_iface_instance *ecm_db_iface_find_and_ref_tunipip6(ip_addr_t saddr, ip_addr_t daddr);
 #endif
-struct ecm_db_node_instance *ecm_db_node_find_and_ref(uint8_t *address);
+struct ecm_db_node_instance *ecm_db_node_find_and_ref(uint8_t *address, struct ecm_db_iface_instance *ii);
 
 void ecm_db_connection_from_interfaces_reset(struct ecm_db_connection_instance *ci, struct ecm_db_iface_instance *interfaces[], int32_t new_first);
 void ecm_db_connection_to_interfaces_reset(struct ecm_db_connection_instance *ci, struct ecm_db_iface_instance *interfaces[], int32_t new_first);
@@ -213,8 +215,11 @@ struct ecm_db_mapping_instance *ecm_db_mapping_get_and_ref_next(struct ecm_db_ma
 struct ecm_db_host_instance *ecm_db_hosts_get_and_ref_first(void);
 struct ecm_db_host_instance *ecm_db_host_get_and_ref_next(struct ecm_db_host_instance *hi);
 
+bool ecm_db_node_is_mac_addr_equal(struct ecm_db_node_instance *ni, uint8_t *address);
 struct ecm_db_node_instance *ecm_db_nodes_get_and_ref_first(void);
 struct ecm_db_node_instance *ecm_db_node_get_and_ref_next(struct ecm_db_node_instance *ni);
+struct ecm_db_node_instance *ecm_db_node_chain_get_and_ref_first(uint8_t *address);
+struct ecm_db_node_instance *ecm_db_node_chain_get_and_ref_next(struct ecm_db_node_instance *ni);
 
 struct ecm_db_iface_instance *ecm_db_interfaces_get_and_ref_first(void);
 struct ecm_db_iface_instance *ecm_db_interface_get_and_ref_next(struct ecm_db_iface_instance *ii);
@@ -245,9 +250,6 @@ struct ecm_db_connection_instance *ecm_db_connection_iface_nat_to_get_and_ref_ne
 
 struct ecm_db_node_instance *ecm_db_iface_nodes_get_and_ref_first(struct ecm_db_iface_instance *ii);
 #endif
-
-struct ecm_db_node_instance *ecm_db_node_get_and_ref_next(struct ecm_db_node_instance *ni);
-struct ecm_db_host_instance *ecm_db_host_get_and_ref_next(struct ecm_db_host_instance *hi);
 
 void ecm_db_connection_classifier_assign(struct ecm_db_connection_instance *ci, struct ecm_classifier_instance *new_ca);
 int ecm_db_connection_classifier_assignments_get_and_ref(struct ecm_db_connection_instance *ci, struct ecm_classifier_instance *assignments[]);
@@ -312,7 +314,7 @@ void ecm_db_iface_add_tunipip6(struct ecm_db_iface_instance *ii, struct ecm_db_i
 void ecm_db_node_add(struct ecm_db_node_instance *ni, struct ecm_db_iface_instance *ii, uint8_t *address, ecm_db_node_final_callback_t final, void *arg);
 void ecm_db_host_add(struct ecm_db_host_instance *hi, ip_addr_t address, bool on_link, ecm_db_host_final_callback_t final, void *arg);
 void ecm_db_mapping_add(struct ecm_db_mapping_instance *mi, struct ecm_db_host_instance *hi, int port, ecm_db_mapping_final_callback_t final, void *arg);
-void ecm_db_connection_add(struct ecm_db_connection_instance *ci, struct ecm_front_end_connection_instance *feci, struct ecm_db_mapping_instance *mapping_from, struct ecm_db_mapping_instance *mapping_to, struct ecm_db_mapping_instance *mapping_nat_from, struct ecm_db_mapping_instance *mapping_nat_to, struct ecm_db_node_instance *from_node, struct ecm_db_node_instance *to_node, struct ecm_db_node_instance *from_nat_node, struct ecm_db_node_instance *to_nat_node, int ip_version, int protocol, ecm_db_direction_t dir, ecm_db_connection_final_callback_t final, ecm_db_connection_defunct_callback_t defunct, ecm_db_timer_group_t tg, bool is_routed, void *arg);
+void ecm_db_connection_add(struct ecm_db_connection_instance *ci, struct ecm_db_mapping_instance *mapping_from, struct ecm_db_mapping_instance *mapping_to, struct ecm_db_mapping_instance *mapping_nat_from, struct ecm_db_mapping_instance *mapping_nat_to, struct ecm_db_node_instance *from_node, struct ecm_db_node_instance *to_node, struct ecm_db_node_instance *from_nat_node, struct ecm_db_node_instance *to_nat_node, int ip_version, int protocol, ecm_db_direction_t dir, ecm_db_connection_final_callback_t final, ecm_db_connection_defunct_callback_t defunct, ecm_db_timer_group_t tg, bool is_routed, void *arg);
 
 void ecm_db_listener_ref(struct ecm_db_listener_instance *li);
 void ecm_db_connection_ref(struct ecm_db_connection_instance *ci);
