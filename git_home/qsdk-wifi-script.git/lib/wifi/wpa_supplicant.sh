@@ -237,13 +237,17 @@ wpa_supplicant_setup_vif() {
 
 	if [ $qwrap_enable -ne 0 ]; then
 		ctrl_interface="/var/run/wpa_supplicant"
-		echo -e "/var/run/wpa_supplicant-$ifname.conf \c\h" >> /tmp/qwrap_conf_filename-$ifname.conf
+		if [ -f "/tmp/qwrap_conf_filename-$ifname.conf" ]; then
+			rm -rf /tmp/qwrap_conf_filename-$ifname.conf
+		fi
+		echo -e "/var/run/wpa_supplicant-$ifname.conf \c\h" > /tmp/qwrap_conf_filename-$ifname.conf
 		wait_for_wrap="-W"
 	fi
 
 	ctrl_interface="/var/run/wpa_supplicant-$ifname"
 
 	rm -rf $ctrl_interface
+	rm -f /var/run/wpa_supplicant-$ifname.conf
 	cat > /var/run/wpa_supplicant-$ifname.conf <<EOF
 ctrl_interface=$ctrl_interface
 $wps_config_methods
@@ -295,7 +299,7 @@ EOF
 				;;
 	        esac
 
-		if ! [ -f "/var/run/wpa_supplicant-global.pid" ]
+		if [ ! -f "/var/run/wpa_supplicant-global.pid" ] || [ $(ps -www | grep "wpa_supplicant-global.pid" | grep -v grep | wc -l) -eq 0 ]
 		then
 			if [ "x$wpa_supplicant_debug" = "x" ]; then
 				wpa_supplicant_debug_exist=`ps | grep wpa_supplicant | grep -v grep | grep "\-d"`
