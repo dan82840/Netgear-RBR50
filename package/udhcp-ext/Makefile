@@ -52,7 +52,7 @@ define Package/udhcp-ext/config
 endef
 
 define Build/Prepare
-	$(CP) $(GIT_HOME)/udhcp-ext.git/* $(PKG_BUILD_DIR)/
+	$(CP) $(GIT_HOME)/udhcp.git/* $(PKG_BUILD_DIR)/
 endef
 
 define Build/Configure
