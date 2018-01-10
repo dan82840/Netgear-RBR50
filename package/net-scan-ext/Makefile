@@ -22,7 +22,7 @@ define Package/net-scan-ext
 endef
 
 define Build/Prepare
-	$(CP) $(GIT_HOME)/net-scan-ext.git/* $(PKG_BUILD_DIR)/
+	$(CP) $(GIT_HOME)/net-scan.git/* $(PKG_BUILD_DIR)/
 endef
 
 define Package/net-scan-ext/install
