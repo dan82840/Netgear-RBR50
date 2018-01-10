@@ -95,7 +95,13 @@ update_led_state()
 {
 #    current_rate=`iwpriv ath0 get_txrate | cut -f2 -d':' | sed 's/[ \t ]*$//g'`
     wlanconfig ath0 list sta | awk '{print $4}' | grep -Eo '[0-9]+' > /tmp/my_all_client_rate
-    [ "$(config get wlg1_endis_guestNet)" = "1" ] && wlanconfig ath02 list sta | awk '{print $4}' | grep -Eo '[0-9]+' >> /tmp/my_all_client_rate
+    if [ "$(/bin/config get wlg1_endis_guestNet)" = "1" ]; then
+	if [ "$(/bin/config get repacd_Daisy_Chain_Enable)" = "1" ]; then
+		wlanconfig ath03 list sta | awk '{print $4}' | grep -Eo '[0-9]+' >> /tmp/my_all_client_rate
+	else
+		wlanconfig ath02 list sta | awk '{print $4}' | grep -Eo '[0-9]+' >> /tmp/my_all_client_rate
+	fi
+    fi
     while read onerate
     do
         if [ "$current_rate" = "" -o "$onerate" > "$current_rate" ]; then
@@ -305,7 +311,11 @@ while true; do
     let check_n=$check_n+1
     sta_list=`wlanconfig ath0 list sta | wc -l`
     if [ "$(config get wlg1_endis_guestNet)" = "1" ]; then
-	sta_list_guest=`wlanconfig ath02 list sta | wc -l`
+	if [ "$(/bin/config get repacd_Daisy_Chain_Enable)" = "1" ]; then
+		sta_list_guest=`wlanconfig ath03 list sta | wc -l`
+	else
+		sta_list_guest=`wlanconfig ath02 list sta | wc -l`
+	fi
     fi
     sta_list_5g=`wlanconfig ath1 list sta | wc -l`
     if [ "$(config get wla1_endis_guestNet)" = "1" ]; then
