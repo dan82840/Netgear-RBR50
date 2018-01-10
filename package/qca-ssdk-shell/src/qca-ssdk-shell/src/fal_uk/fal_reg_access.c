@@ -119,3 +119,23 @@ fal_dbg_reg_dump(a_uint32_t dev_id,fal_reg_dump_t *reg_dump)
     rv = sw_uk_exec(SW_API_DBG_REG_DUMP, dev_id,(a_uint32_t) reg_dump);
     return rv;
 }
+
+sw_error_t
+fal_debug_psgmii_self_test(a_uint32_t dev_id, a_bool_t enable,
+            a_uint32_t times, a_uint32_t * result)
+{
+    sw_error_t rv;
+
+    rv = sw_uk_exec(SW_API_DBG_PSGMII_SELF_TEST, dev_id, (a_uint32_t) enable, times, result);
+    return rv;
+}
+sw_error_t
+fal_phy_dump(a_uint32_t dev_id, a_uint32_t phy_addr, a_uint32_t reg_idx,fal_phy_dump_t *phy_dump)
+{
+    sw_error_t rv;
+
+    rv = sw_uk_exec(SW_API_PHY_DUMP, dev_id, phy_addr, (a_uint32_t) reg_idx,(a_uint32_t) phy_dump);
+    return rv;
+}
+
+

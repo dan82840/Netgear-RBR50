@@ -732,6 +732,8 @@ struct cmd_des_t gcmd_des[] =
             {"reg", "set", "write switch register", "<reg_addr> <value> <4>", SW_API_REG_SET, NULL},
 			{"reg", "dump", "dump switch register group", "<group id> <0-6>", SW_API_REG_DUMP, NULL},
 			{"dbgreg", "dump", "dump switch dbg register group", "", SW_API_DBG_REG_DUMP, NULL},
+            {"psgmii", "selftest", "ess switch psgmii self test", "<enable> <times>", SW_API_DBG_PSGMII_SELF_TEST, NULL},
+	        {"phy", "dump", "dump phy register group", "<ph_id> <group id> <0-4>", SW_API_PHY_DUMP, NULL},
             {"preg", "get", "read psgmii register", "<reg_addr> <4>", SW_API_PSGMII_REG_GET, NULL},
             {"preg", "set", "write psgmii register", "<reg_addr> <value> <4>", SW_API_PSGMII_REG_SET, NULL},
             {"field", "get", "read switch register field", "<reg_addr> <offset> <len> <4>", SW_API_REG_FIELD_GET, NULL},

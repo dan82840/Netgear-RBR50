@@ -104,6 +104,7 @@ extern "C" {
 
 	typedef struct
 	{
+	a_uint32_t led_num;
 	a_uint32_t led_source_id;
 	led_ctrl_pattern_t led_pattern;
 
@@ -129,7 +130,7 @@ typedef struct
 	ssdk_port_cfg   port_cfg;
 	a_uint32_t      mac_mode;
 	a_uint32_t led_source_num;
-	led_source_cfg_t led_source_cfg[14];
+	led_source_cfg_t led_source_cfg[15];
 	a_uint32_t      phy_id;
 } ssdk_init_cfg;
 
