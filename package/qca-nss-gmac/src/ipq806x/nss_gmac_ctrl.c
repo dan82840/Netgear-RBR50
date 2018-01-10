@@ -1048,7 +1048,7 @@ static int nss_gmac_mdio_mii_ioctl_write(struct net_device *netdev, int phy_addr
 	 * request is a MDIO clause-22
 	 */
 	if (MDIO_DEVAD_NONE == mmd) {
-		err = mdiobus_write(gmacdev->miibus, phy_addr, reg, value);
+		err = mdiobus_write(gmacdev->miibus, phy_addr, addr, value);
 		return err;
 	}
 
@@ -2170,6 +2170,5 @@ module_init(nss_gmac_host_interface_init);
 module_exit(nss_gmac_host_interface_exit);
 
 MODULE_AUTHOR("Qualcomm Atheros");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("Dual BSD/GPL");
 MODULE_DESCRIPTION("NSS GMAC Network Driver");
-
