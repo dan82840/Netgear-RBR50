@@ -128,7 +128,8 @@ static int rfs_wxt_get_cpu_by_irq(int irq)
 	}
 
 	if (cpumask_next(cpu, mask) < nr_cpu_ids) {
-		RFS_INFO("IRQ is bound to more than one CPU\n");
+		if(net_ratelimit())
+			RFS_INFO("IRQ is bound to more than one CPU\n");
 		return -1;
 	}
 
@@ -400,7 +401,7 @@ static void rfs_wxt_thread(void)
 		goto exit1;
 	}
 
-	memset(&saddr, 0, sizeof(struct sockaddr));
+	memset(&saddr, 0, sizeof(saddr));
 	saddr.nl_family = AF_NETLINK;
 	saddr.nl_groups = RTNLGRP_LINK;
 	saddr.nl_pid    = current->pid;
