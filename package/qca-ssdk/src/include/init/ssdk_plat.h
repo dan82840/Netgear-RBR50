@@ -102,6 +102,7 @@
 #define AR8327_REG_MODULE_EN  0x30
 #define   AR8327_REG_MODULE_EN_QM_ERR	BIT(8)
 
+#define AR8327_REG_MAC_SFT_RST		0x68
 
 #define AR8327_REG_PAD_SGMII_CTRL			0xe0
 #define AR8327_REG_PAD_SGMII_CTRL_HW_INIT   0xc70164c0
@@ -187,13 +188,13 @@ struct qca_phy_priv {
 	a_uint8_t revision;
 	a_uint32_t (*mii_read)(a_uint32_t reg);
 	void (*mii_write)(a_uint32_t reg, a_uint32_t val);
-    void (*phy_dbg_write)(a_uint32_t dev_id, a_uint32_t phy_addr,
+        void (*phy_dbg_write)(a_uint32_t dev_id, a_uint32_t phy_addr,
                         a_uint16_t dbg_addr, a_uint16_t dbg_data);
 	void (*phy_dbg_read)(a_uint32_t dev_id, a_uint32_t phy_addr,
                         a_uint16_t dbg_addr, a_uint16_t *dbg_data);
     void (*phy_mmd_write)(a_uint32_t dev_id, a_uint32_t phy_addr,
                           a_uint16_t addr, a_uint16_t data);
-    void (*phy_write)(a_uint32_t dev_id, a_uint32_t phy_addr,
+    sw_error_t (*phy_write)(a_uint32_t dev_id, a_uint32_t phy_addr,
                             a_uint32_t reg, a_uint16_t data);
 
 	bool init;
@@ -231,10 +232,10 @@ struct ipq40xx_mdio_data {
 		container_of(_dev, struct qca_phy_priv, sw_dev)
 
 
-uint32_t
-qca_ar8216_mii_read(int reg);
+a_uint32_t
+qca_ar8216_mii_read(a_uint32_t reg);
 void
-qca_ar8216_mii_write(int reg, uint32_t val);
+qca_ar8216_mii_write(a_uint32_t reg, a_uint32_t val);
 sw_error_t
 qca_ar8327_phy_write(a_uint32_t dev_id, a_uint32_t phy_addr,
                             a_uint32_t reg, a_uint16_t data);
@@ -248,11 +249,11 @@ void
 qca_ar8327_phy_dbg_read(a_uint32_t dev_id, a_uint32_t phy_addr,
 		                          a_uint16_t dbg_addr, a_uint16_t *dbg_data);
 
-void 
+void
 qca_phy_mmd_write(u32 dev_id, u32 phy_id,
                      u16 mmd_num, u16 reg_id, u16 reg_val);
 
-u16 
+u16
 qca_phy_mmd_read(u32 dev_id, u32 phy_id,
 		u16 mmd_num, u16 reg_id);
 

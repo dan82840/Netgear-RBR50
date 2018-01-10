@@ -1335,6 +1335,10 @@ h1 + .instruction {
   margin-left: 0;
   z-index: 1;
 }
+.column ul li:first-child {
+	word-break: break-all;
+	word-wrap: break-word;
+}
 .simpleChoice .btn {
 	text-transform: uppercase;
 	padding: 20px;

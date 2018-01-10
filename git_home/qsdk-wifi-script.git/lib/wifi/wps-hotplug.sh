@@ -19,13 +19,19 @@ if [ "$ACTION" = "pressed" -a "$BUTTON" = "wps" ]; then
 	echo "" > /dev/console
 	echo "WPS PUSH BUTTON EVENT DETECTED" > /dev/console
 	for dir in /var/run/hostapd-*; do
-		[ -d "$dir" ] || continue
-		for vap_dir in $dir/ath* $dir/wlan*; do
-		[ -r "$vap_dir" ] || continue
-		nopbn=`iwpriv "${vap_dir#"$dir/"}"   get_nopbn  |   cut -d':' -f2`
-		if [ $nopbn != 1 ]; then
-			hostapd_cli -i "${vap_dir#"$dir/"}" -p "$dir" wps_pbc
-		fi
-		done
-	done
+                [ -d "$dir" ] || continue
+                for vap_dir in $dir/ath* $dir/wlan*; do
+                        [ -r "$vap_dir" ] || continue
+                        backhaul=`iwpriv "${vap_dir#"$dir/"}"   get_backhaul |   cut -d':' -f2`
+                        if [ $backhaul -eq 1 ];then
+                                echo "wps_pbc" > /dev/console
+                                echo "wps_pbc $SEEN" > /var/run/sonwps.pipe &
+                                continue
+                        fi
+                        nopbn=`iwpriv "${vap_dir#"$dir/"}"   get_nopbn  |   cut -d':' -f2`
+                        if [ $nopbn != 1 ]; then
+                                hostapd_cli -i "${vap_dir#"$dir/"}" -p "$dir" wps_pbc
+                        fi
+                done
+        done
 fi

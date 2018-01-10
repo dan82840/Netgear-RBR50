@@ -6,7 +6,7 @@
 <script>
 var master="<% cfg_get("http_loginname") %>";
 if( master == "admin" )
-	document.write('<TR><TD nowrap colspan=2 align=center><input class="common_bt" type="button" name="Refresh" id="refresh" value="$refresh_mark" onClick="location.href=\'reservation_add.htm\';">&nbsp;<input class="cancel_bt" type="button" name="Cancel" id="cancel" value="$cancel_mark" onClick="location.href=\'LAN_lan.htm\';">&nbsp;<input class="apply_bt" type="button" name="Add" id="add" value="$add_mark" onClick="return check_reservation_add(document.forms[0],\'add\')"></TD></TR>');
+	document.write('<TR><TD nowrap colspan=2 align=center><input class="common_bt" type="button" name="Refresh" id="refresh" value="$refresh_mark" onClick="location.reload(true);">&nbsp;<input class="cancel_bt" type="button" name="Cancel" id="cancel" value="$cancel_mark" onClick="goBack()">&nbsp;<input class="apply_bt" type="button" name="Add" id="add" value="$add_mark" onClick="return check_reservation_add(document.forms[0],\'add\')"></TD></TR>');
 else
 	document.write('<TR><TD nowrap colspan=2 align=center><input class="common1_bt" type="button" name="Refresh" id="refresh" value="$refresh_mark" disabled>&nbsp;<input class="cancel1_bt" type="button" name="Cancel" id="cancel" value="$cancel_mark" disabled>&nbsp;<input class="apply1_bt" type="button" name="Add" id="add" value="$add_mark" disabled></TD></TR>');
 
@@ -17,11 +17,28 @@ else
 <% table_header() %>
 
 <script>
+var ts = "<% cfg_get("reservation_add") %>";
+var have_vlan_sb = top.vlan_sb_flag;
+var  wl_type = window.location.href.split("#")[1];
 <% reservation_items_xss() %>
 var lanip="<% cfg_get("lan_ipaddr") %>";
 var lanmask="<% cfg_get("lan_netmask") %>";
 var startip="<% cfg_get("dhcp_start") %>";
 var endip="<% cfg_get("dhcp_end") %>";
+if(wl_type == "guest")
+{
+	lanip="<% cfg_get("guest_lan_ipaddr") %>";
+	lanmask="<% cfg_get("guest_lan_netmask") %>";
+	startip="<% cfg_get("guest_dhcp_start") %>";
+	endip="<% cfg_get("guest_dhcp_end") %>";
+}
+else if(wl_type == "byod")
+{
+	lanip="<% cfg_get("byod_lan_ipaddr") %>";
+	lanmask="<% cfg_get("byod_lan_netmask") %>";
+	startip="<% cfg_get("byod_dhcp_start") %>";
+	endip="<% cfg_get("byod_dhcp_end") %>";
+}
 
 var have_ipmac_flag=parent.have_ipmac_flag;
 var ipmac_binding_flag="<% cfg_get("ipmac_binding_on")%>";
@@ -31,6 +48,8 @@ var show_ip_array = new Array();
 var show_mac_array = new Array();
 var show_name_array = new Array();
 var i=0;
+
+
 function loadvalue()
 {
 	var xmlhttp, xmlDoc;
@@ -76,12 +95,30 @@ function loadvalue()
 	};
 	xmlhttp.open("GET", "DEV_device_info.htm?ts=" + new Date().getTime(), true);
 	xmlhttp.send();
+	
+	//for different wireless page
+	if(have_vlan_sb == 1)
+	{
+		var cf = document.forms[0];
+		if(wl_type == "guest")
+		{
+			cf.hid_wireless_type.value = "guest";
+			cf.hid_wireless_type.disabled = false;	
+		}
+		else if(wl_type == "byod")
+		{
+			cf.hid_wireless_type.value = "byod";
+			cf.hid_wireless_type.disabled = false;	
+		}
+			
+	}
 }
 </script>
 
 <input type="hidden" name="reservation_ipaddr">  
 <input type="hidden" name="duplicated_reservation">
 <input type="hidden" name="duplicated_num" value=0>
+<input type="hidden" name="hid_wireless_type" value="" disabled />
 <TR>
 	<TD nowrap colspan=2>
 	<A tabindex=-1 href="javascript:loadhelp('_lan','reserved')"><B>$reservation_show</B></A>

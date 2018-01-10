@@ -10,6 +10,8 @@ var warning_msg="<% alert_upg() %>";
 var new_version="<% cat_file("/tmp/auto_version") %>".substring(1);
 var current_version="<% cat_file("/firmware_version") %>".substring(1);
 var current_language="<% get_language_version() %>".substring(1);
+<% refresh_timestamp("upgrade_check") %>
+var ts = "<% cfg_get("upgrade_check") %>";
 </script>
 <div id="slider">
 <div class="main clearfix">

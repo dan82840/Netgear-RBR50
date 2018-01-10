@@ -72,7 +72,10 @@ char certDirectory[PATH_MAX + 1] = "/etc/router_analytics";
  * @brief Default MQTT HOST URL is pulled from the aws_iot_config.h
  */
 char HostAddress[255] = AWS_IOT_MQTT_HOST;
+
 char ClientID[255] = AWS_IOT_MQTT_CLIENT_ID;
+
+char TOPIC[128] = "analytics/";
 /**
  * @brief Default MQTT port is pulled from the aws_iot_config.h
  */
@@ -117,7 +120,7 @@ void disconnectCallbackHandler(AWS_IoT_Client *pClient, void *data) {
 void parseInputArgsForConnectParams(int argc, char **argv) {
 	int opt;
 
-	while(-1 != (opt = getopt(argc, argv, "h:p:c:x:k:i:"))) {
+	while(-1 != (opt = getopt(argc, argv, "h:p:c:x:k:t:i:"))) {
 		switch(opt) {
 			case 'h':
 				strcpy(HostAddress, optarg);
@@ -125,7 +128,7 @@ void parseInputArgsForConnectParams(int argc, char **argv) {
 				break;
 			case 'i':
 				strcpy(ClientID, optarg);
-				IOT_DEBUG("client id %s", optarg);
+				IOT_DEBUG("clinet id %s", optarg);
 				break;
 			case 'p':
 				port = atoi(optarg);
@@ -141,6 +144,9 @@ void parseInputArgsForConnectParams(int argc, char **argv) {
 				break;
 			case 'k':
 				strcpy(clientKey, optarg);
+				break;
+			case 't':
+				strcpy(TOPIC, optarg);
 				break;
 			case '?':
 				if(optopt == 'c') {
@@ -164,7 +170,7 @@ int main(int argc, char **argv) {
 
 	char rootCA[PATH_MAX + 1];
 	char clientCRT[PATH_MAX + 1];
-	char cPayload[100];
+	char cPayload[8192];
 	char cmd[256];
 	int32_t i = 0, count = 3;
 
@@ -267,7 +273,8 @@ int main(int argc, char **argv) {
 		sprintf(cPayload, "{\n%s%s}\n", bjson, sjson);
 		IOT_INFO("Publish data\n %s", cPayload);
 		paramsQOS0.payloadLen = strlen(cPayload);
-		rc = aws_iot_mqtt_publish(&client, "analytics/", 10, &paramsQOS0);
+		IOT_INFO("Publish Info to TOPIC %s\n", TOPIC);
+		rc = aws_iot_mqtt_publish(&client, TOPIC, 10, &paramsQOS0);
 		if(publishCount > 0) {
 			publishCount--;
 		}

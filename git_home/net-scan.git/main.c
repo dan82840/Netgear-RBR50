@@ -1,4 +1,4 @@
-/* 
+/*
  * NETGEAR SPEC:
  * 8.8 Attached Devices
  * We only show IP address, device name and MAC address on the attached devices list.
@@ -31,7 +31,7 @@
 
 static int sigval;
 time_t refresh_time;
-int scan_flag = 0;
+static int scan_flag = 1;
 
 void signal_pending(int sig)
 {
@@ -48,28 +48,36 @@ void signal_pending(int sig)
 
 void do_signal(int arp_sock, struct sockaddr *me)
 {
+	int forse_soap = 0;
 	if (sigval == 0)
 		return;
 
 	if (sigval == SIGUSR2 || sigval == SIGALRM) {
-		time_t now;	
-		
+		time_t now;
+
+		/* when GUI click refresh, update arp table first, then send arp packets */
+		if (sigval == SIGUSR2) {
+			/* start catch HTTP packets when GUI refresh */
+			system("/usr/sbin/UA_Parser");
+			forse_soap = 1;
+		} else
+			DEBUGP("15 minutes passed or devices leave\n");
+
 		now = time(NULL);
-		if (now - refresh_time < 10) {
-		//	fprintf(stderr, "refresh too quickly, not to send arp packets, last time:%d, now:%d\n", refresh_time, now);		
+		if (now > refresh_time && now - refresh_time < 10) {
+			DEBUGP("refresh too quickly, not to send arp packets, last time:%d, now:%d\n", refresh_time, now);
 			return;
 		}
 		refresh_time = now;
-		scan_flag = 1;
+		scan_flag = 0;
+
 		/* To fix bug 22146, call reset_arp_table to set active status of all nodes in the arp_tbl to 0 in the parent process */
 		reset_arp_table();
-		scan_arp_table(arp_sock, me);
+		scan_arp_table(arp_sock, me, forse_soap);
 		sleep(2);
-		scan_flag = 0;
-	} else if (sigval == SIGUSR1 && scan_flag == 0){ 
+		scan_flag = 1;
+	} else if (sigval == SIGUSR1 && scan_flag)
 		show_arp_table();
-
-	}
 
 	sigval = 0;
 }
@@ -84,14 +92,12 @@ int main(int argc, char **argv)
 	struct sigaction sa;
 	struct sockaddr me;
 	struct itimerval tv;
-	
+
 	arp_sock = open_arp_socket(&me);
 	bios_sock = open_bios_socket();
-	
+
 	if (arp_sock < 0 ||bios_sock < 0)
 		exit(1);
-
-	//unlink(ARP_FILE);
 
 	printf("The attached devices demo is Running ...\n");
 	daemon(1, 1);
@@ -104,28 +110,28 @@ int main(int argc, char **argv)
 	sigaction(SIGUSR1, &sa, NULL);
 	sigaction(SIGUSR2, &sa, NULL);
 	sigaction(SIGALRM, &sa, NULL);
-	
+
 	if (bios_sock > arp_sock)
 		max_sock = bios_sock + 1;
 	else
 		max_sock = arp_sock + 1;
-	
+
 	tv.it_value.tv_sec = 900;
 	tv.it_value.tv_usec = 0;
 	tv.it_interval.tv_sec = 0;
 	tv.it_interval.tv_usec = 0;
 	setitimer(ITIMER_REAL, &tv, 0);
-	
+
 	while (1) {
 		int ret;
 		int alen = 0;
 		int blen = 0;
-		
+
 		struct in_addr send_ip;
 		struct sockaddr arp_from;
 		struct sockaddr_in bios_from;
-		
-		socklen_t arp_len = sizeof(arp_from);			
+
+		socklen_t arp_len = sizeof(arp_from);
 		socklen_t bios_len = sizeof(bios_from);
 
 		struct arpmsg	arp_packet;
@@ -141,14 +147,14 @@ int main(int argc, char **argv)
 				do_signal(arp_sock, &me);
 			continue;
 		}
-				
+
 		if (FD_ISSET(arp_sock, &readset))
 			alen = recvfrom(arp_sock, &arp_packet, sizeof(arp_packet), 0, 
 				(struct sockaddr *) &arp_from, &arp_len);
 		if (FD_ISSET(bios_sock, &readset))
 			blen = recvfrom(bios_sock, bios_packet, sizeof(bios_packet), 0, 
 				(struct sockaddr *) &bios_from, &bios_len);
-		
+
 		/* min arp packet length: 14 ethernet + 28 arp header = 42 */
 		if (alen >= 42 && recv_arp_pack(&arp_packet, &send_ip))
 			send_bios_query(bios_sock, send_ip);

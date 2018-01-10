@@ -85,4 +85,5 @@ p{position: relative; top: 5px;}
 #attached{ background: url('../image/basic_homes.gif') no-repeat 0 -192px; position: relative }
 #parental{ background: url('../image/basic_homes.gif') no-repeat -192px -192px; position: relative }
 #guest{background: url(../image/guest.png) no-repeat;position:relative}
+#readyshare{background: url(../image/readyshare.png) no-repeat;position:relative}
 

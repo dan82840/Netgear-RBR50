@@ -103,7 +103,7 @@ function checkadv(form)
         else if(form.enable_shortpreamble_an.selectedIndex == "0")
                 form.wla_enable_shortpreamble.value = "0";
 	//transmit power control
-	wlan_txctrl(form, form.tx_power_ctrl.value, form.tx_power_ctrl_an.value, wla_channel, country);
+	wlan_txctrl(form, form.tx_power_ctrl.value, form.tx_power_ctrl_an.value, wla_channel, wl_get_countryA);
 
 	if(form.enable_ap.checked == true)
 		form.wl_enable_router.value="1";
@@ -229,9 +229,9 @@ function checkadv(form)
 		form.wladv_enable_schedule_a.value = "0";
 
 	if(form.tx_power_ctrl_an.value == "super_wifi")
-		form.tx_power_ctrl_an.value = wla_tpscale;
+		form.tx_power_ctrl_an.value = wla_txctrl_web;
 	if(form.tx_power_ctrl.value == "super_wifi")
-                form.tx_power_ctrl.value = wl_tpscale;
+                form.tx_power_ctrl.value = wl_txctrl_web;
 
 	form.wl_WRegion.value = form.WRegion.value;
 	form.wla_WRegion.value =form.WRegion.value;

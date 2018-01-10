@@ -28,6 +28,7 @@
 #include "bond_3ad.h"
 #include "bond_alb.h"
 #include "bond_options.h"
+#include "bond_l2da.h"
 
 #define DRV_VERSION	"3.7.1"
 #define DRV_RELDATE	"April 27, 2011"
@@ -125,6 +126,9 @@
 /* Caller must have rcu_read_lock */
 #define bond_for_each_slave_rcu(bond, pos, iter) \
 	netdev_for_each_lower_private_rcu((bond)->dev, pos, iter)
+
+extern spinlock_t bond_cb_lock;
+extern struct bond_cb *bond_cb;
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
 extern atomic_t netpoll_block_tx;
@@ -246,6 +250,7 @@ struct bonding {
 	u32      rr_tx_counter;
 	struct   ad_bond_info ad_info;
 	struct   alb_bond_info alb_info;
+	struct	 l2da_bond_info l2da_info;
 	struct   bond_params params;
 	struct   workqueue_struct *wq;
 	struct   delayed_work mii_work;
@@ -259,6 +264,20 @@ struct bonding {
 #endif /* CONFIG_DEBUG_FS */
 	u32      id;
 };
+
+#pragma pack(1)
+struct arp_pkt {
+	__be16  hw_addr_space;
+	__be16  prot_addr_space;
+	u8      hw_addr_len;
+	u8      prot_addr_len;
+	__be16  op_code;
+	u8      mac_src[ETH_ALEN];	/* sender hardware address */
+	__be32  ip_src;			/* sender IP address */
+	u8      mac_dst[ETH_ALEN];	/* target hardware address */
+	__be32  ip_dst;			/* target IP address */
+};
+#pragma pack()
 
 #define bond_slave_get_rcu(dev) \
 	((struct slave *) rcu_dereference(dev->rx_handler_data))
@@ -289,6 +308,11 @@ static inline bool bond_is_lb(const struct bonding *bond)
 	return BOND_MODE_IS_LB(bond->params.mode);
 }
 
+static inline bool bond_is_l2da(const struct bonding *bond)
+{
+	return bond->params.mode == BOND_MODE_L2DA;
+}
+
 static inline void bond_set_active_slave(struct slave *slave)
 {
 	if (slave->backup) {
@@ -306,14 +330,15 @@ static inline void bond_set_backup_slave(struct slave *slave)
 }
 
 static inline void bond_set_slave_state(struct slave *slave,
-					int slave_state, bool notify)
+					int slave_state,
+					bool notify, gfp_t flg)
 {
 	if (slave->backup == slave_state)
 		return;
 
 	slave->backup = slave_state;
 	if (notify) {
-		rtmsg_ifinfo(RTM_NEWLINK, slave->dev, 0, GFP_KERNEL);
+		rtmsg_ifinfo(RTM_NEWLINK, slave->dev, 0, flg);
 		slave->should_notify = 0;
 	} else {
 		if (slave->should_notify)
@@ -431,18 +456,18 @@ static inline void bond_netpoll_send_skb(const struct slave *slave,
 #endif
 
 static inline void bond_set_slave_inactive_flags(struct slave *slave,
-						 bool notify)
+						 bool notify, gfp_t flg)
 {
 	if (!bond_is_lb(slave->bond))
-		bond_set_slave_state(slave, BOND_STATE_BACKUP, notify);
+		bond_set_slave_state(slave, BOND_STATE_BACKUP, notify, flg);
 	if (!slave->bond->params.all_slaves_active)
 		slave->inactive = 1;
 }
 
 static inline void bond_set_slave_active_flags(struct slave *slave,
-					       bool notify)
+					       bool notify, gfp_t flg)
 {
-	bond_set_slave_state(slave, BOND_STATE_ACTIVE, notify);
+	bond_set_slave_state(slave, BOND_STATE_ACTIVE, notify, flg);
 	slave->inactive = 0;
 }
 
@@ -509,7 +534,7 @@ struct net_device *bond_option_active_slave_get(struct bonding *bond);
 const char *bond_slave_link_status(s8 link);
 uint32_t bond_xmit_hash_without_skb(uint8_t *src_mac, uint8_t *dst_mac, void *psrc,
                                     void *pdst, uint16_t protocol, struct net_device *bond_dev, __be16 *layer4hdr);
-
+void bond_notify_l2da(uint8_t *slave_mac_addr);
 
 struct bond_net {
 	struct net *		net;	/* Associated network namespace */

@@ -17,7 +17,7 @@ function is_read()
 }
 
 </script>
-<% form_submit("apply", "BRS_01_checkNet_ping.html", "hijack_save_time") %>
+<% tos_form_submit() %>
 <input type="hidden" name="hid_save_time" value="1">
 <div id="container">
 
@@ -27,7 +27,7 @@ function is_read()
 		<div id="card-tos" class="install-card clearfix">
 			<img class="netgear-logo" src="images/netgear.png">
 
-			<div class="desc-title">Terms of Services</div>
+			<div class="desc-title">$tos_title</div>
 			<div class="tos-area">
 				<h1>NETGEAR, INC.</h1>
 				<p>MASTER TERMS OF SERVICE FOR YOUR ORBI APPLICATION, ORBI SOFTWARE, ORBI SERVICES, AND ORBI PRODUCT</p>
@@ -130,13 +130,7 @@ function is_read()
 					<p>14.16.	<b>Time Limitation.</b>  YOU MUST CONTACT NETGEAR WITHIN ONE (1) YEAR OF THE DATE OF OCCURRENCE OF THE EVENT OR FACTS GIVING RISE TO A DISPUTE, OR YOU WAIVE THE RIGHT TO PURSUE ANY CLAIM BASED UPON SUCH EVENT, FACES, OR DISPUTE.</p>
 					<p><b>September 1, 2016</b></p>
 			</div>
-			<div class="margin-top-10">
-				<input type="checkbox" id="have_read" onclick="is_read();">
-				<label for="have_read">I have read and agree to the terms of service</label>
-			</div>
-			<button id="next_btn" class="waves-effect waves-light btn button-nav" disabled onclick="return true;">
-				<span><script>document.write(bh_orbi_next_mark);</script></span>
-			</button>
+			<% tos_agree() %>
 		</div>
 	</div>
 </div>

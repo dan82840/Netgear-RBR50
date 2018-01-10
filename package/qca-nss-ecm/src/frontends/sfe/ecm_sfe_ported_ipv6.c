@@ -52,6 +52,7 @@
 #include <net/netfilter/nf_conntrack_core.h>
 #include <net/netfilter/ipv6/nf_conntrack_ipv6.h>
 #include <net/netfilter/ipv6/nf_defrag_ipv6.h>
+#include <linux/netfilter/nf_conntrack_tftp.h>
 #ifdef ECM_INTERFACE_VLAN_ENABLE
 #include <linux/../../net/8021q/vlan.h>
 #include <linux/if_vlan.h>
@@ -75,6 +76,7 @@
 #include "ecm_tracker.h"
 #include "ecm_classifier.h"
 #include "ecm_front_end_types.h"
+#include "ecm_front_end_common.h"
 #include "ecm_tracker_datagram.h"
 #include "ecm_tracker_udp.h"
 #include "ecm_tracker_tcp.h"
@@ -878,24 +880,28 @@ static void ecm_sfe_ported_ipv6_connection_accelerate(struct ecm_front_end_conne
 			DEBUG_TRACE("%p: TCP Accel no ct from conn %p to get window data\n", npci, feci->ci);
 			nircm->rule_flags |= SFE_RULE_CREATE_FLAG_NO_SEQ_CHECK;
 		} else {
-			spin_lock_bh(&ct->lock);
-			DEBUG_TRACE("%p: TCP Accel Get window data from ct %p for conn %p\n", npci, ct, feci->ci);
+			int flow_dir;
+			int return_dir;
 
-			nircm->tcp_rule.flow_window_scale = ct->proto.tcp.seen[0].td_scale;
-			nircm->tcp_rule.flow_max_window = ct->proto.tcp.seen[0].td_maxwin;
-			nircm->tcp_rule.flow_end = ct->proto.tcp.seen[0].td_end;
-			nircm->tcp_rule.flow_max_end = ct->proto.tcp.seen[0].td_maxend;
-			nircm->tcp_rule.return_window_scale = ct->proto.tcp.seen[1].td_scale;
-			nircm->tcp_rule.return_max_window = ct->proto.tcp.seen[1].td_maxwin;
-			nircm->tcp_rule.return_end = ct->proto.tcp.seen[1].td_end;
-			nircm->tcp_rule.return_max_end = ct->proto.tcp.seen[1].td_maxend;
+			ecm_front_end_flow_and_return_directions_get(ct, src_ip, 6, &flow_dir, &return_dir);
+
+			DEBUG_TRACE("%p: TCP Accel Get window data from ct %p for conn %p\n", npci, ct, feci->ci);
+			spin_lock_bh(&ct->lock);
+			nircm->tcp_rule.flow_window_scale = ct->proto.tcp.seen[flow_dir].td_scale;
+			nircm->tcp_rule.flow_max_window = ct->proto.tcp.seen[flow_dir].td_maxwin;
+			nircm->tcp_rule.flow_end = ct->proto.tcp.seen[flow_dir].td_end;
+			nircm->tcp_rule.flow_max_end = ct->proto.tcp.seen[flow_dir].td_maxend;
+			nircm->tcp_rule.return_window_scale = ct->proto.tcp.seen[return_dir].td_scale;
+			nircm->tcp_rule.return_max_window = ct->proto.tcp.seen[return_dir].td_maxwin;
+			nircm->tcp_rule.return_end = ct->proto.tcp.seen[return_dir].td_end;
+			nircm->tcp_rule.return_max_end = ct->proto.tcp.seen[return_dir].td_maxend;
 #ifdef ECM_OPENWRT_SUPPORT
 			if (nf_ct_tcp_be_liberal || nf_ct_tcp_no_window_check
 #else
 			if (nf_ct_tcp_be_liberal
 #endif
-					|| (ct->proto.tcp.seen[0].flags & IP_CT_TCP_FLAG_BE_LIBERAL)
-					|| (ct->proto.tcp.seen[1].flags & IP_CT_TCP_FLAG_BE_LIBERAL)) {
+					|| (ct->proto.tcp.seen[flow_dir].flags & IP_CT_TCP_FLAG_BE_LIBERAL)
+					|| (ct->proto.tcp.seen[return_dir].flags & IP_CT_TCP_FLAG_BE_LIBERAL)) {
 				nircm->rule_flags |= SFE_RULE_CREATE_FLAG_NO_SEQ_CHECK;
 			} else {
 #ifdef CONFIG_XFRM
@@ -1830,6 +1836,12 @@ unsigned int ecm_sfe_ported_ipv6_process(struct net_device *out_dev,
 				DEBUG_ASSERT(false, "Unhandled ecm_dir: %d\n", ecm_dir);
 			}
 		}
+
+		if (ct && nfct_help(ct) && (dest_port == TFTP_PORT)) {
+			DEBUG_TRACE("%p: Connection has helper but protocol is TFTP, it can be accelerated\n", ct);
+			can_accel = true;
+		}
+
 		DEBUG_TRACE("UDP src: " ECM_IP_ADDR_OCTAL_FMT ":%d, dest: " ECM_IP_ADDR_OCTAL_FMT ":%d, dir %d\n",
 				ECM_IP_ADDR_TO_OCTAL(ip_src_addr), src_port, ECM_IP_ADDR_TO_OCTAL(ip_dest_addr), dest_port, ecm_dir);
 	} else {
@@ -1878,37 +1890,10 @@ unsigned int ecm_sfe_ported_ipv6_process(struct net_device *out_dev,
 		}
 		spin_unlock_bh(&ecm_sfe_ipv6_lock);
 
-		if (!ecm_front_end_ipv6_interface_construct_set_and_hold(skb, sender, ecm_dir, is_routed,
-							in_dev, out_dev,
-							ip_src_addr, ip_dest_addr,
-							&efeici)) {
-			DEBUG_WARN("ECM front end ipv6 interface construct set failed\n");
-			return NF_ACCEPT;
-		}
-
 		/*
 		 * Does this connection have a conntrack entry?
 		 */
 		if (ct) {
-			unsigned int conn_count;
-
-			/*
-			 * If we have exceeded the connection limit (according to conntrack) then abort
-			 * NOTE: Conntrack, when at its limit, will destroy a connection to make way for a new.
-			 * Conntrack won't exceed its limit but ECM can due to it needing to hold connections while
-			 * acceleration commands are in-flight.
-			 * This means that ECM can 'fall behind' somewhat with the connection state wrt conntrack connection state.
-			 * This is not seen as an issue since conntrack will have issued us with a destroy event for the flushed connection(s)
-			 * and we will eventually catch up.
-			 * Since ECM is capable of handling connections mid-flow ECM will pick up where it can.
-			 */
-			conn_count = (unsigned int)ecm_db_connection_count_get();
-			if (conn_count >= nf_conntrack_max) {
-				ecm_front_end_ipv6_interface_construct_netdev_put(&efeici);
-				DEBUG_WARN("ECM Connection count limit reached: db: %u, ct: %u\n", conn_count, nf_conntrack_max);
-				return NF_ACCEPT;
-			}
-
 			if (protocol == IPPROTO_TCP) {
 				/*
 				 * No point in establishing a connection for one that is closing
@@ -1916,7 +1901,6 @@ unsigned int ecm_sfe_ported_ipv6_process(struct net_device *out_dev,
 				spin_lock_bh(&ct->lock);
 				if (ct->proto.tcp.state >= TCP_CONNTRACK_FIN_WAIT && ct->proto.tcp.state <= TCP_CONNTRACK_CLOSE) {
 					spin_unlock_bh(&ct->lock);
-					ecm_front_end_ipv6_interface_construct_netdev_put(&efeici);
 					DEBUG_TRACE("%p: Connection in termination state %#X\n", ct, ct->proto.tcp.state);
 					return NF_ACCEPT;
 				}
@@ -1929,7 +1913,6 @@ unsigned int ecm_sfe_ported_ipv6_process(struct net_device *out_dev,
 		 */
 		nci = ecm_db_connection_alloc();
 		if (!nci) {
-			ecm_front_end_ipv6_interface_construct_netdev_put(&efeici);
 			DEBUG_WARN("Failed to allocate connection\n");
 			return NF_ACCEPT;
 		}
@@ -1940,7 +1923,6 @@ unsigned int ecm_sfe_ported_ipv6_process(struct net_device *out_dev,
 		feci = (struct ecm_front_end_connection_instance *)ecm_sfe_ported_ipv6_connection_instance_alloc(nci, protocol, can_accel);
 		if (!feci) {
 			ecm_db_connection_deref(nci);
-			ecm_front_end_ipv6_interface_construct_netdev_put(&efeici);
 			DEBUG_WARN("Failed to allocate front end\n");
 			return NF_ACCEPT;
 		}
@@ -1954,6 +1936,15 @@ unsigned int ecm_sfe_ported_ipv6_process(struct net_device *out_dev,
 			((struct ecm_sfe_ported_ipv6_connection_instance *)feci)->return_ipsec_state = ECM_SFE_IPSEC_STATE_TO_ENCRYPT;
 		}
 #endif
+		if (!ecm_front_end_ipv6_interface_construct_set_and_hold(skb, sender, ecm_dir, is_routed,
+							in_dev, out_dev,
+							ip_src_addr, ip_dest_addr,
+							&efeici)) {
+			feci->deref(feci);
+			ecm_db_connection_deref(nci);
+			DEBUG_WARN("ECM front end ipv6 interface construct set failed\n");
+			return NF_ACCEPT;
+		}
 
 		/*
 		 * Get the src and destination mappings
@@ -1962,7 +1953,7 @@ unsigned int ecm_sfe_ported_ipv6_process(struct net_device *out_dev,
 		 * GGG TODO The empty list checks should not be needed, mapping_establish_and_ref() should fail out if there is no list anyway.
 		 */
 		DEBUG_TRACE("%p: Create the 'from' interface heirarchy list\n", nci);
-		from_list_first = ecm_interface_heirarchy_construct(feci, from_list, efeici.from_dev, efeici.from_other_dev, ip_dest_addr, efeici.from_mac_lookup_ip_addr, 6, protocol, in_dev, is_routed, in_dev, src_node_addr, dest_node_addr, layer4hdr, skb);
+		from_list_first = ecm_interface_heirarchy_construct(feci, from_list, efeici.from_dev, efeici.from_other_dev, ip_dest_addr, efeici.from_mac_lookup_ip_addr, ip_src_addr, 6, protocol, in_dev, is_routed, in_dev, src_node_addr, dest_node_addr, layer4hdr, skb);
 		if (from_list_first == ECM_DB_IFACE_HEIRARCHY_MAX) {
 			feci->deref(feci);
 			ecm_db_connection_deref(nci);
@@ -1995,7 +1986,7 @@ unsigned int ecm_sfe_ported_ipv6_process(struct net_device *out_dev,
 		}
 
 		DEBUG_TRACE("%p: Create the 'to' interface heirarchy list\n", nci);
-		to_list_first = ecm_interface_heirarchy_construct(feci, to_list, efeici.to_dev, efeici.to_other_dev, ip_src_addr, efeici.to_mac_lookup_ip_addr, 6, protocol, out_dev, is_routed, in_dev, dest_node_addr, src_node_addr, layer4hdr, skb);
+		to_list_first = ecm_interface_heirarchy_construct(feci, to_list, efeici.to_dev, efeici.to_other_dev, ip_src_addr, efeici.to_mac_lookup_ip_addr, ip_dest_addr, 6, protocol, out_dev, is_routed, in_dev, dest_node_addr, src_node_addr, layer4hdr, skb);
 		if (to_list_first == ECM_DB_IFACE_HEIRARCHY_MAX) {
 			ecm_db_mapping_deref(src_mi);
 			ecm_db_node_deref(src_ni);
@@ -2055,7 +2046,7 @@ unsigned int ecm_sfe_ported_ipv6_process(struct net_device *out_dev,
 		 * NOTE: Default classifier is a special case considered previously
 		 */
 		for (classifier_type = ECM_CLASSIFIER_TYPE_DEFAULT + 1; classifier_type < ECM_CLASSIFIER_TYPES; ++classifier_type) {
-			struct ecm_classifier_instance *aci = ecm_sfe_ipv6_assign_classifier(nci, classifier_type);
+			struct ecm_classifier_instance *aci = ecm_classifier_assign_classifier(nci, classifier_type);
 			if (aci) {
 				aci->deref(aci);
 			} else {
@@ -2070,6 +2061,8 @@ unsigned int ecm_sfe_ported_ipv6_process(struct net_device *out_dev,
 				return NF_ACCEPT;
 			}
 		}
+
+		ecm_db_front_end_instance_ref_and_set(nci, feci);
 
 		/*
 		 * Now add the connection into the database.
@@ -2104,7 +2097,7 @@ unsigned int ecm_sfe_ported_ipv6_process(struct net_device *out_dev,
 			 * Add the new connection we created into the database
 			 * NOTE: assign to a short timer group for now - it is the assigned classifiers responsibility to do this
 			 */
-			ecm_db_connection_add(nci, feci, src_mi, dest_mi, src_mi, dest_mi,
+			ecm_db_connection_add(nci, src_mi, dest_mi, src_mi, dest_mi,
 					src_ni, dest_ni, src_ni, dest_ni,
 					6, protocol, ecm_dir,
 					NULL /* final callback */,

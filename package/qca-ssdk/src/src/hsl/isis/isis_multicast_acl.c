@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012, 2016, The Linux Foundation. All rights reserved.
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
  * above copyright notice and this permission notice appear in all copies.
@@ -147,7 +147,7 @@ HSL_LOCAL int iterate_multicast_acl_rule(int list_id, int start_n)
     sw_error_t ret;
     fal_acl_rule_t  rule= {0};
 
-    if(start_n>=FAL_IGMP_SG_ENTRY_MAX)
+    if(start_n>=FAL_IGMP_SG_ENTRY_MAX || start_n < 0)
     {
         return -1;
     }
@@ -232,17 +232,6 @@ HSL_LOCAL a_uint32_t isis_multicast_acl_total_n(a_uint32_t list_id)
     }
     return 0;
 }
-
-HSL_LOCAL a_uint32_t isis_acl_multigroup_cmp(fal_igmp_sg_addr_t *group, fal_acl_rule_t* rule)
-{
-    if(group->type == FAL_ADDR_IPV4)
-        return memcmp(&group->u.ip4_addr, &rule->dest_ip4_val, sizeof(rule->dest_ip4_val));
-    else if(group->type == FAL_ADDR_IPV6)
-        return memcmp(group->u.ip6_addr.ul, rule->dest_ip6_val.ul, sizeof(rule->dest_ip6_val));
-
-    return -1;
-}
-
 
 #define ISIS_FILTER_ACT_ADDR    0x5a000
 #define ISIS_FILTER_MSK_ADDR    0x59000
@@ -338,7 +327,7 @@ HSL_LOCAL sw_error_t multi_portmap_aclreg_set(a_uint32_t pos, fal_igmp_sg_entry_
     return rv;
 }
 
-HSL_LOCAL int multi_get_dp()
+HSL_LOCAL int multi_get_dp(void)
 {
     a_uint32_t addr;
     a_uint32_t dev_id=0;
@@ -349,12 +338,15 @@ HSL_LOCAL int multi_get_dp()
     HSL_REG_ENTRY_GEN_GET(rv, dev_id, addr, sizeof (a_uint32_t),
                           (a_uint8_t *) (&val),
                           sizeof (a_uint32_t));
+    if (rv != SW_OK)
+        aos_printk("Get entry value error\n");
+
     val = (val>>24)&0x7f; //30:24, IGMP_JOIN_LEAVE_DP
 
     return val;
 }
 static int old_bind_p=-1;
-HSL_LOCAL int multi_acl_bind()
+HSL_LOCAL int multi_acl_bind(void)
 {
     int bind_p;
     int i;
@@ -397,22 +389,15 @@ HSL_LOCAL int multi_acl_bind()
 HSL_LOCAL sw_error_t isis_multicast_acl_update( int list_id, int acl_index, fal_igmp_sg_entry_t * entry, int action)
 {
     a_uint32_t dev_id=0;
-    //a_uint32_t list_pos;
     a_uint32_t rule_pos;
-    a_uint32_t list_pri;
     sw_error_t rv = SW_OK;
 
-    //if(entry->port_map < 1 || acl_index<0)
     if(acl_index<0)
+    {
         aos_printk("Something is wrong...\n");
+        return SW_FAIL;
+    }
 
-    if(list_id == FAL_ACL_LIST_MULTICAST) //Update all matched group based acl_rule->source
-        list_pri=FAL_MULTICAST_PRI;
-    else if(list_id == FAL_ACL_LIST_MULTICAST+1) //only update the specific (G,*)entry
-        list_pri=FAL_MULTICAST_PRI+1;
-
-
-    //list_pos = isis_acl_rule_get_pos(dev_id, list_id, list_pri);
     rule_pos = ACL_RULE_GET_OFFSET(dev_id, list_id, multi_acl_group[acl_index].index);
     if(MULT_ACTION_SET == action)
     {
@@ -430,30 +415,6 @@ HSL_LOCAL sw_error_t isis_multicast_acl_update( int list_id, int acl_index, fal_
     multi_acl_bind(); //Here need extra bind since IGMP join/leave would happen
     return rv;
 }
-
-HSL_LOCAL sw_error_t sw_multicast_acl_update( int list_id, int acl_index, fal_igmp_sg_entry_t * entry, int action)
-{
-    a_uint32_t dev_id=0;
-    a_uint32_t rule_pos;
-    a_uint32_t list_pri;
-
-    if(list_id == FAL_ACL_LIST_MULTICAST) //Update all matched group based acl_rule->source
-        list_pri=FAL_MULTICAST_PRI;
-    else if(list_id == FAL_ACL_LIST_MULTICAST+1) //only update the specific (G,*)entry
-        list_pri=FAL_MULTICAST_PRI+1;
-
-    rule_pos = ACL_RULE_GET_OFFSET(dev_id, list_id, multi_acl_group[acl_index].index);
-
-    MULTI_DEBUG("SW update: rule_pos=%d, index=%d, old portmap=%x\n",
-                rule_pos, acl_index, multi_acl_group[acl_index].entry.port_map);
-    if(MULT_ACTION_SET == action)
-        entry->port_map |= multi_acl_group[acl_index].entry.port_map;
-    else if(MULT_ACTION_CLEAR == action)
-        entry->port_map &= ~multi_acl_group[acl_index].entry.port_map;
-
-    return SW_OK;
-}
-
 
 HSL_LOCAL sw_error_t isis_multicast_acl_del(int list_id, int index)
 {
@@ -637,8 +598,10 @@ HSL_LOCAL int portmap_null(int index, fal_pbmp_t portmap)
 {
     int val;
     if (index<0)
+    {
         aos_printk("portmap_null, index error\n");
-
+        return SW_FAIL;
+    }
     val = multi_acl_group[index].entry.port_map&(~portmap);
 
     if( 0 == (val&0xff) )
@@ -688,21 +651,21 @@ HSL_LOCAL int portmap_clear_type(int count, int index, fal_pbmp_t portmap)
 }
 sw_error_t isis_igmp_sg_entry_set(a_uint32_t dev_id, fal_igmp_sg_entry_t * entry)
 {
-    HSL_API_LOCK;
     int number, count;
     int new_index=0;
-    int tmp_index=0;
     sw_error_t rv;
     int action = MULT_ACTION_SET;
-    fal_igmp_sg_entry_t tmp_entry[1]= {};
     int i=0;
 
+    HSL_API_LOCK;
     (void)isis_multicast_init(0);
     aos_mem_zero(multi_acl_info, FAL_IGMP_SG_ENTRY_MAX * sizeof (multi_acl_info_t));
     aos_mem_zero(multi_acl_group, FAL_IGMP_SG_ENTRY_MAX * sizeof (multi_acl_info_t));
     MULTI_DEBUG("Before query: group=%x, source=%x, portmap=%x\n", entry->group.u.ip4_addr, entry->source.u.ip4_addr, entry->port_map);
     //number is the total multicast ACL rules amount, stores in multi_acl_info[];
     number = isis_multicast_acl_query();
+    if(number > FAL_IGMP_SG_ENTRY_MAX)
+	return SW_FAIL;
     //count the total specific multicast group ACL rules, stores in multi_acl_group[]; count <=number
     count = iterate_multicast_acl_group(number, entry);
     //new_index-1 is the found entry index in multi_acl_group[], the real index is [new_index-1], 0 means no entry
@@ -766,7 +729,7 @@ sw_error_t isis_igmp_sg_entry_set(a_uint32_t dev_id, fal_igmp_sg_entry_t * entry
 
         if(new_index>0&&count>1) //(G,S*) and (G,*) exist, new entry is (G,*)
         {
-            for(i=count-2; i>=0; i--)
+            for(i=count-2; i>=0&&i<FAL_IGMP_SG_ENTRY_MAX; i--)
             {
                 if(multi_acl_group[i].entry.port_map==0) //This ACL rule should be done nothing, DENY rule
                     continue;
@@ -789,7 +752,7 @@ sw_error_t isis_igmp_sg_entry_set(a_uint32_t dev_id, fal_igmp_sg_entry_t * entry
         }
         else if(new_index==0&&count>0) //only exist (G,S*) orignally
         {
-            for(i=count-1; i>=0; i--)
+            for(i=count-1; i>=0&&i<FAL_IGMP_SG_ENTRY_MAX; i--)
             {
                 if(multi_acl_group[i].entry.port_map==0) //This ACL rule should be done nothing, DENY rule
                     continue;
@@ -817,7 +780,6 @@ sw_error_t isis_igmp_sg_entry_set(a_uint32_t dev_id, fal_igmp_sg_entry_t * entry
 
 sw_error_t isis_igmp_sg_entry_clear(a_uint32_t dev_id, fal_igmp_sg_entry_t * entry)
 {
-    HSL_API_LOCK;
     a_uint32_t number, count;
     int new_index=0;
     sw_error_t rv = SW_OK;
@@ -825,18 +787,25 @@ sw_error_t isis_igmp_sg_entry_clear(a_uint32_t dev_id, fal_igmp_sg_entry_t * ent
     int i=0;
     int pm_type;
 
+    HSL_API_LOCK;
     (void)isis_multicast_init(0);
     aos_mem_zero(multi_acl_info, FAL_IGMP_SG_ENTRY_MAX * sizeof (multi_acl_info_t));
     aos_mem_zero(multi_acl_group, FAL_IGMP_SG_ENTRY_MAX * sizeof (multi_acl_info_t));
     //number is the total multicast ACL rules amount, stores in multi_acl_info[];
     number = isis_multicast_acl_query();
+    if(number > FAL_IGMP_SG_ENTRY_MAX)
+	return SW_FAIL;
+
     //count the total specific multicast group ACL rules, stores in multi_acl_group[]; count <=number
     count = iterate_multicast_acl_group(number, entry);
+    if(count == 0)
+        return SW_OK;
+
     //new_index-1 is the found entry index in multi_acl_group[]
     new_index = mult_acl_has_entry(&entry->group, &entry->source);
 
     MULTI_DEBUG("Start entry clear: number=%d, count=%d, new_index=%d\n", number, count, new_index);
-    if(0 == new_index) //new entry, the user command is wrong
+    if(0 == new_index || new_index > FAL_IGMP_SG_ENTRY_MAX ||count > FAL_IGMP_SG_ENTRY_MAX) //new entry, the user command is wrong
     {
         return SW_NO_SUCH;
     }
@@ -914,7 +883,7 @@ sw_error_t isis_igmp_sg_entry_clear(a_uint32_t dev_id, fal_igmp_sg_entry_t * ent
         if(count>1) // (G, S*) entry exist, if count=1 here, only exist(G,*)entry
         {
             //count must >=2
-            for(i=count-2; i>=0; i--)
+            for(i=count-2; i>=0&&i<FAL_IGMP_SG_ENTRY_MAX; i--)
             {
                 //PortMap of entry (S,G) == (*,G) portmap after clear?
                 if((multi_acl_group[new_index-1].entry.port_map&(~(entry->port_map))) ==
@@ -964,10 +933,10 @@ print_ip6addr(char * param_name, a_uint32_t * buf,
 }
 sw_error_t isis_igmp_sg_entry_show(a_uint32_t dev_id)
 {
-    HSL_API_LOCK;
     a_uint32_t number;
     int i;
 
+    HSL_API_LOCK;
     (void)isis_multicast_init(0);
     aos_mem_zero(multi_acl_info, FAL_IGMP_SG_ENTRY_MAX * sizeof (multi_acl_info_t));
     aos_mem_zero(multi_acl_group, FAL_IGMP_SG_ENTRY_MAX * sizeof (multi_acl_info_t));

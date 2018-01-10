@@ -19,7 +19,7 @@
  *	An ecm route supports either v4 or v6 routing information
  */
 struct ecm_interface_route {
-	struct dst_entry *dst;			/* Both ipv4 and v6 have a common dst entry */
+	struct dst_entry *dst;			/* Both ipv4 and v6 have a common dst entry. It is an overlay pointer of rtv4 or rtv6 */
 	union {
 		struct rtable *rtv4;		/* IPv4 route */
 		struct rt6_info *rtv6;		/* IPv6 route */
@@ -59,9 +59,9 @@ struct neighbour *ecm_interface_ipv4_neigh_get(ip_addr_t addr);
 #ifdef ECM_IPV6_ENABLE
 struct neighbour *ecm_interface_ipv6_neigh_get(ip_addr_t addr);
 #endif
-bool ecm_interface_skip_pptp(struct sk_buff *skb, const struct net_device *out);
-bool ecm_interface_skip_l2tp_packet_by_version(struct sk_buff *skb, const struct net_device *out, int ver);
-bool ecm_interface_skip_l2tp_pptp(struct sk_buff *skb, const struct net_device *out);
+bool ecm_interface_is_pptp(struct sk_buff *skb, const struct net_device *out);
+bool ecm_interface_is_l2tp_packet_by_version(struct sk_buff *skb, const struct net_device *out, int ver);
+bool ecm_interface_is_l2tp_pptp(struct sk_buff *skb, const struct net_device *out);
 struct ecm_db_iface_instance *ecm_interface_establish_and_ref(struct ecm_front_end_connection_instance *feci, struct net_device *dev, struct sk_buff *skb);
 
 #ifdef ECM_MULTICAST_ENABLE
@@ -89,8 +89,9 @@ int32_t ecm_interface_multicast_from_heirarchy_construct(struct ecm_front_end_co
 int32_t ecm_interface_heirarchy_construct(struct ecm_front_end_connection_instance *feci,
 						struct ecm_db_iface_instance *interfaces[],
 						struct net_device *const_if, struct net_device *other_if,
-						ip_addr_t packet_src_addr,
-						ip_addr_t packet_dest_addr,
+						ip_addr_t lookup_src_addr,
+						ip_addr_t lookup_dest_addr,
+						ip_addr_t real_dest_addr,
 						int ip_version, int packet_protocol,
 						struct net_device *given_dest_dev,
 						bool is_routed, struct net_device *given_src_dev,
@@ -105,3 +106,4 @@ void ecm_interface_dev_regenerate_connections(struct net_device *dev);
 struct net_device *ecm_interface_dev_find_by_local_addr(ip_addr_t addr);
 bool ecm_interface_find_gateway(ip_addr_t addr, ip_addr_t gw_addr);
 void ecm_interface_dev_defunct_connections(struct net_device *dev);
+void ecm_interface_node_connections_decelerate(uint8_t *mac);

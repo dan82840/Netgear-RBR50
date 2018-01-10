@@ -183,7 +183,36 @@ _fal_debug_reg_dump(a_uint32_t dev_id, fal_debug_reg_dump_t *reg_dump)
     return rv;
 }
 
+static sw_error_t
+_fal_debug_psgmii_self_test(a_uint32_t dev_id, a_bool_t enable,
+            a_uint32_t times, a_uint32_t *result)
+{
+    sw_error_t rv;
+    hsl_api_t *p_api;
 
+    SW_RTN_ON_NULL(p_api = hsl_api_ptr_get(dev_id));
+
+    if (NULL == p_api->debug_psgmii_self_test)
+        return SW_NOT_SUPPORTED;
+
+    rv = p_api->debug_psgmii_self_test(dev_id, enable, times, result);
+    return rv;
+}
+
+static sw_error_t
+_fal_phy_dump(a_uint32_t dev_id, a_uint32_t phy_addr, a_uint32_t idx,fal_phy_dump_t *phy_dump)
+{
+    sw_error_t rv;
+    hsl_api_t *p_api;
+
+    SW_RTN_ON_NULL(p_api = hsl_api_ptr_get(dev_id));
+
+    if (NULL == p_api->phy_dump)
+        return SW_NOT_SUPPORTED;
+
+    rv = p_api->phy_dump(dev_id, phy_addr,idx,phy_dump);
+    return rv;
+}
 
 /**
   * fal_phy_get - get value of specific phy device
@@ -387,8 +416,46 @@ fal_debug_reg_dump(a_uint32_t dev_id, fal_debug_reg_dump_t *reg_dump)
     return rv;
 }
 
+/**
+ * @brief psgmii self test
+ * @details   Comments:
+ *    The unit of packets size is byte.
+ * @param[in] dev_id device id, enable, times
+ * @param[out] status
+ * @return SW_OK or error code
+ */
+sw_error_t
+fal_debug_psgmii_self_test(a_uint32_t dev_id, a_bool_t enable,
+            a_uint32_t times, a_uint32_t *result)
+{
+    sw_error_t rv;
 
+    FAL_API_LOCK;
+    rv = _fal_debug_psgmii_self_test(dev_id, enable, times, result);
+    FAL_API_UNLOCK;
+    return rv;
+}
 
+/**
+ * @brief phy dump
+ * @details   Comments:
+ *    The unit of packets size is byte.
+ * @param[in] dev_id device id, phy addr, phy reg group
+ * @param[out] reg value
+ * @return SW_OK or error code
+ */
+sw_error_t
+fal_phy_dump(a_uint32_t dev_id, a_uint32_t phy_addr,
+		a_uint32_t idx, fal_phy_dump_t * phy_dump)
+
+{
+    sw_error_t rv;
+
+    FAL_API_LOCK;
+    rv = _fal_phy_dump(dev_id, phy_addr, idx, phy_dump);
+    FAL_API_UNLOCK;
+    return rv;
+}
 
 /**
  * @}

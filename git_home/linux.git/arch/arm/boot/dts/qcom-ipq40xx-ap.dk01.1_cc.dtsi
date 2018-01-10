@@ -45,6 +45,19 @@
 };
 	&soc {
 		pinctrl@0x01000000 {
+			mdio_pins: mdio_pinmux {
+				mux_1 {
+					pins = "gpio53";
+					function = "mdio1";
+					bias-bus-hold;
+				};
+				mux_2 {
+					pins = "gpio52";
+					function = "mdc";
+					bias-bus-hold;
+				};
+			};
+
 			serial_pins: serial_pinmux {
 				mux {
 					pins = "gpio60", "gpio61";
@@ -58,6 +71,16 @@
 					pins = "gpio54", "gpio55", "gpio56", "gpio57";
 					function = "blsp_spi0";
 					bias-disable;
+				};
+			};
+
+			wps_pins: wps_pinmux {
+				/* In ipq40xx, gpio config 0x2 corresponds to
+				 * internal pull up. In pinctrl driver,
+				 * bias-bus-hold corresponds to 0x2 */
+				mux {
+					pins = "gpio63";
+					bias-bus-hold;
 				};
 			};
 		};
@@ -128,6 +151,8 @@
 		};
 
 		gpio_keys {
+			pinctrl-0 = <&wps_pins>;
+			pinctrl-names = "default";
 			compatible = "gpio-keys";
 
 			button@1 {
@@ -136,6 +161,13 @@
 				gpios = <&tlmm 63 GPIO_ACTIVE_LOW>;
 				linux,input-type = <1>;
 			};
+		};
+		wifi0: wifi@a000000 {
+			wifi-led-gpios = <&tlmm 58 GPIO_ACTIVE_LOW>;
+		};
+
+		wifi1: wifi@a800000 {
+			wifi-led-gpios = <&tlmm 58 GPIO_ACTIVE_LOW>;
 		};
 
 	};

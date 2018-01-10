@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2015-2016, The Linux Foundation. All rights reserved.
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
  * above copyright notice and this permission notice appear in all copies.
@@ -28,7 +28,7 @@ static a_uint16_t
 _phy_reg_read(a_uint32_t dev_id, a_uint32_t phy_addr, a_uint32_t reg)
 {
 	sw_error_t rv;
-	a_uint16_t phy_data;
+	a_uint16_t phy_data = 0;
 
 	HSL_PHY_GET(rv, dev_id, phy_addr, reg, &phy_data);
 	if (SW_OK != rv)
@@ -38,13 +38,15 @@ _phy_reg_read(a_uint32_t dev_id, a_uint32_t phy_addr, a_uint32_t reg)
 
 }
 
-static void
+static sw_error_t
 _phy_reg_write(a_uint32_t dev_id, a_uint32_t phy_addr, a_uint32_t reg,
 	       a_uint16_t phy_data)
 {
 	sw_error_t rv;
 
 	HSL_PHY_SET(rv, dev_id, phy_addr, reg, phy_data);
+
+	return rv;
 }
 
 /* #define malibu_phy_reg_read _phy_reg_read  */
@@ -434,7 +436,6 @@ malibu_phy_get_powersave(a_uint32_t dev_id, a_uint32_t phy_id,
 {
 	a_uint16_t phy_data;
 	a_uint16_t phy_data1;
-	a_bool_t  status;
 
 	if (phy_id == COMBO_PHY_ID) {
 		if (MALIBU_PHY_MEDIUM_COPPER !=
@@ -804,7 +805,6 @@ malibu_phy_set_local_loopback(a_uint32_t dev_id, a_uint32_t phy_id,
 {
 	a_uint16_t phy_data;
 	fal_port_speed_t old_speed;
-	fal_port_duplex_t old_duplex;
 
        if (enable == A_TRUE) {
 	     if (phy_id == COMBO_PHY_ID) {
@@ -1000,10 +1000,6 @@ malibu_phy_cdt_get(a_uint32_t dev_id, a_uint32_t phy_id,
 {
 	a_uint16_t status = 0;
 	a_uint16_t cable_delta_time = 0;
-	a_uint16_t org_debug_value = 0;
-	int ii = 100;
-	a_bool_t link_st = A_FALSE;
-	a_uint16_t reg806e = 0;
 	int i;
 
 	if ((!port_cdt) || (phy_id > 4)) {
@@ -1707,9 +1703,6 @@ malibu_phy_set_speed(a_uint32_t dev_id, a_uint32_t phy_id,
 		     fal_port_speed_t speed)
 {
 	a_uint16_t phy_data = 0;
-	a_uint16_t phy_status = 0;
-
-	a_uint32_t autoneg, oldneg;
 	fal_port_duplex_t old_duplex;
 
 	if (phy_id == COMBO_PHY_ID) {
@@ -1781,9 +1774,7 @@ malibu_phy_set_duplex(a_uint32_t dev_id, a_uint32_t phy_id,
 		      fal_port_duplex_t duplex)
 {
 	a_uint16_t phy_data = 0;
-	a_uint16_t phy_status = 0;
 	fal_port_speed_t old_speed;
-	a_uint32_t oldneg, autoneg;
 
 	if (phy_id == COMBO_PHY_ID) {
 
@@ -2491,10 +2482,10 @@ static int malibu_phy_probe(struct phy_device *pdev)
 static void malibu_phy_remove(struct phy_device *pdev)
 {
 
-	int ret;
 	hsl_phy_ops_t malibu_phy_api_ops;
 
-	ret = hsl_phy_api_ops_unregister(&malibu_phy_api_ops);
+	hsl_phy_api_ops_unregister(&malibu_phy_api_ops);
+
 }
 
 /******************************************************************************

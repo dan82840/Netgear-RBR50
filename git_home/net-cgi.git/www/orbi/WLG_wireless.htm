@@ -2,17 +2,87 @@
 <% http_header("style/form.min.css", "/funcs_min.js", "/wlan.js") %>
 <% body_header_alt("_wlan", "WLG_wireless.htm", "wlan") %>
 <div class="page_title">$wlan_mark</div>
+<style>
+.tab_contain{top:19px; position:absolute; width:100%}
+.label_click{
+  width: auto;
+  height: 30px;
+  float: left;
+  text-align: center;
+  font-family: Arial;
+  font-size: 17px;
+  font-weight: Bold;
+  margin-right: 3px;
+  border: solid 1px #c1c1c1;
+  border-radius: 4PX 4PX 0 0;
+  border-bottom: none;
+  /*color: #9a258f !important;*/
+  background: #fff !important;
+  color: #525252 !important;
+}
+.label_click span{
+  /*color: #9a258f !important;*/
+  color: #525252 !important;
+}
+
+.label_unclick span{
+  /*color: #9a258f !important;*/
+  color: #aaa !important;
+}
+
+.label_unclick{
+    width: auto;
+    height: 30px;
+    float:left;
+    text-align: center;
+    font-family: Arial;
+    font-size: 17px;
+    font-weight: Bold;
+    cursor:pointer;
+    margin-right: 3px;
+
+    border: solid 1px #c1c1c1;
+    border-radius: 4PX 4PX 0 0;
+    BACKGROUND: #E8E8E8;
+    color: #525252;
+}
+.label_click b, .label_unclick b { line-height: 30px }
+.label_click .label_left { width: 15px; height: 30px;  float: left; position: relative }
+.label_click .label_middle { width: auto; height: 30px;  float: left; position: relative }
+.label_click .label_right { width: 15px; height: 30px;  float: left; position: relative }
+.label_unclick .label_left { width: 15px; height: 30px;  float: left; position: relative }
+.label_unclick .label_middle { width: auto; height: 30px;  float: left; position: relative }
+.label_unclick .label_right { width: 15px; height: 30px;   float: left; position: relative }
+</style>
+<div class="tab_contain" style="display:none;">
+<table style="margin-top:20px;">
+	<tr><td>
+		<div class="label_click" id="tab1" onclick="click_tab('1')">
+		<div class="label_left"></div>
+		<div class="label_middle"><b><span>$wireless 1</span></b></div>
+		<div class="label_right"></div>
+	</div>
+	<div class="label_unclick" id="tab2" onclick="click_tab('2')">
+		<div class="label_left"></div>
+		<div class="label_middle"><b><span>$wireless 2</span></b></div>
+		<div class="label_right"></div>
+	</div>
+	</td></tr>
+</table>
+$bluebar
+</div>
 <div class="fix_button">
 <TABLE width=100% border=0 cellpadding=0 cellspacing=2>
 <script>
+var have_byod_network = top.byod_network_flag;
 var master="<% cfg_get("http_loginname") %>";
 var netgear_region="<% get_firmware_region() %>";
 var valid_region = "<% valid_firmware_region() %>";
 valid_region = parseInt(valid_region, 10);
 if( master == "admin" && valid_region == 1 )
-document.write('<TR><TD nowrap colspan=2 align=center><input class="cancel_bt" type="button" name="Cancel" id="cancel" value="$cancel_mark" onClick="location.href=\'WLG_wireless.htm\';">&nbsp;&nbsp;<input class="apply_bt" type="button" name="Apply" id="apply" value="$apply_mark" onclick="return check_wlan();"></TD></TR>');
+document.write('<TR id="btn_row"><TD nowrap colspan=2 align=center><input class="cancel_bt" type="button" name="Cancel" id="cancel" value="$cancel_mark" onClick="location.href=\'WLG_wireless.htm\';">&nbsp;&nbsp;<input class="apply_bt" type="button" name="Apply" id="apply" value="$apply_mark" onclick="return check_wlan();"></TD></TR>');
 else
-document.write('<TR><TD nowrap colspan=2 align=center><input class="cancel1_bt" type="button" name="Cancel" id="cancel" value="$cancel_mark" disabled>&nbsp;&nbsp;<input class="apply1_bt" type="button" name="Apply" id="apply" value="$apply_mark" disabled></TD></TR>');
+document.write('<TR id="btn_row"><TD nowrap colspan=2 align=center><input class="cancel1_bt" type="button" name="Cancel" id="cancel" value="$cancel_mark" disabled>&nbsp;&nbsp;<input class="apply1_bt" type="button" name="Apply" id="apply" value="$apply_mark" disabled></TD></TR>');
 </script>
 </TABLE>
 </div>
@@ -66,13 +136,13 @@ var dfs_canada_router_flag = parent.dfs_canada_router_flag;/* bug 25665: DFS cha
 var dfs_europe_router_flag = parent.dfs_europe_router_flag;
 var dfs_australia_router_flag = parent.dfs_australia_router_flag;
 var dfs_japan_router_flag = parent.dfs_japan_router_flag; //DFS channel supported in Japan
-var wl_disablecoext="<% cfg_get("wl_disablecoext") %>";
 <% show_wlan_variable() %>
-var wl_mode="<% cfg_get("wl_simple_mode") %>";
-var wla_mode="<% cfg_get("wla_simple_mode") %>";
 var guest_router_flag=top.guest_router_flag;
-var enable_ht160 = "<% cfg_get("wla_ht160") %>";
 var region_index = "<% cfg_get("hid_regionindex") %>";
+//vlan config
+var have_vlan_sb = top.vlan_sb_flag;
+var main_wireless_vlan_group = "<% cfg_get("vlan_sb_base_group_0") %>";
+var vlan_mode_endis = "<% cfg_get("vlan_group_mode") %>";
 </script>
 <input type="hidden" name="hidden_wlan_mode" value="6">
 <input type="hidden" name="hidden_wlan_channel">
@@ -116,8 +186,8 @@ var region_index = "<% cfg_get("hid_regionindex") %>";
 <input type="hidden" name="hidden_WpaeRadiusSecret_a">
 
 <input type="hidden" name="wl_enable_ssid_broadcast" value="<% cfg_get("endis_ssid_broadcast") %>">
-<input type="hidden" name="wla_enable_ssid_broadcast" value="<% cfg_get("wla_endis_ssid_broadcast") %>">
-<input type="hidden" name="hidden_enable_video" value="<% cfg_get("wla_enable_video_value") %>">
+<input type="hidden" name="wla_enable_ssid_broadcast" value="">
+<input type="hidden" name="hidden_enable_video" value="">
 <input type="hidden" name="change_region_flag" value="0">
 
 <input type="hidden" name="wl_tx_ctrl">
@@ -143,6 +213,8 @@ var region_index = "<% cfg_get("hid_regionindex") %>";
 <tr style="display:none">
 	<td><input type="text" name="wla1ssid" value="<% cfg_get_ssid_value("wla1_ssid") %>" size="20" maxlength="32"></td>
 	<td><input type="text" name="wlg1ssid" value="<% cfg_get_ssid_value("wlg1_ssid") %>" size="20" maxlength="32"></td>
+	<td><input type="text" name="wlg2ssid" value="<% cfg_get_ssid_value("wlg2_ssid") %>" size="20" maxlength="32"></td>
+	<td><input type="text" name="wla2ssid" value="<% cfg_get_ssid_value("wla2_ssid") %>" size="20" maxlength="32"></td>
 </tr>
 <TR> 
 	<TD nowrap width=35%>2.4GHz $wlan_mark_chan:</TD>
@@ -291,7 +363,24 @@ $bluebar
 <TABLE cellspacing=5 cellPadding=0 width=100% border=0>
 $bluebar
 </TABLE>
-
+<table id="vlan_sets" style="display:none;" cellspacing=5 cellPadding=0 width=100% border=0>
+<tr id="main_vlan_cnf1">
+	<td nowrap><b>VLAN</b></td>
+	<td nowrap align=right>
+		<select name="vlan_enable" disabled>
+			<option value="enable">$r_enable</option>
+			<option value="disable">$r_disable</option>
+		</select>
+	</td>
+</tr>
+<tr id="main_vlan_cnf2">
+	<td nowrap><b>$vlan_id</b></td>
+	<td nowrap align=right>
+		<input type="text" name="vlan_id" value="" size=5 disabled />
+	</td>
+</tr>
+$bluebar
+</table>
 </div> <!-- main -->
 <% help_box("0","_wlan") %>
 </FORM>
@@ -316,7 +405,8 @@ function loadvalue()
 		top.basic_menu_color_change('wireless');
 
 	var form=document.forms[0];
-
+	form.wla_enable_ssid_broadcast.value=old_wla_endis_ssid_broadcast;
+	form.hidden_enable_video.value=get_enable_video_value;
 	
 	change_web_format();	
 	
@@ -380,6 +470,18 @@ function loadvalue()
 		grayoutElements("body", "A", "input", "select");
 		disableElements("input", "select");
 	}
+	
+	if(have_vlan_sb == 1)
+	{
+		document.getElementById("vlan_sets").style.display = "";
+		var vlan_enable = vlan_mode_endis;
+		var vlan_id = main_wireless_vlan_group.split(" ")[2];
+		if(vlan_enable == "1")
+			form.vlan_enable.value = "enable";
+		else
+			form.vlan_enable.value = "disable";
+		form.vlan_id.value = vlan_id;
+	}
 }
 
 function KeyDown(e)
@@ -401,6 +503,33 @@ function KeyDown(e)
 		if(check_wlan())
 			document.forms[0].submit();
 	}
+}
+
+function click_tab(tab)
+{
+	if(tab == "1")
+	{
+		document.getElementById("tab1").className = "label_click";
+		document.getElementById("tab2").className = "label_unclick";
+	}
+	else
+	{
+		document.getElementById("tab1").className = "label_unclick";
+		document.getElementById("tab2").className = "label_click";
+		location.href = "WLG_byod_network.html"
+	}
+}
+
+if(have_byod_network == 1)
+{
+	var btn_row = document.getElementById("btn_row");
+	var cnt = btn_row.insertCell(0);
+	cnt.innerHTML = "<b>Use this network for administrative tasks. This is your most secure Orbi network.</b>"
+	cnt.width = "40%";
+	btn_row.cells[1].align = "left";
+	document.getElementsByClassName("tab_contain")[0].style.display = "";
+	document.getElementsByClassName("fix_button")[0].style.top = "100px";
+	document.getElementsByClassName("main_top_button")[0].style.top = "150px";
 }
 </script>
 </BODY>

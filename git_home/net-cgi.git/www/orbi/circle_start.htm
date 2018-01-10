@@ -1,0 +1,46 @@
+<% http_header("style/advanced.min.css", "style/form.min.css", "/funcs_min.js") %>
+<% body_header("_parental", "index.htm", "circle_jump") %>
+<input type="hidden" name="hidden_circle_jump" value="0">
+<style type="text/css">
+p{font-size:13px}
+button{height:35px;
+	width:260px;
+	background-color:#00B4F5;
+	text-align: center;
+	border:0;
+	margin:40px auto;
+	display:block}
+span{color:#FFF;
+	font-size:14px;
+	text-align:center}
+</style>
+
+<div id="top">
+<div id="logo"> </div>
+</div>
+
+<div id="container" class="container_center">
+<div id="middle" align="left">
+	<p>Circle is available now. <a class="linktype" tabindex=-1 href="">Learn more for Circle.</a></p>
+	<p><input type="checkbox" name="circleinfo" id="circleinfo">Never remind me again.</p>
+$bluebar
+	<button id="next_btn" onclick="check_jump(document.forms[0])"><span>$next_mark</span></button>
+</div>
+</div>
+</body>
+<script>
+function loadvalue()
+{}
+
+function check_jump(cf)
+{
+	if(cf.circleinfo.checked == true) {
+		cf.hidden_circle_jump.value="1";
+		console.log("11111111111111111111111111111");
+	} else {
+		cf.hidden_circle_jump.value="0";
+	}
+	cf.submit();
+}
+</script>
+</html>

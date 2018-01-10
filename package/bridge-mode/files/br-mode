@@ -77,7 +77,7 @@ start() {
 
 		killall net-scan
 		mkdir -p /tmp/netscan
-		/usr/sbin/net-scan
+		/etc/init.d/netscan start
 
 
 		# DHCP

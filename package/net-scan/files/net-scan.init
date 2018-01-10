@@ -2,16 +2,57 @@
 
 start()
 {
-	/usr/sbin/net-scan
+	local flag
+	if [ "x$(df |grep /dev/mmcblk0p27)" = "x" ]; then
+		[ ! -d /tmp/device_tables ] && mkdir -p /tmp/device_tables
+		if [ $(mount /dev/mmcblk0p27 /tmp/device_tables -t ext4) -ne 0 ]; then
+			mkfs.ext4 /dev/mmcblk0p27
+			[ $(mount /dev/mmcblk0p27 /tmp/device_tables -t ext4) -eq 0 ] && flag=1 || flag=0
+		else
+			flag=1
+		fi
+		if [ $flag -eq 1 ]; then
+			[ ! -e /tmp/device_tables/oui.csv ] && cp /etc/oui.csv /tmp/device_tables/
+			[ ! -e /tmp/device_tables/mam.csv ] && cp /etc/mam.csv /tmp/device_tables/
+			[ ! -e /tmp/device_tables/oui36.csv ] && cp /etc/oui36.csv /tmp/device_tables/
+			[ ! -e /tmp/device_tables/UA.csv ] && cp /etc/UA.csv /tmp/device_tables/
+			[ ! -e /tmp/device_tables/local_device_table ] && touch /tmp/device_tables/local_device_table 
+		fi
+	fi
+	PS=`ps |grep net-scan | grep -v grep`
+	if [ "x$PS" = "x" ]; then
+		/usr/sbin/net-scan
+	else
+		killall net-scan
+		/usr/sbin/net-scan
+	fi
 }
 
 stop()
 {
 	killall net-scan
+	umount /dev/mmcblk0p27
 }
 
 boot()
 {
+	local flag
+	if [ "x$(df |grep /dev/mmcblk0p27)" = "x" ]; then
+		[ ! -d /tmp/device_tables ] && mkdir -p /tmp/device_tables
+		if [ $(mount /dev/mmcblk0p27 /tmp/device_tables -t ext4) -ne 0 ]; then
+			mkfs.ext4 /dev/mmcblk0p27
+			[ $(mount /dev/mmcblk0p27 /tmp/device_tables -t ext4) -eq 0 ] && flag=1 || flag=0
+		else
+			flag=1
+		fi
+		if [ $flag -eq 1 ]; then
+			[ ! -e /tmp/device_tables/oui.csv ] && cp /etc/oui.csv /tmp/device_tables/
+			[ ! -e /tmp/device_tables/mam.csv ] && cp /etc/mam.csv /tmp/device_tables/
+			[ ! -e /tmp/device_tables/oui36.csv ] && cp /etc/oui36.csv /tmp/device_tables/
+			[ ! -e /tmp/device_tables/UA.csv ] && cp /etc/UA.csv /tmp/device_tables/
+			[ ! -e /tmp/device_tables/local_device_table ] && touch /tmp/device_tables/local_device_table 
+		fi
+	fi
 	mkdir -p /tmp/netscan
 	start
 }

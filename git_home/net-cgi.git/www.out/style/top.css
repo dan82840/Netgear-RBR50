@@ -26,7 +26,7 @@ body{ background-image: url(../image/oneline.gif) 0 -80px ; background-repeat: r
   margin-right: 3px;
   border: solid 1px #c1c1c1;
   border-radius: 4PX 4PX 0 0;
-  border-bottom: none;
+  border-bottom: solid 1px #fff;
   background: #fff !important;
   color: #525252 !important;
 }
@@ -102,7 +102,6 @@ body{ background-image: url(../image/oneline.gif) 0 -80px ; background-repeat: r
 
 #basic_label,
 #advanced_label{
-  border: solid 1px #c1c1c1;
   border-radius: 4PX 4PX 0 0;
   BACKGROUND: #E8E8E8;
 }

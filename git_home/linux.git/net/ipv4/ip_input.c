@@ -336,7 +336,7 @@ static int ip_rcv_finish(struct sk_buff *skb)
 	 */
 	if (!skb_dst(skb)) {
 #ifdef CONFIG_BT_IGMP
-               if(strcmp(skb->dev->name, "eth0") == 0 && igmp_bt_group != 0 && iph->protocol == 17) {
+               if(strcmp(skb->dev->name, "brwan") == 0 && igmp_bt_group != 0 && iph->protocol == 17) {
                        struct net_device *dev = __dev_get_by_name(&init_net, "ppp0");
                        if(dev)
                                skb->dev = dev;

@@ -1,5 +1,5 @@
 <% http_header("style/form.min.css", "/funcs_min.js", "/AccessControl.js") %>
-<% body_header("_access_add", "access_control.htm", "edit_acc") %>
+<% body_header("_access_add", "AccessControl_show.htm", "edit_acc") %>
 <div class="page_title">Edit Allowed Device</div>
 <div class="fix_button">
 <TABLE width=100% border=0 cellpadding=0 cellspacing=2>
@@ -7,7 +7,7 @@
 	<script>
 		var master="<% cfg_get("http_loginname") %>";
 		if( master == "admin" )
-			document.write('<TD nowrap colspan=2 align=center><input class="cancel_bt" type="reset" name="Cancel" value="$cancel_mark" onClick=\'location.href="access_control.htm";\'>&nbsp;&nbsp;<input class="apply_bt" type="submit" name="Apply" value="$apply_mark" onClick="return check_acc_add(document.forms[0],\'edit_connect_device\');"></TD>');
+			document.write('<TD nowrap colspan=2 align=center><input class="cancel_bt" type="reset" name="Cancel" value="$cancel_mark" onClick=\'location.href="AccessControl_show.htm";\'>&nbsp;&nbsp;<input class="apply_bt" type="submit" name="Apply" value="$apply_mark" onClick="return check_acc_add(document.forms[0],\'edit_connect_device\');"></TD>');
 		else
 			document.write('<TD nowrap colspan=2 align=center><input class="cancel1_bt" type="reset" name="Cancel" value="$cancel_mark" disabled>&nbsp;&nbsp;<input class="apply1_bt" type="submit" name="Apply" value="$apply_mark" disabled></TD>');
 	</script>
@@ -30,7 +30,7 @@ function loadvalue()
         var str = eval ( 'access_control_device' + select_editnum);
 	var str_name=eval('access_control_device_name'+select_editnum);
         var each_info=str.split('*');
-        cf.dev_name.value=str_name.replace(/&#92;/g, "\\").replace(/&lt;/g,"<").replace(/&gt;/g,">").replace(/&#40;/g,"(").replace(/&#41;/g,")").replace(/&#34;/g,'\"').replace(/&#39;/g,"'").replace(/&#35;/g,"#").replace(/&#38;/g,"&");
+        cf.dev_name.value=str_name.replace(/&#92;/g, "\\").replace(/&#38;/g,"&").replace(/&lt;/g,"<").replace(/&gt;/g,">").replace(/&#40;/g,"(").replace(/&#41;/g,")").replace(/&#34;/g,'\"').replace(/&#39;/g,"'").replace(/&#35;/g,"#").replace(/&nbsp;/g," ");
         cf.mac_addr.value=each_info[2];
 	cf.allow_or_block.value=each_info[0];
 	cf.hidden_edit_mac.value=cf.mac_addr.value;

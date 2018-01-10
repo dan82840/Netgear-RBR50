@@ -17,6 +17,91 @@
 
 local wps_possible config_methods
 
+hostapd_set_extra_cred() {
+	local var="$1"
+	local vif="$2"
+	local ifname="$3"
+	local temp
+	local enc enc_list
+
+	config_get ssid "$vif" ssid
+	config_get enc "$vif" encryption "none"
+
+	#wps_build_cred_network_idx
+	append "$var" "1026"
+	append "$var" "0001"
+	append "$var" "01"
+
+	temp=`expr length "$ssid"`
+	temp=` printf "%04X" $temp`
+
+	#wps_build_cred_ssid
+	append "$var" "1045"
+	append "$var"   "$temp"
+	temp=`echo -n "$ssid" | hexdump -v -e '/1 "%02X "'`
+	append "$var" "$temp"
+
+	#wps_build_cred_auth_type
+	append "$var" "1003"
+	append "$var" "0002"
+
+	case "$enc" in
+		none)
+			append "$var" "0001"
+			;;
+		wpa2*|*psk2*)
+			append "$var" "0020"
+			;;
+		*)
+			# TKIP alone is now prohibited by WFA so the only
+			# combination left must be CCMP+TKIP (wpa=3)
+			append "$var" "0022"
+			;;
+	esac
+
+	#wps_build_cred_encr_type
+	append "$var" "100f"
+	append "$var" "0002"
+	crypto=
+
+	enc_list=`echo "$enc" | sed "s/+/ /g"`
+
+	case "$enc_list" in
+		*tkip*)
+			append "$var" "0004"
+			;;
+		*aes* | *ccmp*)
+			append "$var" "0008"
+			;;
+		*mixed*)
+			append "$var" "000c"
+			;;
+	esac
+
+
+	#Key Index
+	append "$var" "1028"
+	append "$var" "0001"
+	append "$var" "01"
+
+	#wps_build_cred_network_key
+	config_get psk "$vif" key
+	append "$var" "1027"
+
+	temp=`expr length "$psk"`
+	temp=` printf "%04X" $temp`
+
+	append "$var" "$temp"
+	temp=`echo -n  $psk | hexdump -v -e '/1 "%02X "'`
+	append "$var" "$temp"
+
+	#wps_build_mac_addr
+	macaddr=$(cat /sys/class/net/${ifname}/address)
+        macaddr="00:00:00:00:00:00"
+	append "$var" "1020"
+	append "$var" "0006"
+	append "$var" "$macaddr"
+}
 hostapd_common_add_device_config() {
 	config_add_array basic_rate
 
@@ -317,7 +402,7 @@ hostapd_set_bss_options() {
 	[ -n "$wps_possible" -a -n "$config_methods" -a "$hidden" -gt 0 ] && {
 		echo "Hidden SSID is enabled on \"$ifname\", WPS will be automatically disabled"
 		echo "Please press any key to continue."
-		read -s -n 1
+		#read -s -n 1
 		wps_possible=
 	}
 
@@ -421,6 +506,13 @@ hostapd_set_bss_options() {
 		esac
 	fi
 
+	config_get multi_cred "$vif" multi_cred 0
+
+	if [ "$multi_cred" -gt 0 ]; then
+		append "$var" "skip_cred_build=1" "$N"
+		append "$var" "extra_cred=/var/run/hostapd_cred_${device}.bin" "$N"
+	fi
+
 	config_get_bool hs20 "$vif" hs20 0
 	if [ "$hs20" -gt 0 ]
 	then
@@ -493,8 +585,6 @@ hostapd_set_bss_options() {
 		[ -n "$qos_map_set" ] && append "$var" "qos_map_set=$qos_map_set" "$N"
 		config_get gas_frag_limit "$vif" gas_frag_limit
 		[ -n "$gas_frag_limit" ] && append "$var" "gas_frag_limit=$gas_frag_limit" "$N"
-		config_get gas_comeback_delay "$vif" gas_comeback_delay
-		[ -n "$gas_comeback_delay" ] && append "$var" "gas_comeback_delay=$gas_comeback_delay" "$N"
 		config_get hs20_deauth_req_timeout "$vif" hs20_deauth_req_timeout
 		[ -n "$hs20_deauth_req_timeout" ] && append "$var" "hs20_deauth_req_timeout=$hs20_deauth_req_timeout" "$N"
 
@@ -537,10 +627,21 @@ hostapd_set_bss_options() {
 		}
 		config_list_foreach "$vif" osu_service_desc add_osu_service_desc
 
+	else
+		config_get interworking "$vif" interworking
+		[ -n "$interworking" ] && append "$var" "interworking=$interworking" "$N"
 	fi
+
+	add_anqp_elem() {
+		append "$var" "anqp_elem=${1}" "$N"
+	}
+	config_list_foreach "$vif" anqp_elem add_anqp_elem
 
 	config_get osen "$vif" osen
 	[ -n "$osen" ] && append "$var" "osen=$osen" "$N"
+
+	config_get gas_comeback_delay "$vif" gas_comeback_delay
+	[ -n "$gas_comeback_delay" ] && append "$var" "gas_comeback_delay=$gas_comeback_delay" "$N"
 
 	if [ "$ieee80211r" -gt 0 ]
 	then
@@ -582,6 +683,7 @@ hostapd_get_vif_name () {
 	config_cb() {
 		local type="$1"
 		local section="$2"
+		local index="$(cat /sys/class/ieee80211/$phy/index)"
 
 		# section start
 		case "$type" in
@@ -600,9 +702,9 @@ hostapd_get_vif_name () {
 				config_get vifs "$device" vifs
 				append vifs "$CONFIG_SECTION"
 				config_set "$device" vifs "$vifs"
-				config_set "$device" phy "$phy"
 				for vif_interface in $vifs; do
-					[ "$device" = "radio0" ] && {
+					[ "$device" == "radio$index" ] && {
+						config_set "$device" phy "$phy"
 						vif=$vif_interface
 						config_get_bool hidden "$vif" hidden 0
 						append "$var" "ignore_broadcast_ssid=$hidden" "$N"
@@ -655,11 +757,47 @@ hostapd_set_log_options() {
 	append "$var" "logger_stdout_level=$log_level" "$N"
 }
 
+hostapd_config_multi_cred() {
+	local vif="$1" && shift
+	local ifname device
+	local cred_config temp
+	extra_cred=
+
+	config_get ifname "$vif" ifname
+	config_get device "$vif" device
+
+	hostapd_set_extra_cred extra_cred "$vif" "$ifname"
+
+
+	extra_cred=$(echo $extra_cred | tr -d ' ')
+	extra_cred=$(echo $extra_cred | tr -d ':')
+
+	temp=`expr length "$extra_cred" / 2 `
+	temp=` printf "%04X" $temp`
+
+	#ATTR_CRED
+	cred_config="100e$temp$extra_cred"
+
+	cat > /var/run/hostapd_cred_tmp.conf <<EOF
+$cred_config
+EOF
+
+	sed 's/\([0-9A-F]\{2\}\)/\\\\\\x\1/gI' /var/run/hostapd_cred_tmp.conf | xargs printf >> /var/run/hostapd_cred_$device.bin
+
+}
+
+
 hostapd_setup_vif() {
 	local vif="$1" && shift
 	local driver="$1" && shift
 	local no_nconfig
 	local ifname device channel hwmode
+	local fst_disabled
+	local fst_iface1
+	local fst_iface2
+	local fst_group_id
+	local fst_priority1
+	local fst_priority2
 
 	hostapd_cfg=
 
@@ -683,6 +821,25 @@ hostapd_setup_vif() {
 	hostapd_set_log_options hostapd_cfg "$device"
 	hostapd_set_bss_options hostapd_cfg "$vif"
 
+	config_load fst && {
+		config_get fst_disabled config disabled
+		config_get fst_iface1 config interface1
+		config_get fst_iface2 config interface2
+		config_get fst_group_id config mux_interface
+		config_get fst_priority1 config interface1_priority
+		config_get fst_priority2 config interface2_priority
+
+		if [ $fst_disabled -eq 0 ]; then
+			if [ "$ifname" == $fst_iface1 ] ; then
+				append hostapd_cfg "fst_group_id=$fst_group_id" "$N"
+				append hostapd_cfg "fst_priority=$fst_priority1" "$N"
+			elif [ "$ifname" == $fst_iface2 ] ; then
+				append hostapd_cfg "fst_group_id=$fst_group_id" "$N"
+				append hostapd_cfg "fst_priority=$fst_priority2" "$N"
+			fi
+		fi
+	}
+
 
 	case "$hwmode" in
 		*b|*g|*bg|*gdt|*gst|*fh|*ng) hwmode=g;;
@@ -690,6 +847,7 @@ hostapd_setup_vif() {
 	esac
 	[ "$channel" = auto ] && channel=
 	[ -n "$channel" -a -z "$hwmode" ] && wifi_fixup_hwmode "$device"
+	rm -f /var/run/hostapd-$ifname.conf
 	cat > /var/run/hostapd-$ifname.conf <<EOF
 driver=$driver
 interface=$ifname
@@ -722,7 +880,7 @@ EOF
 		echo -e "/var/run/hostapd-$ifname.conf \c\h" >> /tmp/hostapd_conf_filename
 	else
             # TODO: Need to check how to add hostapd_debug back
-            if ! [ -f "/var/run/hostapd-global.pid" ]
+            if [ ! -f "/var/run/hostapd-global.pid" ] || [ $(ps -www| grep "hostapd-global.pid" | grep -v grep | wc -l ) -eq 0 ]
             then
                 if [ "x$hostapd_debug" = "x" ]; then
                     hostapd_debug_exist=`ps | grep hostapd | grep -v hostapd_cli | grep -v grep | grep "\-d"`
@@ -756,6 +914,3 @@ EOF
 	fi
 }
 
-hostapd_common_cleanup() {
-	killall hostapd wpa_supplicant
-}

@@ -522,7 +522,7 @@ generate_rrm()
 generate_caprssi()
 {
     eval wl_value=\$`echo $1`_caprssi
-    uci set wireless.${wl_section}.caprssi=${wl_value:-30}
+    uci set wireless.${wl_section}.caprssi=${wl_value:-20}
 }
 
 
@@ -980,6 +980,10 @@ generate_wifi_topology_file()
             if_type="BACKHAUL"
             if_mode="STA"
             ;;
+        412)
+            uci set wireless.qcawifi.wl_super_wifi=1
+            uci set wireless.qcawifi.wla_super_wifi=1
+            ;;
         *)
             if_type="GUEST"
             if_mode="AP"
@@ -1050,19 +1054,12 @@ if [ "$update_conf" = "wifi" -o "$update_conf" = "all" ]; then
     rm -rf $wifi_topology_file
     # config driver parameters
     uci set wireless.qcawifi=qcawifi
-    case "$country_code" in
-        4015)
-            uci set wireless.qcawifi.wl_super_wifi=1
-            uci set wireless.qcawifi.wla_super_wifi=1
-            ;;
-        412)
-            uci set wireless.qcawifi.wl_super_wifi=1
-            uci set wireless.qcawifi.wla_super_wifi=1
-            ;;
-        *)
-            [ "$wlg_super_wifi" != "0" ] && uci set wireless.qcawifi.wl_super_wifi=${wlg_super_wifi}
-            [ "$wla_super_wifi" != "0" ] && uci set wireless.qcawifi.wla_super_wifi=${wla_super_wifi}
-    esac
+
+    uci set wireless.qcawifi.wl_super_wifi=1
+    uci set wireless.qcawifi.wla_super_wifi=1
+
+    [ "$wlg_super_wifi" = "0" ] && uci set wireless.qcawifi.wl_super_wifi=0
+    [ "$wla_super_wifi" = "0" ] && uci set wireless.qcawifi.wla_super_wifi=0
 
     if [ "$wlg_ap_operation_type" != "none" -o "$wlg_sta_operation_type" != "none" -o "$wlg_ap_bh_operation_type" != "none" ]; then
         uci set wireless.${g_device}=wifi-device
@@ -1197,7 +1194,6 @@ if [ "$update_conf" = "wifi" -o "$update_conf" = "all" ]; then
         generate_mu_mimo "wla2"
         generate_ul_hyst "wla2"
         generate_keepalive "wla2"
-        generate_uplink "wla2"
         generate_cca_threshold "wla2"
         generate_sta_dfs "wla2"
     fi

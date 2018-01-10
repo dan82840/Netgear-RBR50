@@ -82,6 +82,7 @@
 #include "bonding.h"
 #include "bond_3ad.h"
 #include "bond_alb.h"
+#include "bond_genl.h"
 
 /*---------------------------- Module parameters ----------------------------*/
 
@@ -133,10 +134,7 @@ module_param(use_carrier, int, 0);
 MODULE_PARM_DESC(use_carrier, "Use netif_carrier_ok (vs MII ioctls) in miimon; "
 			      "0 for off, 1 for on (default)");
 module_param(mode, charp, 0);
-MODULE_PARM_DESC(mode, "Mode of operation; 0 for balance-rr, "
-		       "1 for active-backup, 2 for balance-xor, "
-		       "3 for broadcast, 4 for 802.3ad, 5 for balance-tlb, "
-		       "6 for balance-alb");
+MODULE_PARM_DESC(mode, "Mode of operation; 0 for balance-rr, 1 for active-backup, 2 for balance-xor, 3 for broadcast, 4 for 802.3ad, 5 for balance-tlb, 6 for balance-alb, 7 for l2da");
 module_param(primary, charp, 0);
 MODULE_PARM_DESC(primary, "Primary network device to use");
 module_param(primary_reselect, charp, 0);
@@ -208,7 +206,6 @@ static int lacp_fast;
 static unsigned long bond_id_mask = 0xFFFFFFF0;
 
 /*-------------------------- External variables -----------------------------*/
-extern struct bond_cb *bond_cb;
 
 /*-------------------------- Forward declarations ---------------------------*/
 
@@ -227,9 +224,10 @@ const char *bond_mode_name(int mode)
 		[BOND_MODE_8023AD] = "IEEE 802.3ad Dynamic link aggregation",
 		[BOND_MODE_TLB] = "transmit load balancing",
 		[BOND_MODE_ALB] = "adaptive load balancing",
+		[BOND_MODE_L2DA] = "layer 2 destination address map",
 	};
 
-	if (mode < BOND_MODE_ROUNDROBIN || mode > BOND_MODE_ALB)
+	if (mode < BOND_MODE_ROUNDROBIN || mode > BOND_MODE_L2DA)
 		return "unknown";
 
 	return names[mode];
@@ -654,6 +652,23 @@ static void bond_set_dev_addr(struct net_device *bond_dev,
 	call_netdevice_notifiers(NETDEV_CHANGEADDR, bond_dev);
 }
 
+static struct slave *bond_get_old_active(struct bonding *bond,
+					 struct slave *new_active)
+{
+	struct slave *slave;
+	struct list_head *iter;
+
+	bond_for_each_slave(bond, slave, iter) {
+		if (slave == new_active)
+			continue;
+
+		if (ether_addr_equal(bond->dev->dev_addr, slave->dev->dev_addr))
+			return slave;
+	}
+
+	return NULL;
+}
+
 /*
  * bond_do_fail_over_mac
  *
@@ -689,6 +704,9 @@ static void bond_do_fail_over_mac(struct bonding *bond,
 			return;
 
 		write_unlock_bh(&bond->curr_slave_lock);
+
+		if (!old_active)
+			old_active = bond_get_old_active(bond, new_active);
 
 		if (old_active) {
 			memcpy(tmp_mac, new_active->dev->dev_addr, ETH_ALEN);
@@ -853,10 +871,12 @@ void bond_change_active_slave(struct bonding *bond, struct slave *new_active)
 		bond_alb_handle_active_change(bond, new_active);
 		if (old_active)
 			bond_set_slave_inactive_flags(old_active,
-						      BOND_SLAVE_NOTIFY_NOW);
+						      BOND_SLAVE_NOTIFY_NOW,
+						      GFP_ATOMIC);
 		if (new_active)
 			bond_set_slave_active_flags(new_active,
-						    BOND_SLAVE_NOTIFY_NOW);
+						    BOND_SLAVE_NOTIFY_NOW,
+						    GFP_ATOMIC);
 	} else {
 		rcu_assign_pointer(bond->curr_active_slave, new_active);
 	}
@@ -864,13 +884,15 @@ void bond_change_active_slave(struct bonding *bond, struct slave *new_active)
 	if (bond->params.mode == BOND_MODE_ACTIVEBACKUP) {
 		if (old_active)
 			bond_set_slave_inactive_flags(old_active,
-						      BOND_SLAVE_NOTIFY_NOW);
+						      BOND_SLAVE_NOTIFY_NOW,
+						      GFP_ATOMIC);
 
 		if (new_active) {
 			bool should_notify_peers = false;
 
 			bond_set_slave_active_flags(new_active,
-						    BOND_SLAVE_NOTIFY_NOW);
+						    BOND_SLAVE_NOTIFY_NOW,
+						    GFP_ATOMIC);
 
 			if (bond->params.fail_over_mac)
 				bond_do_fail_over_mac(bond, new_active,
@@ -1158,6 +1180,12 @@ static rx_handler_result_t bond_handle_frame(struct sk_buff **pskb)
 		return RX_HANDLER_EXACT;
 	}
 
+	if (bond_is_l2da(bond) &&
+	    !bond_l2da_handle_rx_frame(bond, slave, skb)) {
+		consume_skb(skb);
+		return RX_HANDLER_CONSUMED;
+	}
+
 	skb->dev = bond->dev;
 
 	if (bond->params.mode == BOND_MODE_ALB &&
@@ -1184,7 +1212,6 @@ static int bond_master_upper_dev_link(struct net_device *bond_dev,
 	err = netdev_master_upper_dev_link_private(slave_dev, bond_dev, slave);
 	if (err)
 		return err;
-	slave_dev->flags |= IFF_SLAVE;
 	rtmsg_ifinfo(RTM_NEWLINK, slave_dev, IFF_SLAVE, GFP_KERNEL);
 	return 0;
 }
@@ -1205,7 +1232,7 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 	struct slave *new_slave = NULL, *prev_slave;
 	struct sockaddr addr;
 	int link_reporting;
-	int res = 0, i;
+	int res = 0, i, mac_stolen = 0, same_addr;
 
 	if (!bond->params.use_carrier &&
 	    slave_dev->ethtool_ops->get_link == NULL &&
@@ -1300,6 +1327,9 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 		goto err_undo_flags;
 	}
 
+	same_addr = (memcmp(bond_dev->dev_addr, slave_dev->dev_addr,
+			    ETH_ALEN) == 0);
+
 	if (slave_ops->ndo_set_mac_address == NULL) {
 		if (!bond_has_slaves(bond)) {
 			pr_warn("%s: Warning: The first slave device specified does not support setting the MAC address.\n",
@@ -1309,6 +1339,11 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 				pr_warn("%s: Setting fail_over_mac to active for active-backup mode.\n",
 					bond_dev->name);
 			}
+		} else if (bond_is_l2da(bond) && (same_addr ||
+						  bond->l2da_info.multimac)) {
+			pr_warn("%s: Warning: Slave device does not support setting the MAC address. ignore due to %s.\n",
+				same_addr ? "same address" : "L2DA multimac",
+				bond_dev->name);
 		} else if (bond->params.fail_over_mac != BOND_FOM_ACTIVE) {
 			pr_err("%s: Error: The slave device specified does not support setting the MAC address, but fail_over_mac is not set to active.\n",
 			       bond_dev->name);
@@ -1322,8 +1357,10 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 	/* If this is the first slave, then we need to set the master's hardware
 	 * address to be the same as the slave's. */
 	if (!bond_has_slaves(bond) &&
-	    bond->dev->addr_assign_type == NET_ADDR_RANDOM)
+	    bond->dev->addr_assign_type == NET_ADDR_RANDOM) {
 		bond_set_dev_addr(bond->dev, slave_dev);
+		mac_stolen = 1;
+	}
 
 	new_slave = kzalloc(sizeof(struct slave), GFP_KERNEL);
 	if (!new_slave) {
@@ -1351,8 +1388,13 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 	 */
 	memcpy(new_slave->perm_hwaddr, slave_dev->dev_addr, ETH_ALEN);
 
-	if (!bond->params.fail_over_mac ||
-	    bond->params.mode != BOND_MODE_ACTIVEBACKUP) {
+	if ((!bond->params.fail_over_mac ||
+	     bond->params.mode != BOND_MODE_ACTIVEBACKUP) &&
+	    /* In l2da mode, skip for first slave and skip if
+	     * slave's address is already same as bond's address.
+	     */
+	    !(bond_is_l2da(bond) &&
+	      (mac_stolen || same_addr || bond->l2da_info.multimac))) {
 		/*
 		 * Set slave to master's mac address.  The application already
 		 * set the master's mac address to that of the first slave
@@ -1365,6 +1407,9 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 			goto err_restore_mtu;
 		}
 	}
+
+	/* set slave flag before open to prevent IPv6 addrconf */
+	slave_dev->flags |= IFF_SLAVE;
 
 	/* open the slave since the application closed it */
 	res = dev_open(slave_dev);
@@ -1496,14 +1541,17 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 	switch (bond->params.mode) {
 	case BOND_MODE_ACTIVEBACKUP:
 		bond_set_slave_inactive_flags(new_slave,
-					      BOND_SLAVE_NOTIFY_NOW);
+					      BOND_SLAVE_NOTIFY_NOW,
+					      GFP_KERNEL);
 		break;
 	case BOND_MODE_8023AD:
 		/* in 802.3ad mode, the internal mechanism
 		 * will activate the slaves in the selected
 		 * aggregator
 		 */
-		bond_set_slave_inactive_flags(new_slave, BOND_SLAVE_NOTIFY_NOW);
+		bond_set_slave_inactive_flags(new_slave,
+					      BOND_SLAVE_NOTIFY_NOW,
+					      GFP_KERNEL);
 		/* if this is the first slave */
 		if (!prev_slave) {
 			SLAVE_AD_INFO(new_slave).id = 1;
@@ -1521,7 +1569,14 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 	case BOND_MODE_TLB:
 	case BOND_MODE_ALB:
 		bond_set_active_slave(new_slave);
-		bond_set_slave_inactive_flags(new_slave, BOND_SLAVE_NOTIFY_NOW);
+		bond_set_slave_inactive_flags(new_slave,
+					      BOND_SLAVE_NOTIFY_NOW,
+					      GFP_KERNEL);
+		break;
+	case BOND_MODE_L2DA:
+		bond_set_slave_active_flags(new_slave,
+					    BOND_SLAVE_NOTIFY_NOW, GFP_KERNEL);
+		bond_l2da_bind_slave(bond, new_slave);
 		break;
 	default:
 		pr_debug("This slave is always active in trunk mode\n");
@@ -1624,6 +1679,7 @@ err_close:
 	dev_close(slave_dev);
 
 err_restore_mac:
+	slave_dev->flags &= ~IFF_SLAVE;
 	if (!bond->params.fail_over_mac ||
 	    bond->params.mode != BOND_MODE_ACTIVEBACKUP) {
 		/* XXX TODO - fom follow mode needs to change master's
@@ -1750,7 +1806,8 @@ static int __bond_release_one(struct net_device *bond_dev,
 		 * but before a new active slave is selected.
 		 */
 		bond_alb_deinit_slave(bond, slave);
-	}
+	} else if (bond_is_l2da(bond))
+		bond_l2da_unbind_slave(bond, slave);
 
 	if (all) {
 		RCU_INIT_POINTER(bond->curr_active_slave, NULL);
@@ -1861,6 +1918,7 @@ static int  bond_release_and_destroy(struct net_device *bond_dev,
 		bond_dev->priv_flags |= IFF_DISABLE_NETPOLL;
 		pr_info("%s: destroying bond %s.\n",
 			bond_dev->name, bond_dev->name);
+		bond_remove_proc_entry(bond);
 		unregister_netdevice(bond_dev);
 	}
 	return ret;
@@ -1904,7 +1962,6 @@ static int bond_slave_info_query(struct net_device *bond_dev, struct ifslave *in
 }
 
 /*-------------------------------- Monitoring -------------------------------*/
-
 
 static int bond_miimon_inspect(struct bonding *bond)
 {
@@ -2050,6 +2107,9 @@ static void bond_miimon_commit(struct bonding *bond)
 				slave_dev = slave->dev;
 			}
 
+			if (bond_is_l2da(bond))
+				bond_l2da_handle_link_change(bond, slave);
+
 			if (!bond->curr_active_slave ||
 			    (slave == bond->primary_slave))
 				goto do_failover;
@@ -2063,9 +2123,11 @@ static void bond_miimon_commit(struct bonding *bond)
 			slave->link = BOND_LINK_DOWN;
 
 			if (bond->params.mode == BOND_MODE_ACTIVEBACKUP ||
-			    bond->params.mode == BOND_MODE_8023AD)
+			    bond->params.mode == BOND_MODE_8023AD) {
 				bond_set_slave_inactive_flags(slave,
-							      BOND_SLAVE_NOTIFY_NOW);
+							      BOND_SLAVE_NOTIFY_NOW,
+							      GFP_ATOMIC);
+			}
 
 			pr_info("%s: link status definitely down for interface %s, disabling it\n",
 				bond->dev->name, slave->dev->name);
@@ -2077,6 +2139,9 @@ static void bond_miimon_commit(struct bonding *bond)
 			if (bond_is_lb(bond))
 				bond_alb_handle_link_change(bond, slave,
 							    BOND_LINK_DOWN);
+
+			if (bond_is_l2da(bond))
+				bond_l2da_handle_link_change(bond, slave);
 
 			if (slave == bond->curr_active_slave)
 				goto do_failover;
@@ -2209,7 +2274,6 @@ static void bond_arp_send(struct net_device *slave_dev, int arp_op, __be32 dest_
 	}
 	arp_xmit(skb);
 }
-
 
 static void bond_arp_send_all(struct bonding *bond, struct slave *slave)
 {
@@ -2617,7 +2681,8 @@ static void bond_ab_arp_commit(struct bonding *bond)
 				if (bond->current_arp_slave) {
 					bond_set_slave_inactive_flags(
 						bond->current_arp_slave,
-						BOND_SLAVE_NOTIFY_NOW);
+						BOND_SLAVE_NOTIFY_NOW,
+						GFP_ATOMIC);
 					bond->current_arp_slave = NULL;
 				}
 
@@ -2638,7 +2703,8 @@ static void bond_ab_arp_commit(struct bonding *bond)
 
 			slave->link = BOND_LINK_DOWN;
 			bond_set_slave_inactive_flags(slave,
-						      BOND_SLAVE_NOTIFY_NOW);
+						      BOND_SLAVE_NOTIFY_NOW,
+						      GFP_ATOMIC);
 
 			pr_info("%s: link status definitely down for interface %s, disabling it\n",
 				bond->dev->name, slave->dev->name);
@@ -2704,7 +2770,8 @@ static bool bond_ab_arp_probe(struct bonding *bond)
 			return should_notify_rtnl;
 	}
 
-	bond_set_slave_inactive_flags(curr_arp_slave, BOND_SLAVE_NOTIFY_LATER);
+	bond_set_slave_inactive_flags(curr_arp_slave,
+				      BOND_SLAVE_NOTIFY_LATER, GFP_ATOMIC);
 
 	bond_for_each_slave_rcu(bond, slave, iter) {
 		if (!found && !before && IS_UP(slave->dev))
@@ -2725,7 +2792,8 @@ static bool bond_ab_arp_probe(struct bonding *bond)
 				slave->link_failure_count++;
 
 			bond_set_slave_inactive_flags(slave,
-						      BOND_SLAVE_NOTIFY_LATER);
+						      BOND_SLAVE_NOTIFY_LATER,
+						      GFP_ATOMIC);
 
 			pr_info("%s: backup interface %s is now down.\n",
 				bond->dev->name, slave->dev->name);
@@ -2741,7 +2809,8 @@ static bool bond_ab_arp_probe(struct bonding *bond)
 		goto check_state;
 
 	new_slave->link = BOND_LINK_BACK;
-	bond_set_slave_active_flags(new_slave, BOND_SLAVE_NOTIFY_LATER);
+	bond_set_slave_active_flags(new_slave,
+				    BOND_SLAVE_NOTIFY_LATER, GFP_ATOMIC);
 	bond_arp_send_all(bond, new_slave);
 	new_slave->jiffies = jiffies;
 	rcu_assign_pointer(bond->current_arp_slave, new_slave);
@@ -3031,8 +3100,10 @@ static bool bond_flow_dissect_without_skb(struct bonding *bond, uint8_t *src_mac
 	} else {
 		return false;
 	}
-	if ((bond->params.xmit_policy == BOND_XMIT_POLICY_LAYER34) && (layer4hdr != NULL))
-		fk->ports = *layer4hdr;
+	if ((bond->params.xmit_policy == BOND_XMIT_POLICY_LAYER34) && (layer4hdr != NULL)) {
+		fk->port16[0] = *layer4hdr;
+		fk->port16[1] = *(layer4hdr + 1);
+	}
 
 	return true;
 }
@@ -3145,10 +3216,12 @@ static int bond_open(struct net_device *bond_dev)
 			if ((bond->params.mode == BOND_MODE_ACTIVEBACKUP)
 				&& (slave != bond->curr_active_slave)) {
 				bond_set_slave_inactive_flags(slave,
-							      BOND_SLAVE_NOTIFY_NOW);
+							      BOND_SLAVE_NOTIFY_NOW,
+							      GFP_ATOMIC);
 			} else {
 				bond_set_slave_active_flags(slave,
-							    BOND_SLAVE_NOTIFY_NOW);
+							    BOND_SLAVE_NOTIFY_NOW,
+							    GFP_ATOMIC);
 			}
 		}
 		read_unlock(&bond->curr_slave_lock);
@@ -3276,7 +3349,6 @@ static int bond_do_ioctl(struct net_device *bond_dev, struct ifreq *ifr, int cmd
 		if (!mii)
 			return -EINVAL;
 
-
 		if (mii->reg_num == 1) {
 			mii->val_out = 0;
 			read_lock(&bond->lock);
@@ -3377,7 +3449,6 @@ static void bond_set_rx_mode(struct net_device *bond_dev)
 	struct bonding *bond = netdev_priv(bond_dev);
 	struct list_head *iter;
 	struct slave *slave;
-
 
 	rcu_read_lock();
 	if (USES_PRIMARY(bond->params.mode)) {
@@ -3537,7 +3608,6 @@ static int bond_set_mac_address(struct net_device *bond_dev, void *addr)
 
 	if (bond->params.mode == BOND_MODE_ALB)
 		return bond_alb_set_mac_address(bond_dev, addr);
-
 
 	pr_debug("bond=%p, name=%s\n",
 		 bond, bond_dev ? bond_dev->name : "None");
@@ -3872,6 +3942,8 @@ struct net_device *bond_get_tx_dev(struct sk_buff *skb, uint8_t *src_mac,
 			return bond_xor_get_tx_dev(skb, src_mac, dst_mac, src, dst, protocol, bond_dev, layer4hdr);
 		case BOND_MODE_8023AD:
 			return bond_3ad_get_tx_dev(skb, src_mac, dst_mac, src, dst, protocol, bond_dev, layer4hdr);
+		case BOND_MODE_L2DA:
+			return bond_l2da_get_tx_dev(dst_mac, bond_dev);
 		default:
 			return NULL;
 	}
@@ -3962,7 +4034,6 @@ static inline int bond_slave_override(struct bonding *bond,
 	return 1;
 }
 
-
 static u16 bond_select_queue(struct net_device *dev, struct sk_buff *skb,
 			     void *accel_priv, select_queue_fallback_t fallback)
 {
@@ -4010,6 +4081,8 @@ static netdev_tx_t __bond_start_xmit(struct sk_buff *skb, struct net_device *dev
 	case BOND_MODE_ALB:
 	case BOND_MODE_TLB:
 		return bond_alb_xmit(skb, dev);
+	case BOND_MODE_L2DA:
+		return bond_l2da_xmit(skb, dev);
 	default:
 		/* Should never happen, mode already checked */
 		pr_err("%s: Error: Unknown bonding mode %d\n",
@@ -4208,6 +4281,9 @@ static void bond_uninit(struct net_device *bond_dev)
 	list_del(&bond->bond_list);
 
 	bond_debug_unregister(bond);
+
+	if (bond_is_l2da(bond))
+		bond_l2da_deinitialize(bond);
 }
 
 /*------------------------- Module initialization ---------------------------*/
@@ -4256,6 +4332,20 @@ int bond_parse_parm(const char *buf, const struct bond_parm_tbl *tbl)
 		return bond_parm_tbl_lookup(modeint, tbl);
 
 	return -1;
+}
+
+/**
+ * Notify ECM about the change in bond slave
+ */
+void bond_notify_l2da(uint8_t *slave_mac_addr)
+{
+	spin_lock_bh(&bond_cb_lock);
+	if (bond_cb && bond_cb->bond_cb_delete_by_mac) {
+		bond_cb->bond_cb_delete_by_mac(slave_mac_addr);
+		pr_info("Deleted fast path rules with mac-id: %pM\n",
+			slave_mac_addr);
+	}
+	spin_unlock_bh(&bond_cb_lock);
 }
 
 static int bond_check_params(struct bond_params *params)
@@ -4384,6 +4474,19 @@ static int bond_check_params(struct bond_params *params)
 			   "not of valid value (0/1), so it was set to "
 			   "0\n", all_slaves_active);
 		all_slaves_active = 0;
+	}
+
+	if (bond_mode == BOND_MODE_L2DA) {
+		if (!all_slaves_active) {
+			pr_warn("Warning: all_slaves_active must be set, otherwise bonding will not be able to route packets that are essential for l2da operation\n");
+			pr_warn("Forcing all_slaves_active to 1\n");
+			all_slaves_active = 1;
+		}
+		if (!miimon) {
+			pr_warn("Warning: miimon must be specified, otherwise bonding will not detect link failure which is essential for l2da operation\n");
+			pr_warn("Forcing miimon to 100msec\n");
+			miimon = 100;
+		}
 	}
 
 	if (resend_igmp < 0 || resend_igmp > 255) {
@@ -4642,6 +4745,7 @@ static int bond_init(struct net_device *bond_dev)
 	struct bonding *bond = netdev_priv(bond_dev);
 	struct bond_net *bn = net_generic(dev_net(bond_dev), bond_net_id);
 	struct alb_bond_info *bond_info = &(BOND_ALB_INFO(bond));
+	int ret;
 
 	pr_debug("Begin bond_init for %s\n", bond_dev->name);
 
@@ -4653,6 +4757,15 @@ static int bond_init(struct net_device *bond_dev)
 	 */
 	spin_lock_init(&(bond_info->tx_hashtbl_lock));
 	spin_lock_init(&(bond_info->rx_hashtbl_lock));
+
+	if (bond_is_l2da(bond)) {
+		ret = bond_l2da_initialize(bond);
+		if (ret) {
+			pr_err("%s: l2da mode cannot be initialized\n",
+			       bond->dev->name);
+			return ret;
+		}
+	}
 
 	bond->wq = create_singlethread_workqueue(bond_dev->name);
 	if (!bond->wq)
@@ -4778,6 +4891,10 @@ static int __init bonding_init(void)
 	if (res)
 		goto err_link;
 
+	res = bond_genl_initialize();
+	if (res)
+		goto err_genl;
+
 	bond_create_debugfs();
 
 	for (i = 0; i < max_bonds; i++) {
@@ -4791,6 +4908,8 @@ out:
 	return res;
 err:
 	bond_destroy_debugfs();
+	bond_genl_deinitialize();
+err_genl:
 	bond_netlink_fini();
 err_link:
 	unregister_pernet_subsys(&bond_net_ops);
@@ -4804,6 +4923,7 @@ static void __exit bonding_exit(void)
 
 	bond_destroy_debugfs();
 
+	bond_genl_deinitialize();
 	bond_netlink_fini();
 	unregister_pernet_subsys(&bond_net_ops);
 

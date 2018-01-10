@@ -219,6 +219,7 @@ static sw_data_type_t sw_data_type[] =
     SW_TYPE_DEF(SW_COUNTER_INFO, NULL, cmd_data_print_counter_info),
     SW_TYPE_DEF(SW_REG_DUMP, NULL, cmd_data_print_register_info),
     SW_TYPE_DEF(SW_DBG_REG_DUMP, NULL, cmd_data_print_debug_register_info),
+    SW_TYPE_DEF(SW_PHY_DUMP, NULL, cmd_data_print_phy_register_info),
 };
 
 sw_data_type_t *
@@ -559,6 +560,36 @@ cmd_data_print_register_info(a_uint8_t * param_name, a_uint32_t * buf, a_uint32_
 	{
 		dprintf("%08x ", reg_dump->reg_value[reg_count]);
 		dump_addr += 4;
+		if ((reg_count + 1) % 8 == 0)
+			dprintf("\n [%04x] ", dump_addr);
+	}
+
+	dprintf("\n\n\n");
+}
+
+void
+cmd_data_print_phy_register_info(a_uint8_t * param_name, a_uint32_t * buf, a_uint32_t size)
+{
+    dprintf("\n[%s]", param_name);
+	fal_phy_dump_t * phy_dump = (fal_phy_dump_t * )buf;
+
+	a_uint32_t n[8]={0,1,2,3,4,5,6,7};
+
+	a_uint32_t i;
+	a_uint32_t dump_addr, reg_count, reg_val;
+
+	dprintf("\n%s. ", phy_dump->phy_name);
+	dprintf("\n	%8x %8x %8x %8x %8x %8x %8x %8x\n",
+					n[0],n[1],n[2],n[3],n[4],n[5],n[6],n[7]);
+	dprintf(" [%04x] ", phy_dump->phy_base);
+
+	reg_count = 0;
+	for (dump_addr = phy_dump->phy_base;
+			(dump_addr <= phy_dump->phy_end )&& (reg_count <= phy_dump->phy_count);
+			reg_count++)
+	{
+		dprintf("%08x ", phy_dump->phy_value[reg_count]);
+		dump_addr ++;
 		if ((reg_count + 1) % 8 == 0)
 			dprintf("\n [%04x] ", dump_addr);
 	}
@@ -5809,7 +5840,7 @@ cmd_data_print_cable_len(a_uint8_t * param_name, a_uint32_t * buf, a_uint32_t si
     dprintf("[%s]:%d", param_name, *(a_uint32_t *) buf);
 }
 
-inline char*
+char*
 cmd_cpu_mode(hsl_init_mode mode)
 {
     switch (mode)
@@ -5827,7 +5858,7 @@ cmd_cpu_mode(hsl_init_mode mode)
     return "unknow";
 }
 
-inline char*
+char*
 cmd_access_mode(hsl_access_mode mode)
 {
     switch (mode)

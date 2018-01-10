@@ -193,6 +193,8 @@ function loadvalue()
 		<% advanced_sub_menu("internet", "sub_back", "int_setup", "internet_setup", "int_set") %>
 		<% advanced_sub_menu("wireless", "sub_back", "wls_setup", "wireless_setup", "wireless") %>
 		<% advanced_sub_menu("guest", "sub_back", "wlan_mark_guest", "guest_network_setup", "guest") %>
+		<% advanced_sub_menu("byod", "sub_back", "byod_network", "byod_network_setup") %>
+		<% advanced_sub_menu("guest_portal", "sub_back", "guest_portal", "guest_portal_setup") %>
 		<% advanced_sub_menu("wan", "sub_back", "wan_setup_head", "wan_setup", "wan") %>
 	       	<dt id="lan" class="sub_back"><a target="formframe" onclick="click_adv_action('lan');"><b><span name="lan" id="lan_setup">$lan_mark_head</span></b></a></dt>
 		<% advanced_sub_menu("qos", "sub_back", "qos_head", "qos_setup", "qos") %>
@@ -264,7 +266,7 @@ function loadvalue()
 		if( is_jp_version == 1)
 			document.write("<a target=\"_blank\" href=\"http://www.netgear.jp/supportInfo/\">$docu_head</a> | <a target=\"_blank\" href=\"https://www.netgear.jp/supportInfo/Contact/\">$online_support</a> | <a target=\"_blank\" href=\"http://www.netgear.jp/supportInfo/\">$router_faq</a> |");
 		else
-			document.write("<a target=\"_blank\" href=\"http://downloadcenter.netgear.com/\">$docu_head</a> | <a target=\"_blank\" href=\"http://support.netgear.com\">$online_support</a> | <a target=\"_blank\" href=\"http://www.netgear.com/support/product/rbr50.aspx\">$router_faq</a> |");
+		document.write("<a target=\"_blank\" href=\"http://downloadcenter.netgear.com/\">$docu_head</a> | <a target=\"_blank\" href=\"http://support.netgear.com\">$online_support</a> | <a target=\"_blank\" href=\"<% support_product_link("base") %>\">$router_faq</a> |");
 	</script>
 		<a target="_blank" href="license.htm">GNU GPL</a>
 </div>

@@ -125,18 +125,23 @@ static void ad_marker_response_received(struct bond_marker *marker,
 /*------------------------------- Exported APIs -----------------------------*/
 static struct bond_cb nss_cb;
 struct bond_cb *bond_cb;
+DEFINE_SPINLOCK(bond_cb_lock);
 
 void bond_register_cb(struct bond_cb *cb)
 {
+	spin_lock_bh(&bond_cb_lock);
 	memcpy((void *)&nss_cb, (void *)cb, sizeof(*cb));
 	bond_cb = &nss_cb;
+	spin_unlock_bh(&bond_cb_lock);
 }
 EXPORT_SYMBOL(bond_register_cb);
 
 void bond_unregister_cb(void)
 {
+	spin_lock_bh(&bond_cb_lock);
 	bond_cb = NULL;
 	memset((void *)&nss_cb, 0, sizeof(nss_cb));
+	spin_unlock_bh(&bond_cb_lock);
 }
 EXPORT_SYMBOL(bond_unregister_cb);
 
@@ -199,21 +204,23 @@ static inline int __agg_has_partner(struct aggregator *agg)
  * __disable_port - disable the port's slave
  * @port: the port we're looking at
  */
-static inline void __disable_port(struct port *port)
+static inline void __disable_port(struct port *port, gfp_t flg)
 {
-	bond_set_slave_inactive_flags(port->slave, BOND_SLAVE_NOTIFY_LATER);
+	bond_set_slave_inactive_flags(port->slave,
+				      BOND_SLAVE_NOTIFY_LATER, flg);
 }
 
 /**
  * __enable_port - enable the port's slave, if it's up
  * @port: the port we're looking at
  */
-static inline void __enable_port(struct port *port)
+static inline void __enable_port(struct port *port, gfp_t flg)
 {
 	struct slave *slave = port->slave;
 
 	if ((slave->link == BOND_LINK_UP) && IS_UP(slave->dev))
-		bond_set_slave_active_flags(slave, BOND_SLAVE_NOTIFY_LATER);
+		bond_set_slave_active_flags(slave,
+					    BOND_SLAVE_NOTIFY_LATER, flg);
 }
 
 /**
@@ -935,7 +942,7 @@ static void ad_mux_machine(struct port *port)
 				    port->aggregator->is_active &&
 				    !__port_is_enabled(port)) {
 
-					__enable_port(port);
+					__enable_port(port, GFP_ATOMIC);
 				}
 			}
 			break;
@@ -1612,7 +1619,7 @@ static void ad_agg_selection_logic(struct aggregator *agg)
 		if (active) {
 			for (port = active->lag_ports; port;
 			     port = port->next_port_in_aggregator) {
-				__disable_port(port);
+				__disable_port(port, GFP_ATOMIC);
 			}
 		}
 	}
@@ -1626,7 +1633,7 @@ static void ad_agg_selection_logic(struct aggregator *agg)
 		if (!__agg_has_partner(active)) {
 			for (port = active->lag_ports; port;
 			     port = port->next_port_in_aggregator) {
-				__enable_port(port);
+				__enable_port(port, GFP_ATOMIC);
 			}
 		}
 	}
@@ -1752,7 +1759,7 @@ static void ad_enable_collecting_distributing(struct port *port)
 		pr_debug("Enabling port %d(LAG %d)\n",
 			 port->actor_port_number,
 			 port->aggregator->aggregator_identifier);
-		__enable_port(port);
+		__enable_port(port, GFP_ATOMIC);
 
 		if (bond_cb && bond_cb->bond_cb_link_up) {
 			bond_cb->bond_cb_link_up(port->slave->dev);
@@ -1772,7 +1779,7 @@ static void ad_disable_collecting_distributing(struct port *port)
 		pr_debug("Disabling port %d(LAG %d)\n",
 			 port->actor_port_number,
 			 port->aggregator->aggregator_identifier);
-		__disable_port(port);
+		__disable_port(port, GFP_ATOMIC);
 	}
 }
 
@@ -1907,7 +1914,7 @@ void bond_3ad_bind_slave(struct slave *slave)
 		port->aggregator = NULL;
 		port->next_port_in_aggregator = NULL;
 
-		__disable_port(port);
+		__disable_port(port, GFP_KERNEL);
 
 		/* aggregator initialization */
 		aggregator = &(SLAVE_AD_INFO(slave).aggregator);

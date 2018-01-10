@@ -213,6 +213,11 @@ int daylight_saving_setting(void)
 	int ntpindex=0, year=0, month=0, date=0, hour=0, minute=0;
 	FILE *fp;
 
+	/*just fot traffic meter when time change*/
+	if(!strcmp(config_get("endis_traffic"), "1")){
+		system("/sbin/cmd_traffic_meter stop");
+		system("/sbin/cmd_traffic_meter start");
+	}
 	p= config_get("ntp_hidden_select");
 	ntpindex = atoi(p);
 	p = config_get("ntpadjust");

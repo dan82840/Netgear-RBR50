@@ -18,7 +18,10 @@ function check_internet_type()
 {
 	if(port_status == "0")
 	{	
-		this.location.href = "BRS_orbi_check_fw.html";
+		if(parent.business_ap_detect == 1)
+			this.location.href = "BRS_00_01_noWan.html";
+		else
+			this.location.href = "BRS_orbi_check_fw.html";
 	}
 	else if( n < 60)
 	{
@@ -29,7 +32,10 @@ function check_internet_type()
 		}
 		else if(internet_type == "1")
 		{
-			location.href="BRS_orbi_check_fw.html";
+			if(parent.business_ap_detect == 1)
+				this.location.href = "BRS_01_checkNet_ping.html";
+			else
+				this.location.href = "BRS_orbi_check_fw.html";
 			return;
 		}
 		n++;
@@ -37,7 +43,10 @@ function check_internet_type()
 	}
 	else
 	{
-		location.href="BRS_orbi_check_fw.html";
+		if(parent.business_ap_detect == 1)
+			this.location.href = "BRS_01_checkNet_ping.html";
+		else
+			this.location.href = "BRS_orbi_check_fw.html";
 	}
 }
 </script>

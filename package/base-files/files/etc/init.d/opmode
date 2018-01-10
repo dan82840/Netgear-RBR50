@@ -108,6 +108,24 @@ start()
 
 stop()
 {
+	#For AP mode and Bridge mode turn off access control
+	if [ $($CONFIG get enable_block_device) = 1 ] && [ $($CONFIG get ap_mode) = 1 ]; then
+		$CONFIG set enable_block_device=0
+		$CONFIG set config_timestamp=$(date +%s)
+		$CONFIG set soap_setting=AccessControl
+		/usr/bin/killall -SIGUSR1 soap_agent
+		sleep 10
+	else
+		#For Router mode which old_enable_acl_status value of 1 turn on access control
+		if [ $($CONFIG get old_enable_acl_status) = 1 ]; then
+			$CONFIG set enable_block_device=1
+			$CONFIG set config_timestamp=$(date +%s)
+			$CONFIG set soap_setting=AccessControl
+			/usr/bin/killall -SIGUSR1 soap_agent
+			sleep 10
+		fi
+	fi
+
 	/etc/init.d/wlan-common stop
 	stop0
 }

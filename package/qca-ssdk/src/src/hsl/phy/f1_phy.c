@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2015, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012, 2015-2016, The Linux Foundation. All rights reserved.
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
  * above copyright notice and this permission notice appear in all copies.
@@ -30,7 +30,7 @@ static a_uint16_t
 _phy_reg_read(a_uint32_t dev_id, a_uint32_t phy_addr, a_uint32_t reg)
 {
     sw_error_t rv;
-    a_uint16_t val;
+    a_uint16_t val = 0;
 
     HSL_PHY_GET(rv, dev_id, phy_addr, reg, &val);
     if (SW_OK != rv)
@@ -39,13 +39,15 @@ _phy_reg_read(a_uint32_t dev_id, a_uint32_t phy_addr, a_uint32_t reg)
     return val;
 }
 
-static void
+static sw_error_t
 _phy_reg_write(a_uint32_t dev_id, a_uint32_t phy_addr, a_uint32_t reg,
                a_uint16_t val)
 {
     sw_error_t rv;
 
     HSL_PHY_SET(rv, dev_id, phy_addr, reg, val);
+
+    return rv;
 }
 
 /* #define f1_phy_reg_read _phy_reg_read */
@@ -436,6 +438,8 @@ f1_phy_cdt(a_uint32_t dev_id, a_uint32_t phy_id, a_uint32_t mdi_pair,
 {
     a_uint16_t status = 0;
     a_uint16_t ii = 100;
+    a_uint16_t org_debug_value;
+    a_uint16_t cable_delta_time;
 
     if(!cable_status || !cable_len)
     {
@@ -448,7 +452,7 @@ f1_phy_cdt(a_uint32_t dev_id, a_uint32_t phy_id, a_uint32_t mdi_pair,
         return SW_BAD_PARAM;
     }
 
-    a_uint16_t org_debug_value = f1_phy_debug_read(dev_id, phy_id, 0x3f);
+    org_debug_value = f1_phy_debug_read(dev_id, phy_id, 0x3f);
 
     /*disable clock gating*/
     f1_phy_debug_write(dev_id, phy_id, 0x3f, 0);
@@ -474,7 +478,7 @@ f1_phy_cdt(a_uint32_t dev_id, a_uint32_t phy_id, a_uint32_t mdi_pair,
     }
 
     /* the actual cable length equals to CableDeltaTime * 0.824*/
-    a_uint16_t cable_delta_time = status & 0xff;
+     cable_delta_time = status & 0xff;
     *cable_len = (cable_delta_time * 824) /1000;
 
     /*restore debug port value*/
@@ -888,26 +892,46 @@ sw_error_t
 f1_phy_get_speed(a_uint32_t dev_id, a_uint32_t phy_id,
                  fal_port_speed_t * speed)
 {
-    a_uint16_t phy_data;
+	a_uint16_t phy_data;
+	a_bool_t auto_neg;
 
-    phy_data = f1_phy_reg_read(dev_id, phy_id, F1_PHY_SPEC_STATUS);
-
-    switch (phy_data & F1_STATUS_SPEED_MASK)
-    {
-        case F1_STATUS_SPEED_1000MBS:
-            *speed = FAL_SPEED_1000;
-            break;
-        case F1_STATUS_SPEED_100MBS:
-            *speed = FAL_SPEED_100;
-            break;
-        case F1_STATUS_SPEED_10MBS:
-            *speed = FAL_SPEED_10;
-            break;
-        default:
-            return SW_READ_ERROR;
-    }
-
-    return SW_OK;
+	auto_neg = f1_phy_autoneg_status(dev_id, phy_id);
+	if (A_TRUE == auto_neg ) {
+		phy_data = f1_phy_reg_read(dev_id, phy_id, F1_PHY_SPEC_STATUS);
+		switch (phy_data & F1_STATUS_SPEED_MASK)
+    		{
+			case F1_STATUS_SPEED_1000MBS:
+				*speed = FAL_SPEED_1000;
+				break;
+			case F1_STATUS_SPEED_100MBS:
+				*speed = FAL_SPEED_100;
+				break;
+			case F1_STATUS_SPEED_10MBS:
+				*speed = FAL_SPEED_10;
+				break;
+			default:
+				return SW_READ_ERROR;
+		}
+	}
+	else
+	{
+		phy_data = f1_phy_reg_read(dev_id, phy_id, F1_PHY_CONTROL);
+		switch (phy_data & F1_CTRL_SPEED_MASK)
+    		{
+			case F1_CTRL_SPEED_1000:
+				*speed = FAL_SPEED_1000;
+				break;
+			case F1_CTRL_SPEED_100:
+				*speed = FAL_SPEED_100;
+				break;
+			case F1_CTRL_SPEED_10:
+				*speed = FAL_SPEED_10;
+				break;
+			default:
+				return SW_READ_ERROR;
+		}
+	}
+	return SW_OK;
 }
 
 /******************************************************************************
@@ -1012,17 +1036,29 @@ sw_error_t
 f1_phy_get_duplex(a_uint32_t dev_id, a_uint32_t phy_id,
                   fal_port_duplex_t * duplex)
 {
-    a_uint16_t phy_data;
+	a_uint16_t phy_data;
+	a_bool_t auto_neg;
 
-    phy_data = f1_phy_reg_read(dev_id, phy_id, F1_PHY_SPEC_STATUS);
+	auto_neg = f1_phy_autoneg_status(dev_id, phy_id);
+	if (A_TRUE == auto_neg ) {
+		phy_data = f1_phy_reg_read(dev_id, phy_id, F1_PHY_SPEC_STATUS);
 
-    //read duplex
-    if (phy_data & F1_STATUS_FULL_DUPLEX)
-        *duplex = FAL_FULL_DUPLEX;
-    else
-        *duplex = FAL_HALF_DUPLEX;
-
-    return SW_OK;
+		//read duplex
+		if (phy_data & F1_STATUS_FULL_DUPLEX)
+			*duplex = FAL_FULL_DUPLEX;
+		else
+			*duplex = FAL_HALF_DUPLEX;
+	}
+	else
+	{
+		phy_data = f1_phy_reg_read(dev_id, phy_id, F1_PHY_CONTROL);
+		//read duplex
+		if (phy_data & F1_CTRL_FULL_DUPLEX)
+			*duplex = FAL_FULL_DUPLEX;
+		else
+			*duplex = FAL_HALF_DUPLEX;
+	}
+	return SW_OK;
 }
 
 /******************************************************************************
@@ -1037,7 +1073,7 @@ f1_phy_set_duplex(a_uint32_t dev_id, a_uint32_t phy_id,
     a_uint16_t phy_data = 0;
     a_uint16_t phy_status = 0;
 
-    fal_port_speed_t old_speed;
+    fal_port_speed_t old_speed = FAL_SPEED_10;
     a_uint32_t oldneg, autoneg;
 
     if (A_TRUE == f1_phy_autoneg_status(dev_id, phy_id))

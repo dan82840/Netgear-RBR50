@@ -53,6 +53,7 @@
 #endif
 static int state;
 static unsigned long requested_ip; /* = 0 */
+static unsigned long requested_ip_discover;
 #ifdef DHCPC_CHOOSE_OLDIP
 static unsigned long old_requested_ip;
 #endif
@@ -238,53 +239,6 @@ static unsigned long uptime(void)
        return (unsigned long) info.uptime;
 }
 /*
- * "1": WAN PHY is Link Up.
- * "0": WAN PHY is Link Down.
- * It is set by `usr/bin/detcable`.
- */
-#define CABLE_FILE	"/tmp/port_status"
-
-static inline int eth_up(void)
-{
-	char value;
-	int fd, link_up;
-
-	fd = open(CABLE_FILE, O_RDONLY, 0666);
-	if (fd < 0)
-		return 0;
-
-	if (read(fd, &value, 1) == 1 && value == '1')
-		link_up = 1;
-	else
-		link_up = 0;
-
-	close(fd);
-
-	return link_up;
-}
-
-#define BR_MODE_ENABLE	"/tmp/enable_br_mode"
-
-static inline int br_mode_enable(void)
-{
-	char value;
-	int fd, enable;
-
-	fd = open(BR_MODE_ENABLE, O_RDONLY, 0666);
-	if (fd < 0)
-		return 0;
-
-	if (read(fd, &value, 1) == 1 && value == '1')
-		enable = 1;
-	else
-		enable = 0;
-
-	close(fd);
-
-	return enable;
-}
-
-/*
  * return:
  *     1  addr free
  *     0  addr used
@@ -405,7 +359,7 @@ int main(int argc, char *argv[])
 			client_config.quit_after_lease = 1;
 			break;
 		case 'r':
-			requested_ip = inet_addr(optarg);
+			requested_ip_discover = requested_ip = inet_addr(optarg);
 			break;
 #ifdef DHCPC_CHOOSE_OLDIP
 		case 'N':
@@ -485,7 +439,7 @@ int main(int argc, char *argv[])
 			if (listen_mode == LISTEN_KERNEL)
 				fd = listen_socket(INADDR_ANY, CLIENT_PORT, client_config.interface);
 			else
-				fd = raw_socket(client_config.ifindex, CLIENT_PORT);
+				fd = raw_socket(client_config.ifindex);
 			if (fd < 0) {
 				LOG(LOG_ERR, "FATAL: couldn't listen on socket, %s", strerror(errno));
 				exit_client(0);
@@ -505,36 +459,19 @@ int main(int argc, char *argv[])
 			/* timeout dropped to zero */
 			switch (state) {
 			case INIT_SELECTING:
-				if (packet_num < (client_config.apmode ? (!br_mode_enable() ? 5 : 5 ) : 3)) {
-					/*
-					 * [NETGEAR Lancelot.Wang]: Before sending discover packet, should check
-					 * whether WAN cable is plugged. If WAN cable is not plugged, the discovery
-					 * packet should not be sent.
-					 */
-					if (!eth_up() && !client_config.apmode) {
-						if (client_config.background_if_no_lease && !client_config.foreground)
-							background();
-
-						/* LOG(LOG_INFO, "WAN cable is not plugged, NOT send discover!!!"); */
-
-						packet_num = 0;
-						timeout = now + 2;
-
-						break;
+				if (packet_num < (client_config.apmode ? 1 : 3)) {
+					if (packet_num == 0) {
+						xid = random_xid();
+						run_script(NULL, "reconfig");
 					}
 
-					if (packet_num == 0)
-						xid = random_xid();
-
 					/* send discover packet */
-					if ( client_config.apmode != 1 )
-						sleep(5);
-
-					send_discover(xid, requested_ip); /* broadcast */
+					send_discover(xid, requested_ip_discover); /* broadcast */
 					
-					timeout = uptime() + (client_config.apmode ? 5 : ((packet_num == 2) ? 4 : 2));
+					timeout = now + (client_config.apmode ? 5 : ((packet_num == 2) ? 4 : 2));
 					packet_num++;
 				} else {
+					run_script(NULL, "leasefail");
 					/* If forked, don't fork again. */
 					if (client_config.background_if_no_lease && !client_config.foreground) {
 						LOG(LOG_INFO, "No lease, forking to background.");
@@ -557,10 +494,8 @@ int main(int argc, char *argv[])
 					 * Periodic checking for dynamic address availability
 					 * A device that has auto-configured an IP address MUST periodically check 
 					 * every 4 minutes for the existence of a DHCP server.
-					 * [new Router Spec Rev.11 2012.12.03 DHCP (DHCP client)]: if the whole DHCP
-					 * request procedure is failed, router should restart the procedure every 10 seconds.
 					 */
-					timeout = now + (client_config.apmode ? (!br_mode_enable() ? 10 : 10) : 10);
+					timeout = now + 10;
 				}
 				break;
 			case RENEW_REQUESTED:
@@ -571,12 +506,7 @@ int main(int argc, char *argv[])
 						send_renew(xid, server_addr, requested_ip); /* unicast */
 					else send_selecting(xid, server_addr, requested_ip); /* broadcast */
 					
-					/*
-					 * [new Router Spec Rev.11 2012.12.03 DHCP (DHCP client)]: for the cases of Ethernet cable plug-off and plug-in,
-					 * client should send 3 consecutive DHCP_REQUEST with 1 second interval and include current IP address as preferred
-					 * client IP address.
-					 */
-					timeout = now + 1;
+					timeout = now + ((packet_num == 2) ? 10 : 1);
 					packet_num++;
 				} else {
 					/* timed out, go back to init state */
@@ -684,7 +614,7 @@ int main(int argc, char *argv[])
 								if (listen_mode == LISTEN_KERNEL)
 									fd = listen_socket(INADDR_ANY, CLIENT_PORT, client_config.interface);
 								else
-									fd = raw_socket(client_config.ifindex, CLIENT_PORT);
+									fd = raw_socket(client_config.ifindex);
 								if (fd < 0) {
 									LOG(LOG_ERR, "FATAL: couldn't listen on socket, %s", strerror(errno));
 									exit_client(0);
@@ -825,8 +755,7 @@ int main(int argc, char *argv[])
 					temp_addr.s_addr = packet.yiaddr;
 					LOG(LOG_INFO, "Lease of %s obtained, lease time %ld", 
 						inet_ntoa(temp_addr), lease);
-					if(state == REQUESTING)
-						syslog(6, "[Internet connected] IP address: %s,", inet_ntoa(temp_addr));
+					syslog(6, "[Internet connected] IP address: %s,", inet_ntoa(temp_addr));
 					start = now;
 					timeout = t1 + start;
 					requested_ip = packet.yiaddr;
@@ -886,8 +815,6 @@ int main(int argc, char *argv[])
 			case SIGUSR2:
 				syslog(6, "[Internet disconnected]");
 				perform_release();
-				if (client_config.apmode)
-					run_script(NULL, "runzcip");
 				break;
 			case SIGTERM:
 				LOG(LOG_INFO, "Received SIGTERM");

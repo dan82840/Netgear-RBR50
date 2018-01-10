@@ -24,14 +24,14 @@ if [ "$($CONFIG get wl_conf_mode)" != "2" ]; then
 
 elif [ "$($CONFIG get fastlane_surfing_type)" != "1" ]; then
         iwpriv ath0 pause_scan 0
-        iwpriv ath01 pause_scan 0
+        iwpriv ath02 pause_scan 0
         iwpriv ath1 pause_scan 0
         iwpriv ath11 pause_scan 0
         if [ "x`/bin/cat /tmp/link_status`" = "x0" -o "x`/bin/cat /tmp/link_status_5g`" = "x0" ]; then
             killall -SIGSTOP wpa_supplicant > /dev/null
         fi
         echo "begin scanning repeater 2.4G...."
-        iwlist ath01 scan timeout 25 > /dev/null
+        iwlist ath02 scan timeout 25 > /dev/null
         cp /proc/sys/net/ath0/scan_result /tmp/scan_result_tmp
         /sbin/scan_result_process
         cp /tmp/scan_result /tmp/scan_result_2.4G
@@ -44,7 +44,7 @@ elif [ "$($CONFIG get fastlane_surfing_type)" != "1" ]; then
 
         if [ "x`/bin/cat /tmp/link_status`" = "x0" ]; then
                 iwpriv ath0 pause_scan 1
-            iwpriv ath01 pause_scan 1
+            iwpriv ath02 pause_scan 1
             killall -SIGCONT wpa_supplicant > /dev/null
             if [ "$($CONFIG get ca_end)" = "1" -o "$($CONFIG get sta_wl_ssid)" != "12345678NETGEAR" ]; then
                 killall -SIGINT led-extender
@@ -64,14 +64,14 @@ elif [ "$($CONFIG get furfing_mode_type)" = "2.4G" ]; then
             sleep 2
         fi
 
-        iwpriv ath01 pause_scan 0
+        iwpriv ath02 pause_scan 0
         iwpriv ath1 pause_scan 0
         if [ "x`/bin/cat /tmp/link_status`" = "x0" ]; then
             killall -SIGSTOP wpa_supplicant > /dev/null
         fi
         echo "begin scanning fastlane 2.4G...."
-        iwlist ath01 scan timeout 40
-        cp /proc/sys/net/ath01/scan_result /tmp/scan_result_tmp
+        iwlist ath02 scan timeout 40
+        cp /proc/sys/net/ath02/scan_result /tmp/scan_result_tmp
         /sbin/scan_result_process
         cp /tmp/scan_result /tmp/scan_result_2.4G
         echo "scanning 5G...."
@@ -80,7 +80,7 @@ elif [ "$($CONFIG get furfing_mode_type)" = "2.4G" ]; then
         /sbin/scan_result_process
         cp /tmp/scan_result /tmp/scan_result_5G
         if [ "x`/bin/cat /tmp/link_status`" = "x0" ]; then
-            iwpriv ath01 pause_scan 1
+            iwpriv ath02 pause_scan 1
             killall -SIGCONT wpa_supplicant > /dev/null
             if [ "$($CONFIG get ca_end)" = "1" -o "$($CONFIG get sta_wl_ssid)" != "12345678NETGEAR" ]; then
                 killall -SIGINT led-extender

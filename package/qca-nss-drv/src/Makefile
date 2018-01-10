@@ -15,12 +15,15 @@ qca-nss-drv-objs := \
 			nss_dtls.o \
 			nss_dynamic_interface.o \
 			nss_gre_redir.o \
+			nss_gre_tunnel.o \
 			nss_if.o \
 			nss_init.o \
 			nss_ipsec.o \
 			nss_ipv4.o \
+			nss_ipv4_log.o \
 			nss_ipv4_reasm.o \
 			nss_ipv6.o \
+			nss_ipv6_log.o \
 			nss_ipv6_reasm.o \
 			nss_lag.o \
 			nss_lso_rx.o \
@@ -29,6 +32,7 @@ qca-nss-drv-objs := \
 			nss_sjack.o \
 			nss_stats.o \
 			nss_tun6rd.o \
+			nss_trustsec_tx.o \
 			nss_pptp.o \
 			nss_l2tpv2.o \
 			nss_map_t.o \
@@ -54,7 +58,8 @@ qca-nss-drv-objs += \
 			nss_tx_rx_virt_if.o
 
 ccflags-y += -I$(obj)/nss_hal/include -I$(obj)/exports -DNSS_DEBUG_LEVEL=0 -DNSS_PKT_STATS_ENABLED=1
-ccflags-y += -DNSS_PM_DEBUG_LEVEL=0 -DNSS_PPP_SUPPORT=1
+ccflags-y += -DNSS_PM_DEBUG_LEVEL=0 -DNSS_PPP_SUPPORT=1 -DNSS_SKB_RECYCLE_SUPPORT=1
+ccflags-y += -Werror
 
 ifneq ($(findstring 3.4, $(KERNELVERSION)),)
 NSS_CCFLAGS = -DNSS_DT_SUPPORT=0 -DNSS_FW_DBG_SUPPORT=1 -DNSS_PM_SUPPORT=1 -DNSS_EMPTY_BUFFER_SIZE=1984

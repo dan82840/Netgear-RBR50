@@ -1,7 +1,10 @@
 function check_reservation_add(cf,flag)
 {
 	var rsvipaddr = new Array();
-	if( array_num == 64 && flag== 'add')
+	var ptype = wl_type;
+	var pre_num = (ptype)? ptype + "_" : "";
+	var num = eval(pre_num + "array_num");
+	if( num == 64 && flag== 'add')
 	{
 		alert("$reservation_length_64");
 		return false;
@@ -51,14 +54,20 @@ function check_reservation_add(cf,flag)
 		return false;
 	if(isSameSubNet(rsvipaddr,lanmask,lanip,lanmask) == false)
 	{
-		alert("$diff_lan_this_subnet");
+		if(ptype == "guest")
+			alert("This IP address should be in the same subnet as the Guest Portal IP address.");
+		else if(ptype == "byod")
+			alert("This IP address should be in the same subnet as the BYOD Network IP address.");
+		else
+			alert("$diff_lan_this_subnet");
 		return false;
 	}	
 	cf.duplicated_reservation.value="";
 	cf.duplicated_num.value=0;
-	for(i=1;i<=array_num;i++)
+	for(i=1;i<=num;i++)
 	{
-		var str = eval ( 'resevArray' + i ).replace(/&#92;/g, "\\").replace(/&lt;/g,"<").replace(/&gt;/g,">").replace(/&#40;/g,"(").replace(/&#41;/g,")").replace(/&#34;/g,'\"').replace(/&#39;/g,"'").replace(/&#35;/g,"#").replace(/&#38;/g,"&");
+		var preArray = (ptype)? ptype + "_" : "";
+		var str = eval ( preArray + 'resevArray' + i ).replace(/&#92;/g, "\\").replace(/&lt;/g,"<").replace(/&gt;/g,">").replace(/&#40;/g,"(").replace(/&#41;/g,")").replace(/&#34;/g,'\"').replace(/&#39;/g,"'").replace(/&#35;/g,"#").replace(/&#38;/g,"&");
 		var each_info=str.split(' ');
 		if(flag == 'edit')
 		{
@@ -108,24 +117,31 @@ function check_reservation_add(cf,flag)
 	}
 	cf.reservation_ipaddr.value=address_parseInt(rsvipaddr);
 
+	if(ptype == "guest")
+		cf.action = "/apply.cgi?/guest_portal.html timestamp=" + ts;
+	else if(ptype == "byod")
+		cf.action = "/apply.cgi?/WLG_byod_network.html timestamp=" + ts;
 	cf.submit();
 
 	return true;
 }
-function check_reservation_del(cf)
+function check_reservation_del(cf, type)
 {
-	if(array_num == 0)
+	var ptype = wl_type;
+	var pre_num = (ptype)? ptype + "_" : "";
+	var num = eval(pre_num + "array_num");
+	if(num == 0)
 	{
 		alert("$port_del");
 		return false;
 	}
 	var count_select=0;
 	var select_num;
-	if( array_num == 1)
+	if( num == 1)
 	{
 		if(cf.ruleSelect.checked == true)
 		{
-			if(is_ipmac == 1)
+			if(type == "" && is_ipmac == 1)
 			{
 				alert("$ipmac_del_warning");
 				return false;
@@ -135,7 +151,7 @@ function check_reservation_del(cf)
 			select_num=1;
 		}
 	}
-	else for(i=0;i<array_num;i++)
+	else for(i=0;i<num;i++)
 		if(cf.ruleSelect[i].checked == true)
 		{
 			count_select++;
@@ -155,29 +171,32 @@ function check_reservation_del(cf)
 	}	
 }
 
-function check_reservation_editnum(cf)
+function check_reservation_editnum(cf, type)
 {
-	if (array_num == 0)
+	var ptype = wl_type;
+	var pre_num = (ptype)? ptype + "_" : "";
+	var num = eval(pre_num + "array_num");
+	if (num == 0)
 	{
 		alert("$port_edit");
 		return false;
 	}
 	var count_select=0;
 	var select_num;
-	if( array_num == 1)
+	if( num == 1)
 	{
 		if(cf.ruleSelect.checked == true)
 		{
 			count_select++;
 			select_num=1;
 
-			if(is_ipmac == 1)
+			if(type == "" && is_ipmac == 1)
 			{
 				alert("$ipmac_edit_warning");
 			}
 		}
 	}
-	else for(i=0;i<array_num;i++)
+	else for(i=0;i<num;i++)
 		if(cf.ruleSelect[i].checked == true)
 		{
 			count_select++;
@@ -219,4 +238,15 @@ function data_select(num)
 		cf.rsv_ip3.value=ip_array[2];
 		cf.rsv_ip4.value=ip_array[3];	
 	}
+}
+
+function goBack()
+{
+	var ptype = wl_type;
+	if(ptype == "guest")
+		location.href = "guest_portal.html";
+	else if(ptype == "byod")
+		location.href = "WLG_byod_network.html"
+	else
+		location.href = "LAN_lan.htm";
 }

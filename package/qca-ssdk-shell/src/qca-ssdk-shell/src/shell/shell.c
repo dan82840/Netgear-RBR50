@@ -555,13 +555,10 @@ cmd_exec(a_uint32_t *arg_val, int cmd_index, int cmd_index_sub)
     return 0;
 }
 
-static int
+static sw_error_t
 cmd_socket_init()
 {
     sw_error_t rv;
-    garuda_init_spec_cfg chip_spec_cfg;
-
-    aos_mem_set(&chip_spec_cfg, 0 ,sizeof(garuda_init_spec_cfg));
 
     init_cfg.cpu_mode = HSL_CPU_1;
     init_cfg.reg_mode = HSL_MDIO;
@@ -573,7 +570,6 @@ cmd_socket_init()
     init_cfg.chip_type=CHIP_UNSPECIFIED;
     init_cfg.reg_func.mdio_set = NULL;
     init_cfg.reg_func.mdio_get = NULL;
-    init_cfg.chip_spec_cfg     = &chip_spec_cfg;
 
     rv = ssdk_init(0, &init_cfg);
     if (SW_OK == rv)
@@ -591,7 +587,7 @@ cmd_socket_init()
         rv = sw_uk_exec(SW_API_SSDK_CFG, 0, &ssdk_cfg);
         flag = 1;
     }
-    return (int)rv;
+    return rv;
 }
 
 static sw_error_t

@@ -16,7 +16,7 @@
 #
 
 if [ "$ACTION" = "released" -a "$BUTTON" = "wps" ]; then
-	default_hold = 3
+	default_hold=3
 	if [ -f /var/run/plchost.pid ]
 	then
 		default_hold=12

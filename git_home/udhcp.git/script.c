@@ -51,7 +51,6 @@ static int max_option_length[] = {
 	[OPTION_S16] =		sizeof("-32768 "),
 	[OPTION_U32] =		sizeof("4294967295 "),
 	[OPTION_S32] =		sizeof("-2147483684 "),
-	[OPTION_6RD] = 		sizeof("32 128 ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff 255.255.255.255 "),
 };
 
 
@@ -177,46 +176,6 @@ static int sprintipcomp(char *dest, unsigned char *ipcomp, int *optlen)
 }
 #endif
 
-const char bb_hexdigits_upcase[] = "0123456789ABCDEF";
-
-/* Emit a string of hex representation of bytes */
-char* bin2hex(char *p, const char *cp, int count)
-{
-    while (count) {
-        unsigned char c = *cp++;
-        /* put lowercase hex digits */
-        *p++ = 0x20 | bb_hexdigits_upcase[c >> 4];
-        *p++ = 0x20 | bb_hexdigits_upcase[c & 0xf];
-        count--;
-    }
-    return p;
-}
-
-/* note: ip is a pointer to an IP in network order, possibly misaliged */
-static int sprint_nip(char *dest, const char *pre, const uint8_t *ip)
-{
-    return sprintf(dest, "%s%u.%u.%u.%u", pre, ip[0], ip[1], ip[2], ip[3]);
-}
-
-/* note: ip is a pointer to an IPv6 in network order, possibly misaliged */
-int sprint_nip6(char *dest, /*const char *pre,*/ const uint8_t *ip)
-{
-    char hexstrbuf[16 * 2];
-    bin2hex(hexstrbuf, (void*)ip, 16);
-    return sprintf(dest, /* "%s" */
-        "%.4s:%.4s:%.4s:%.4s:%.4s:%.4s:%.4s:%.4s",
-        /* pre, */
-        hexstrbuf + 0 * 4,
-        hexstrbuf + 1 * 4,
-        hexstrbuf + 2 * 4,
-        hexstrbuf + 3 * 4,
-        hexstrbuf + 4 * 4,
-        hexstrbuf + 5 * 4,
-        hexstrbuf + 6 * 4,
-        hexstrbuf + 7 * 4
-    );
-}
-
 /* Fill dest with the text of option 'option'. */
 static void fill_options(char *dest, unsigned char *option, struct dhcp_option *type_p)
 {
@@ -277,30 +236,6 @@ static void fill_options(char *dest, unsigned char *option, struct dhcp_option *
 			memcpy(dest, option, len);
 			dest[len] = '\0';
 			return;	 /* Short circuit this case */
-		case OPTION_6RD:
-			if (len >= (1 + 1 + 16 + 4) && option[0] <= 32
-				&& (option[1] + 32 - option[0]) <= 128
-			) {
-				/* IPv4MaskLen */
-		                dest += sprintf(dest, "%u ", *option++);
-                		/* 6rdPrefixLen */
-		                dest += sprintf(dest, "%u ", *option++);
-                		/* 6rdPrefix */
-		                dest += sprint_nip6(dest, /* "", */ option);
-                		option += 16;
-				len -= 1 + 1 + 16 + 4;
-				/* "+ 4" above corresponds to the length of IPv4 addr
-		                 * we consume in the loop below */
-				while (1) {
-                	       /* 6rdBRIPv4Address(es) */
-		                    dest += sprint_nip(dest, " ", option);
-                		    option += 4;
-		                    len -= 4; /* do we have yet another 4+ bytes? */
-                		    if (len < 0)
-		                        break; /* no */
-                		}
-			}
-			return;
 		}
 		option += optlen;
 		len -= optlen;

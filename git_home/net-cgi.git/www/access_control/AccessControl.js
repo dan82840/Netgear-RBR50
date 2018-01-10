@@ -120,10 +120,21 @@ function check_all_device(this_e, start, id)
 	var e;
 	var type=this_e.checked;
 	
-	while( e = eval('document.getElementById("'+id+i+'")'))
+	if(id == "checkbox_index")
 	{
-		e.checked = type;
-		i++;
+		for(i=1;i<=access_control_device_num;i++)
+		{
+				if( e = eval('document.getElementById("'+id+i+'")'))
+					e.checked = type;
+		}
+	}
+	else
+	{
+		while( e = eval('document.getElementById("'+id+i+'")'))
+		{
+			e.checked = type;
+			i++;
+		}
 	}
 
     if(id == "checkbox_index")
@@ -149,16 +160,19 @@ function set_allow_block(cf, flag)
 		for(i=1;i<=access_control_device_num;i++)
 		{
 			var listName = "checkbox_index"+i;
-			if(document.getElementById(listName).checked == true)
+			if(e = eval('document.getElementById(listName)'))
 			{
-				if(flag == 0 && document.getElementById(listName).value.toLowerCase() == wan_remote_mac.toLowerCase())
+				if(document.getElementById(listName).checked == true)
 				{
-					alert("$not_block_device_msg");
-					return false;
+					if(flag == 0 && document.getElementById(listName).value.toLowerCase() == wan_remote_mac.toLowerCase())
+					{
+						alert("$not_block_device_msg");
+						return false;
+					}
+					sel_list+= document.getElementById(listName).value;
+					sel_list+= "#";
+					sel_num++;
 				}
-				sel_list+= document.getElementById(listName).value;
-				sel_list+= "#";
-				sel_num++;
 			}
 		}
 		if(sel_num == 0)
@@ -168,6 +182,7 @@ function set_allow_block(cf, flag)
 		
 		cf.hidden_change_list.value = sel_list;
 		cf.hidden_change_num.value = sel_num;
+		cf.action="/apply.cgi?/access_control_plsWait.htm timestamp="+ts;
 		cf.submit();
 	}
 	else
@@ -189,10 +204,13 @@ function check_edit()
 	for(i=1;i<=access_control_device_num;i++)
 	{
 		var listName="checkbox_index"+i;
-		if(document.getElementById(listName).checked==true)
+		if(e = eval('document.getElementById(listName)'))
 		{
-			select_num=i+1;
-			count++;
+			if(document.getElementById(listName).checked==true)
+			{
+				select_num=i+1;
+				count++;
+			}
 		}
 	}
 	if(count==0||count!=1)
@@ -312,15 +330,17 @@ function check_status()
 		cf.Block.className = "common_gray_bt";
 		cf.edit_attached.className="common_gray_bt";
 		for(i=1;i<=access_control_device_num;i++)
-			document.getElementById("checkbox_index"+i).disabled = true;
-
-		document.getElementById("delete_white").className= "common_big_gray_bt";
+		{
+			if(e = eval('document.getElementById("checkbox_index"+i)'))
+				e.disabled = true;
+		}
+		document.getElementById("delete_white").className= "long_common_gray_bt";
 		document.getElementById("add_white").className = "common_gray_bt";
 		cf.edit_white.className="common_gray_bt";
 		for(i=1;i<=allowed_no_connect_num;i++)
 			document.getElementById("checkbox_index_white"+i).disabled = true;
 
-		document.getElementById("delete_black").className= "common_big_gray_bt";
+		document.getElementById("delete_black").className= "long_common_gray_bt";
 		document.getElementById("add_black").className = "common_gray_bt";
 		cf.edit_black.className = "common_gray_bt";
 		for(i=1;i<=blocked_no_connect_num;i++)
@@ -336,7 +356,10 @@ function check_status()
 		cf.Allow.className = "common_bt";
 		cf.Block.className = "common_bt";
 		for(i=1;i<=access_control_device_num;i++)
-			document.getElementById("checkbox_index"+i).disabled = false;
+		{
+			if(e = eval('document.getElementById("checkbox_index"+i)'))
+				e.disabled = false;
+		}
 
 		document.getElementById("delete_white").className= "common_big_bt";
 		document.getElementById("add_white").className = "common_bt";
@@ -454,14 +477,44 @@ function check_acc_add(cf,flag)
     {
         if(access_mac.toLowerCase() == cf.hidden_edit_mac.value.toLowerCase())
         {
-            var str=document.getElementById("allow_or_block_connect_device")
+            var str=document.getElementById("allow_or_block_connect_device");
             if(str.options[1].selected==true)
             {
                 alert("$not_block_device_msg");
                 return false;
             }
+			if(cf.dev_name.value=="")
+			{
+				alert("$device_name_null");
+				return false;	
+			}
+		var name_str=cf.dev_name.value;
+		for(i=0;i<name_str.length;i++)
+		{
+			var c = name_str.charCodeAt(i);
+			if(c == 64 || c == 59)
+			{
+				alert("$device_name_error");
+				return false;
+			}
+		}
         }
     }
+	if(cf.dev_name.value=="")
+       {
+                alert("$device_name_null");
+                return false;
+        }
+        var name_str=cf.dev_name.value;
+        for(i=0;i<name_str.length;i++)
+        {
+                var c = name_str.charCodeAt(i);
+                if(c == 64 || c == 59)
+                {
+                        alert("$device_name_error");
+                        return false;
+		}
+        }
     	cf.submit();
 	return true;
 }
@@ -540,9 +593,12 @@ function toggle_edit()
     if(access_control_device_num > 0) {
         for(var i=1;i<=access_control_device_num;i++) {
             var listName = "checkbox_index"+i;
-            if(document.getElementById(listName).checked == true) {
-                num++;
-            }
+		if(e = eval('document.getElementById(listName)'))
+		{
+            		if(document.getElementById(listName).checked == true) {
+                		num++;
+            		}
+		}
         }
     }
     if(num == 1) {

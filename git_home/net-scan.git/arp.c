@@ -1,37 +1,17 @@
 #include "netscan.h"
+#include "cJSON.h"
 
-#define NEIGH_HASHMASK	0x1F
-
-enum interface_num {
-	BR0,
-	ATH0,
-	ATH01,
-	ATH1,
-	ATH2,
-	ETH0,
-	ATH02,
-	ATH11
-};
-
+#define INTERFACENUM 8
 struct interface_element{
 	char *name;
 	char mac[18];
 	int port;
 };
 
-enum device_type{
-	NONETYPE,
-	WIRELESS_2G,
-	WIRELESS_5G,
-	WIRED
-};
-
 #define SUPPORT_STREAMBOOST
 #ifdef SUPPORT_STREAMBOOST
 #define SB_INFO_STATE_1 1
 #define SB_INFO_STATE_2 2
-
-#define INTERFACENUM 8
 
 typedef enum {
 	TYPE_SOAP_OLD = 0, /* This type is for SOAP API */
@@ -161,8 +141,8 @@ struct sb2netgear_devtype_mapping_table devtype_mapping_table[] = {
 	{"Bridge", TYPE_BRIDGE},
 	{"Cable STB", TYPE_CABLE_STB},
 	{"Camera", TYPE_CAMERA},
-	{"D-Link", TYPE_ROUTER}, 
-	{"D-Link DSM-312", TYPE_ROUTER}, 
+	{"D-Link", TYPE_ROUTER},
+	{"D-Link DSM-312", TYPE_ROUTER},
 	{"Netgear", TYPE_ROUTER},
 	{"DVR", TYPE_DVR},
 	{"Swann DVR", TYPE_DVR},
@@ -197,7 +177,7 @@ struct sb2netgear_devtype_mapping_table devtype_mapping_table[] = {
 	{"Mac OS X", TYPE_MAC_BOOK},
 	{"Roku", TYPE_MEDIA_DEVICE},
 	{"SunPower Device", TYPE_MEDIA_DEVICE},
-	{"Tivo", TYPE_MEDIA_DEVICE}, 
+	{"Tivo", TYPE_MEDIA_DEVICE},
 	{"Slingbox", TYPE_MEDIA_DEVICE},
 	{"Yamaha AVR", TYPE_MEDIA_DEVICE},
 	{"Daemon Device", TYPE_MEDIA_DEVICE},
@@ -213,7 +193,7 @@ struct sb2netgear_devtype_mapping_table devtype_mapping_table[] = {
 	{"D-Link DSM-312 MovieNite P1", TYPE_OTHER_STB},
 	{"HDHomeRun", TYPE_OTHER_STB},
 	{"Motorola TV Set-Top", TYPE_OTHER_STB},
-	{"Powerline", TYPE_POWERLINE}, 
+	{"Powerline", TYPE_POWERLINE},
 	{"HP InKjet", TYPE_PRINTER},
 	{"Repeater", TYPE_REPEATER},
 	{"Satellite STB", TYPE_SATELLITE_STB},
@@ -228,7 +208,7 @@ struct sb2netgear_devtype_mapping_table devtype_mapping_table[] = {
 	{"Nokia Lumia 822", TYPE_SMART_PHONE},
 	{"Nokia Lumia 920", TYPE_SMART_PHONE},
 	{"Nokia Lumia 928", TYPE_SMART_PHONE},
-	{"Panasonic Smart Device", TYPE_SMART_PHONE}, 
+	{"Panasonic Smart Device", TYPE_SMART_PHONE},
 	{"Symbian Phone", TYPE_SMART_PHONE},
 	{"Windows Phone", TYPE_SMART_PHONE},
 	{"Droid4", TYPE_SMART_PHONE},
@@ -314,9 +294,11 @@ int sb_priority_2_netgear_prioriry(int sb_priority, char *netgear_priority)
 }
 
 #define DELETE_LAST_CHAR(str) str[strlen(str) - 1] = 0
+
 static int priority_for_unknow_dev;
 
 void update_streamboost_info(int state, uint8 *mac, struct in_addr ip, char *name, netgear_devtype_t type, double down, double up, long long epoch, int priority);
+
 void get_streamboost_nodes_info(int state)
 {
 	FILE* fp;
@@ -408,7 +390,7 @@ void read_device_list(struct device_list *head)
 {
 	int j;
 	char name[16], *val, *mac, *priority, *type, *host;
-	struct device_list *p1, *p2; 
+	struct device_list *p1, *p2;
 
 	head->next = NULL;
 	p1 = head;
@@ -419,7 +401,7 @@ void read_device_list(struct device_list *head)
 			break;
 
 		mac = strtok(val, " ");
-		priority = strtok(NULL, " ");	
+		priority = strtok(NULL, " ");
 		type = strtok(NULL, " ");
 		/* Host name can be NULL(means clear the custom name and use the default name )
 		 * or includes one or more SPACE characters
@@ -427,16 +409,16 @@ void read_device_list(struct device_list *head)
 		host = type + strlen(type) + 1;
 		if(mac == NULL || priority == NULL || type == NULL)
 			continue;
-		
+
 		p2  = malloc(sizeof(struct device_list));
 		if(!p2)
-			break; /*or make head=NULL and return ?*/ 
+			break; /*or make head=NULL and return ?*/
 
 		strncpy(p2->mac, mac, sizeof(p2->mac));
 		strncpy(p2->priority, priority, sizeof(p2->priority));
-		p2->type = atoi(type); 		
+		p2->type = atoi(type);
 		strncpy(p2->host, host, sizeof(p2->host));
-		p1->next = p2; 
+		p1->next = p2;
 		p1       = p2;
 		p2->next = NULL;
 	}
@@ -444,26 +426,30 @@ void read_device_list(struct device_list *head)
 void free_device_list(struct device_list *head)
 {
 	struct device_list *p1,*p2;
-	
+
 	p1 = head->next;
 	while(p1){
 		p2 = p1->next;
 		free(p1);
 		p1 = p2;
 	}
-}	
+}
 #endif
 
 struct arp_struct
 {
 	struct arp_struct *next;
 
-	struct in_addr ip;
-
 	uint16 active;
-	uint8 mac[ETH_ALEN];
 
+	struct in_addr ip;
+	uint8 mac[ETH_ALEN];
+	ConnectionType ctype;
+	unsigned int dtype;
+	AttachedType atype;
+	char model[MAX_MODEL_LEN + 1];
 	char host[MAX_HOSTNAME_LEN + 1];
+
 #ifdef SUPPORT_STREAMBOOST
 	uint8 state;
 	netgear_devtype_t type;
@@ -483,11 +469,11 @@ int init_arp_request(char *ifname)
 	int s, i;
 	struct ifreq ifr;
 	struct arpmsg *arp;
-	
+
 	s = socket(AF_INET, SOCK_RAW, IPPROTO_RAW);
 	if (s < 0)
 		return 0;
-	
+
 	arp = &arpreq;
 	memset(arp, 0, sizeof(struct arpmsg));
 
@@ -499,12 +485,12 @@ int init_arp_request(char *ifname)
 		if (i == 0)
 			return 0;
 		if (ioctl(s, SIOCGIFADDR, &ifr) != 0)
-			sleep(5);	
+			sleep(5);
 		else
 			break;
 	}
 	memcpy(arp->ar_sip, &((struct sockaddr_in *)&ifr.ifr_addr)->sin_addr, 4);
-	
+
 	if (ioctl(s, SIOCGIFHWADDR, &ifr) != 0)
 		return 0;
 	memset(arp->h_dest, 0xFF, 6);
@@ -516,55 +502,11 @@ int init_arp_request(char *ifname)
 	arp->ar_pln = 4;
 	arp->ar_op = htons(ARPOP_REQUEST);
 	memcpy(arp->ar_sha, ifr.ifr_hwaddr.sa_data, 6);
-	
+
 	close(s);
 	return 1;
 }
 
-/* modified from "linux-2.4.18/net/ipv4/arp.c" */
-static uint32 arp_hash(uint8 *pkey)
-{
-#define GET_UINT32(p)	((p[0]) |(p[1] << 8) |(p[2] << 16) |(p[3] << 24))
-	uint32 hash_val;
-
-	hash_val = GET_UINT32(pkey);
-	hash_val ^= hash_val >> 16;
-	hash_val ^= hash_val >> 8;
-	hash_val ^= hash_val >> 3;
-
-	return hash_val & NEIGH_HASHMASK;
-}
-
-static void get_dhcp_host(char host[], struct in_addr ip, int *isrepl)
-{
-	FILE *tfp;
-	char *ipaddr;
-	char *hostname;
-	char *ipstr;
-	char buff[512];
-
-	host[0] = '\0';
-	ipstr = inet_ntoa(ip);
-	if ((tfp = fopen(DHCP_LIST_FILE,"r")) == 0)
-		return;
-
-	while (fgets(buff, sizeof(buff), tfp)) {
-		ipaddr = strtok(buff, " \t\n");
-		hostname = strtok(NULL, "\t\n");
-		if (ipaddr == NULL || hostname == NULL)
-			continue;
-
-		if (strcmp(ipaddr, ipstr) == 0) {
-			strncpy(host, hostname, MAX_HOSTNAME_LEN);
-			*isrepl = 0;
-			break;
-		}
-	}
-
-	fclose(tfp);
-}
-
-char *ether_etoa(uint8 *e, char *a);
 void acl_update_name(uint8 *mac, char *name)
 {
 	//char cmd[1024];
@@ -575,20 +517,161 @@ void acl_update_name(uint8 *mac, char *name)
 	dni_system(NULL, "/usr/sbin/acl_update_name", ether_etoa(mac, dev_mac), name, NULL);
 }
 
-void update_satellite_name_arp_table(uint8 *mac, struct in_addr ip, char *host)
+cJSON *getJSONcode(char *filename)
 {
-	uint32 i;
-	struct arp_struct *u;
-	char mac_dev[32];
-	
-	i = arp_hash(mac);
-	for (u = arp_tbl[i]; u && memcmp(u->mac, mac, ETH_ALEN); u = u->next);
-	
-	if (u) 
-		if (*host) {
-			strncpy(u->host, host, MAX_HOSTNAME_LEN);
-			acl_update_name(u->mac, host);
+	FILE *tfp;
+	cJSON *root;
+	int flen=0;
+	char *json_buf;
+
+	root=NULL;
+	if((tfp = fopen(filename, "r")) == NULL)
+		return NULL;
+
+	fseek(tfp,0L,SEEK_END);
+	flen=ftell(tfp);
+	json_buf=(char *)malloc(flen+1);
+	fseek(tfp,0L,SEEK_SET);
+	fread(json_buf,flen,1,tfp);
+	json_buf[flen]='\0';
+	fclose(tfp);
+	root = cJSON_Parse(json_buf);
+	free(json_buf);
+	json_buf = NULL;
+	return root;
+}
+
+struct interface_element if_ele[INTERFACENUM] = {
+	{"eth1", "00:00:00:00:00:00", 1},
+	{"ath0", "00:00:00:00:00:00", 0},
+	{"ath01", "00:00:00:00:00:00", 0},
+	{"ath1", "00:00:00:00:00:00", 0},
+	{"ath2", "00:00:00:00:00:00", 0},
+	{"ath02", "00:00:00:00:00:00", 0},
+	{"ath11", "00:00:00:00:00:00", 0},
+	{"eth0", "00:00:00:00:00:00", 2},
+	{NULL, "00:00:00:00:00:00", 0}
+};
+
+int get_interface_info () {
+	FILE *fd;
+	int i;
+	char buff[512], *port, *bmac, *other;
+
+	system("brctl showmacs br0 > /tmp/brctl_showmacs_br0");
+	if((fd = fopen("/tmp/brctl_showmacs_br0", "r")) == NULL)
+		return -1;
+
+	//get mac addresses to compare
+	for (i = 0; i < INTERFACENUM; i++){
+		if(if_ele[i].name == NULL) break;
+		get_mac(if_ele[i].name, if_ele[i].mac);
+	}
+
+	/*
+	 * #brctl showmacs br0
+	 * port no		mac addr			is local?		ageing time
+	 * 1			20:14:07:11:2A:20	yes				1.01
+	 * ......
+	 */
+
+	fgets(buff, sizeof(buff), fd);		//skip first line
+	while(fgets(buff, sizeof(buff), fd)){
+		port = strtok(buff, " \t\n");
+		bmac = strtok(NULL, " \t\n");
+		other = strtok(NULL, " \t\n");
+
+		strupr(bmac);
+		for (i = 0; i < INTERFACENUM; i++){
+			if(if_ele[i].name == NULL) break;
+			if(!strncmp(bmac, if_ele[i].mac, 17)){
+				if_ele[i].port = atoi(port);
+//				DEBUGP("Found %s interface port id %d\n", if_ele[i].name, if_ele[i].port);
+				break;
+			}
 		}
+	}
+
+	//print interface infomation
+//	DEBUGP("---Interface Table---\n");
+	for (i = 0; i < INTERFACENUM; i++){
+		if(if_ele[i].name == NULL) break;
+//		DEBUGP("name:%s MAC:%s port:%d\n", if_ele[i].name, if_ele[i].mac, if_ele[i].port);
+	}
+
+	fclose(fd);
+	return 0;
+}
+
+int get_attach_and_connection_type(struct arp_struct *u) {
+	FILE *fd;
+	int i, ret = -1;
+	char buff[512], arpmac[32], *port, *bmac, *other;
+
+	get_interface_info();
+
+	if((fd = fopen("/tmp/brctl_showmacs_br0", "r")) == NULL) {
+		DEBUGP("cannot open /tmp/brctl_showmacs_br0\n");
+		return -1;
+	}
+
+	/*
+	 * #brctl showmacs br0
+	 * port no		mac addr			is local?		ageing time
+	 * 1			20:14:07:11:2A:20	yes				1.01
+	 * ......
+	 */
+
+	fgets(buff, sizeof(buff), fd);		//skip first line
+	ether_etoa(u->mac, arpmac);
+	while(fgets(buff, sizeof(buff), fd)){
+		int portnum=0;
+
+		port = strtok(buff, " \t\n");
+		bmac = strtok(NULL, " \t\n");
+		other = strtok(NULL, " \t\n");
+
+		strupr(bmac);
+		if(strncmp(arpmac, bmac, strlen(arpmac)))
+			continue;
+
+		portnum = atoi(port);
+//		DEBUGP("ONE client[%s] from %d interface.\n", bmac, portnum);
+		for (i = 0; i < INTERFACENUM; i++)
+		{
+			// For Orbi projects 2.4G is ath0, ath02. 5G is ath1,ath11
+			if(if_ele[i].name == NULL) break;
+			if (if_ele[i].port == portnum) {
+				switch(i) {
+					case ETH1:
+					case ETH0:
+						u->ctype = WIRED;
+						u->atype = BASE_ATT;
+						break;
+					case ATH0:
+					case ATH02:
+						u->ctype = WIRELESS_2G;
+						u->atype = BASE_ATT;
+						break;
+					case ATH1:
+					case ATH11:
+						u->ctype = WIRELESS_5G;
+						u->atype = BASE_ATT;
+						break;
+					case ATH01:
+					case ATH2:
+						update_satellites_and_attachs(u);
+						break;
+				}
+				ret = 0;
+				break;
+			}
+		}
+		break;
+	}
+
+	fclose(fd);
+	return ret;
 }
 
 int update_arp_table(uint8 *mac, struct in_addr ip, int isrepl)
@@ -596,7 +679,7 @@ int update_arp_table(uint8 *mac, struct in_addr ip, int isrepl)
 	uint32 i;
 	char host[MAX_HOSTNAME_LEN + 1] = {0};
 	struct arp_struct *u;
-	
+
 	/* check dhcp host */
 	get_dhcp_host(host, ip, &isrepl);
 	i = arp_hash(mac);
@@ -608,6 +691,9 @@ int update_arp_table(uint8 *mac, struct in_addr ip, int isrepl)
 		}
 		u->ip = ip;              /* The IP may be changed for DHCP      */
 		u->active = 1;
+
+		if (get_attach_and_connection_type(u) == -1)
+			u->active = 0;
 		return isrepl;	/* Do BIOS Name Query only ARP reply */
 	}
 
@@ -617,12 +703,35 @@ int update_arp_table(uint8 *mac, struct in_addr ip, int isrepl)
 	memset(u, 0, sizeof(struct arp_struct));
 	u->ip = ip;
 	u->active = 1;
-	u->type = TYPE_OTHERS;
+	memcpy(u->mac, mac, ETH_ALEN);
+
+	/* start catch HTTP packets when new mac is found*/
+	system("/usr/sbin/UA_Parser");
+
 	if (*host) {
 		strncpy(u->host, host, MAX_HOSTNAME_LEN);
 		acl_update_name(u->mac, host);
 	}
-	memcpy(u->mac, mac, ETH_ALEN);
+
+	u->ctype = NONETYPE; //default value
+	if (get_attach_and_connection_type(u) == -1)
+			u->active = 0;
+	else {
+		if (u->atype == SATELLITE_ATT) {
+			system("/etc/send_soap &");
+		}
+	}
+	u->dtype = DEFAULT_DEVICE_TYPE;
+	get_model_name(u->mac, u->model);
+	
+/*
+ *	update local device table
+ *	run UA_Parser
+ */
+#ifdef SUPPORT_STREAMBOOST
+	u->type = TYPE_OTHERS;
+#endif
+
 	u->next = arp_tbl[i];
 	arp_tbl[i] = u;
 
@@ -648,7 +757,7 @@ void update_bios_name(uint8 *mac, char *host, struct in_addr ip)
 {
 	uint32 i;
 	struct arp_struct *u;
-	
+
 	i = arp_hash(mac);
 	for (u = arp_tbl[i]; u && memcmp(u->mac, mac, ETH_ALEN); u = u->next);
 
@@ -656,7 +765,7 @@ void update_bios_name(uint8 *mac, char *host, struct in_addr ip)
 		update_name(ip, host); /* try it by IP address */
 		return;
 	}
-	
+
 	strncpy(u->host, host, MAX_HOSTNAME_LEN);
 	acl_update_name(u->mac, host);
 }
@@ -672,7 +781,7 @@ void update_streamboost_info(int state, uint8 *mac, struct in_addr ip, char *nam
 
 	if (state == SB_INFO_STATE_2 && u && u->active == 1 && priority > priority_for_unknow_dev)
 		priority_for_unknow_dev = priority;
-	
+
 	if (!u) {
 		u = malloc(sizeof(struct arp_struct));
 		if (!u)
@@ -720,7 +829,7 @@ void recv_bios_pack(char *buf, int len, struct in_addr from)
 
 	if (len < HDR_SIZE)
 		return;
-	
+
 	resp = (struct nb_response_header *)buf;
 	num = resp->num_names;
 	p = (uint8*)&buf[HDR_SIZE];
@@ -736,79 +845,18 @@ void recv_bios_pack(char *buf, int len, struct in_addr from)
 	update_bios_name(e, (char *)p, from);
 }
 
-char *ether_etoa(uint8 *e, char *a)
-{
-	static char hexbuf[] = "0123456789ABCDEF";
-	
-	int i, k;
-
-	for (k = 0, i = 0; i < 6; i++) {
-		a[k++] = hexbuf[(e[i] >> 4) & 0xF];
-		a[k++] = hexbuf[(e[i]) & 0xF];
-		a[k++]=':';
-	}
-	
-	a[--k] = 0;
-	
-	return a;
-}
-
-/*
- * xss Protection 
- * < -> &lt;
- * > -> &gt;
- * ( -> &#40;
- * ) -> &#41;
- * " -> &#34;
- * ' -> &#39;
- * # -> &#35;
- * & -> &#38;
- */
-char *host_stod(char *s)
-{//change special character to ordinary string
-	static char str[MAX_HOSTNAME_LEN*5 + 1 ];
-	char c, *p;
-
-	p = str;
-        while((c = *s++) != '\0') {
-                if(c == '"'){
-                        *p++ = '&'; *p++ = '#'; *p++ = '3'; *p++ = '4'; *p++ = ';';
-                } else if( c == '(' ){
-                        *p++ = '&'; *p++ = '#'; *p++ = '4'; *p++ = '0'; *p++ = ';';
-                } else if( c == ')' ){
-                        *p++ = '&'; *p++ = '#'; *p++ = '4'; *p++ = '1'; *p++ = ';';
-                } else if( c == '#' ){
-                        *p++ = '&'; *p++ = '#'; *p++ = '3'; *p++ = '5'; *p++ = ';';
-                } else if( c == '&' ){
-                        *p++ = '&'; *p++ = '#'; *p++ = '3'; *p++ = '8'; *p++ = ';';
-                } else if( c == '<' ){
-                        *p++ = '&'; *p++ = 'l'; *p++ = 't'; *p++ = ';';
-                } else if( c == '>' ){
-                        *p++ = '&'; *p++ = 'g'; *p++ = 't'; *p++ = ';';
-                } else if (c == '\'') {
-                        *p++ = '&'; *p++ = '#'; *p++ = '3'; *p++ = '9'; *p++ = ';';
-                }
-                else {
-                        *p++ = c;
-                }
-        }
-        *p = '\0';
-
-	return str;	
-}
-
 int open_arp_socket(struct sockaddr *me)
 {
 	int s;
 	int buffersize = 200 * 1024;
-	
+
 	s = socket(PF_PACKET, SOCK_PACKET, htons(ETH_P_ARP));
 	if (s < 0)
 		return -1;
 
 	/* We're trying to override buffer size  to set a bigger buffer. */
 	if (setsockopt(s, SOL_SOCKET, SO_RCVBUF, &buffersize, sizeof(buffersize)))
-		fprintf(stderr, "setsocketopt error!\n");
+		DEBUGP("setsocketopt error!\n");
 
 	me->sa_family = PF_PACKET;
 	strncpy(me->sa_data, ARP_IFNAME, 14);
@@ -816,14 +864,14 @@ int open_arp_socket(struct sockaddr *me)
 		return -1;
 	if (init_arp_request(ARP_IFNAME) == 0)
 		return -1;
-	
+
 	return s;
 }
 
 int recv_arp_pack(struct arpmsg *arpkt, struct in_addr *send_ip)
 {
 	static uint8 zero[6] = { 0, 0, 0, 0, 0, 0 };
-	
+
 	struct in_addr src_ip;
 
 	if (arpkt->ar_op != htons(ARPOP_REQUEST) && arpkt->ar_op != htons(ARPOP_REPLY))
@@ -850,236 +898,221 @@ int recv_arp_pack(struct arpmsg *arpkt, struct in_addr *send_ip)
 	return update_arp_table(arpkt->ar_sha, src_ip, arpkt->ar_op == htons(ARPOP_REPLY));
 }
 
-void remove_disconn_dhcp(struct in_addr ip)
-{
-	int i, k, result;
-	int target = 0;
-	int target_num = 0;
-	FILE *fp;
-	fpos_t pos_w,pos_r,pos;
-	char ipaddr[32];
-	char line[512];
-	char list_str[512];
+void update_satellite_name(struct arp_struct *u) {
+	int scount, i;
+	cJSON *dataArray, *Item, *macItem, *modelItem, *deviceItem;
+	char mac[32];
 
-	if ( !(fp = fopen (DHCP_LIST_FILE,"r")))
-		return;
-	
-	while(fgets(line, sizeof(line), fp) != NULL) {
-		result = sscanf(line, "%s%s", ipaddr,list_str);
-		if (result == 2){
-			if(memcmp(inet_ntoa(ip), ipaddr, strlen(ipaddr)) == 0) {
-				target = 1;
-				break;
+	system("/usr/sbin/satelliteinfo device > /tmp/netscan/current_satellite_list");
+	ether_etoa(u->mac, mac);
+
+	if((dataArray = getJSONcode("/tmp/netscan/current_satellite_list")) != NULL) {
+		scount = cJSON_GetArraySize(dataArray);
+
+		for(i=0; i<scount; i++) {
+			Item  = cJSON_GetArrayItem(dataArray, i);
+			if (Item == NULL) goto err;
+			macItem = cJSON_GetObjectItem(Item, "mac address");
+			modelItem = cJSON_GetObjectItem(Item, "module name");
+			deviceItem =  cJSON_GetObjectItem(Item, "device name");
+			if (macItem == NULL || modelItem == NULL || deviceItem == NULL) goto err;
+			if (strcmp(macItem->valuestring, mac) == 0) {
+				strncpy(u->host, deviceItem->valuestring, MAX_HOSTNAME_LEN);
+				DEBUGP("Get satellite[MAC:%s] name:%s\n", mac, u->host);
+				cJSON_Delete(dataArray);
+				return;
 			}
 		}
-		target_num ++;
+
 	}
-	fclose(fp);
 
-	if (target != 1)
-		return;
-
-	if ( !(fp = fopen (DHCP_LIST_FILE,"r+")))
-		return;
-	for (i = 0; i < target_num; i++)
-		fgets(line,sizeof(line),fp);
-	
-	/* save the file pointer position */
-	fgetpos (fp,&pos_w);
-	/* position the delete line */
-	fgets(line,sizeof(line),fp);
-	fgetpos (fp,&pos_r);
-	pos = pos_r;
-
-	while (1)
-	{
-		/* set a new file position */ 
-		fsetpos (fp,&pos);
-		if (fgets(line,sizeof(line),fp) ==NULL) 
-			break;
-		fgetpos (fp,&pos_r);
-		pos = pos_w;
-		fsetpos (fp,&pos);
-		fprintf(fp,"%s",line);
-		fgetpos (fp,&pos_w);
-		pos = pos_r;
-	}
-	pos = pos_w;
-	fsetpos (fp,&pos);
-	k = strlen(line);
-	for (i=0;i<k;i++) 
-		fputc(0x20,fp);
-	
-	fclose(fp);
+	DEBUGP("[net-scan]name of satellite[MAC:%s] is not found\n", mac);
+	cJSON_Delete(dataArray);
+	return;
+err:
+	DEBUGP("[net-scan]Get satelliteinfo device error\n");
+	cJSON_Delete(dataArray);
+	return;
 }
 
-		
-void strupr(char *str)
-{
-	for(;*str != '\0'; str++)
-	{
-		if(*str >= 97 && *str <= 122)
-			*str = (*str)-32;
-	}
-}
+void update_satellite_attaches(struct arp_struct *u) {
+	int scount, i, dcount, j;
+	cJSON *dataArray, *Item, *macItem, *typeItem, *deviceItem, *satellite_dev, *sItem;
+	char mac[32], type[8], *p0, *p1, *sname;
 
+	ether_etoa(u->mac, mac);
 
+	system("/usr/sbin/satelliteinfo attached > /tmp/netscan/satellite_attached_dev");
 
-int check_sta_format(char *info)
-{
-	int i,len;
+	if((dataArray = getJSONcode("/tmp/netscan/satellite_attached_dev")) != NULL) {
+		scount = cJSON_GetArraySize(dataArray);
 
-	len = strlen(info);
+		for(i=0; i<scount; i++) {
+			satellite_dev = cJSON_GetArrayItem(dataArray, i);
+			p0 = cJSON_PrintUnformatted(satellite_dev);
+			p1 = strtok(p0, "\"");
+			sname = strtok(NULL, "\"");
+			sItem = cJSON_GetObjectItem(satellite_dev, sname);
+			if (sItem == NULL)
+				goto err;
 
-	if(len < 26 || len > 30)
-		return 0;
+			dcount = cJSON_GetArraySize(sItem);
+			for(j=0; j<dcount; j++) {
+				Item  = cJSON_GetArrayItem(sItem, j);
+				macItem = cJSON_GetObjectItem(Item, "attached device mac address");
+				typeItem = cJSON_GetObjectItem(Item, "attached connection type");
+				deviceItem =  cJSON_GetObjectItem(Item, "attached device name");
 
-	for(i=0; i<len; i++)
-	{
-		if((i==2 || i==5 || i==8 || i==11 || i==14) && *(info+i)!= ':')
-			return 0;
+				if (macItem == NULL || typeItem == NULL || deviceItem == NULL)
+					goto err;
 
-		if(*(info+17) > 32) // ignore those are not space or Tab 
-			return 0;
-	}
-
-	return 1;
-}
-
-char *get_mac(char *ifname, char *eabuf)
-{
-	int s;
-	struct ifreq ifr;
-
-	eabuf[0] = '\0';
-	s = socket(AF_INET, SOCK_RAW, IPPROTO_RAW);
-	if (s < 0)
-		return eabuf;
-
-	strncpy(ifr.ifr_name, ifname, IFNAMSIZ);
-	if (ioctl(s, SIOCGIFHWADDR, &ifr) == 0)
-		ether_etoa((uint8 *)ifr.ifr_hwaddr.sa_data, eabuf);
-	close(s);
-
-	return eabuf;
-}
-
-
-static int get_device_type(uint8 *mac)
-{
-	FILE *fd;
-	int found = NONETYPE, i = 0, num, apmode;
-	char buff[512], arpmac[32], *port, *bmac, *other;
-	int interface_num = INTERFACENUM;
-
-	struct interface_element if_ele[INTERFACENUM] = {
-		{"br0", "00:00:00:00:00:00", 1},
-		{"ath0", "00:00:00:00:00:00", 0},
-		{"ath01", "00:00:00:00:00:00", 0},
-		{"ath1", "00:00:00:00:00:00", 0},
-		{"ath2", "00:00:00:00:00:00", 0},
-		{"eth0", "00:00:00:00:00:00", 2},
-		{"ath02", "00:00:00:00:00:00", 0},
-		{"ath11", "00:00:00:00:00:00", 0},
-		{NULL, "00:00:00:00:00:00", 0}
-	};
-
-	if (strcmp(config_get("i_opmode"), "apmode") == 0) {
-		apmode = 1;
-		num = interface_num;
-	} else {
-		apmode = 0;
-		num = interface_num - 1;
-	}
-
-	system("brctl showmacs br0 > /tmp/brctl_showmacs_br0");
-	if((fd = fopen("/tmp/brctl_showmacs_br0", "r+")) == NULL)
-		return NONETYPE;
-	
-	//get mac addresses to compare
-	for (i = 0; i < interface_num; i++){
-		if(if_ele[i].name == NULL) break;
-		get_mac(if_ele[i].name, if_ele[i].mac);
-	}
-
-	/*
-	 * #brctl showmacs br0
-	 * port no		mac addr			is local?		ageing time
-	 * 1			20:14:07:11:2A:20	yes				1.01
-	 * ......
-	 */
-	fgets(buff, sizeof(buff), fd);		//skip first line
-	while(fgets(buff, sizeof(buff), fd)){
-		port = strtok(buff, " \t\n");
-		bmac = strtok(NULL, " \t\n");
-		other = strtok(NULL, " \t\n");
-	
-		strupr(bmac);
-		for (i = 0; i < INTERFACENUM; i++){
-			if(if_ele[i].name == NULL) break;
-			if(!strncmp(bmac, if_ele[i].mac, 17)){
-				if_ele[i].port = atoi(port);
-				DEBUGP("Found %s interface port id %d\n", if_ele[i].name, if_ele[i].port);
-				break;
-			}
-		}
-	}
-	
-	fseek(fd, 0, SEEK_SET);
-	fgets(buff, sizeof(buff), fd);		//skip first line
-	ether_etoa(mac, arpmac);
-	while(fgets(buff, sizeof(buff), fd)){
-		int portnum=0;
-
-		port = strtok(buff, " \t\n");
-		bmac = strtok(NULL, " \t\n");
-		other = strtok(NULL, " \t\n");
-		
-		strupr(bmac);
-		if(strncmp(arpmac, bmac, strlen(arpmac)))
-			continue;
-		
-		portnum = atoi(port);
-		DEBUGP("ONE client from %d interface.\n", portnum);
-		for (i = 0; i < INTERFACENUM; i++)
-		{
-			// For Orbi projects 2.4G is ath0, ath02. 5G is ath1,ath11
-			if(if_ele[i].name == NULL) break;
-			if (if_ele[i].port == portnum) {
-				switch(i) {
-					case BR0:
-					case ETH0:
-						found = WIRED;
-						goto ret;
-					case ATH0:
-					case ATH02:
-						found = WIRELESS_2G;
-						goto ret;
-					case ATH1:
-					case ATH11:
-						found = WIRELESS_5G;
-						goto ret;
+				if (strcmp(macItem->valuestring, mac) == 0) {
+					if (u->host[0] == '\0')
+						strncpy(u->host, deviceItem->valuestring, MAX_HOSTNAME_LEN);
+					strncpy(type, typeItem->valuestring, 8);
+					if (strcmp(type, "2.4G") == 0)
+						u->ctype = WIRELESS_2G;
+					else if (strcmp(type, "5G") == 0)
+						u->ctype = WIRELESS_5G;
+					else if (strcmp(type, "wired") == 0)
+						u->ctype = WIRED;
+					if(p0)
+					{
+						free(p0);
+						p0 = NULL;
+					}
+					cJSON_Delete(dataArray);
+					return;
 				}
 			}
+			if(p0)
+			{
+				free(p0);
+				p0 = NULL;
+			}
+		}
+
+	}
+
+	DEBUGP("[net-scan]satellite attaches info[MAC:%s] is not found\n", mac);
+	if(p0)
+	{
+		free(p0);
+		p0 = NULL;
+	}
+	cJSON_Delete(dataArray);
+	return;
+err:
+	DEBUGP("[net-scan]Get satelliteinfo attached device error\n");
+	if(p0)
+	{
+		free(p0);
+		p0 = NULL;
+	}
+	cJSON_Delete(dataArray);
+	return;
+
+}
+
+void update_satellites_and_attachs(struct arp_struct *u) {
+	FILE *fp_orbi;
+	char buff[64], name[64], cfg_change[128];
+	char *val, *sep;
+	char *status_t, *mac_t, *type_t, *order_t, *host_t, *log_t;
+	int i;
+	char mac[32], wlan_line[256], *tmp, *orbimac, *orbiip;
+	ether_etoa(u->mac, mac);
+
+	sep = " ";
+
+	fp_orbi = fopen("/tmp/hyt_result", "r");
+	if (fp_orbi != NULL) {
+		while(fgets(wlan_line, sizeof(wlan_line), fp_orbi)) {
+			tmp = wlan_line;
+			orbimac = strtok(tmp, ",");
+			orbiip = strtok(NULL, ",");
+			if (strcmp(orbimac, mac) == 0) {
+				if (config_match("ap_mode", "1"))
+					update_satellite_name(u);
+				inet_aton(orbiip, &u->ip);
+				u->atype = BASE_ATT_S;
+				u->ctype = SATELLITE;
+				strcpy(u->model, "Netgear");
+
+				for ( i = 1; ; i++)
+				{
+					sprintf(name, "%s%d", "access_control", i);
+					val = config_get(name);
+
+					if (*val == '\0')
+						break;
+
+					status_t = strtok(val, sep);
+					mac_t = strtok(NULL, sep);
+					type_t = strtok(NULL, sep);
+					order_t = strtok(NULL, sep);
+					host_t = strtok(NULL, sep);
+					log_t = strtok(NULL, sep);
+					if(strcasecmp(mac_t, mac) == 0 && strcmp(type_t, "3") != 0)
+					{
+						sprintf(cfg_change, "%s %s %s %s %s %s", status_t, mac_t, "3", order_t, host_t, log_t);
+						config_set(name, cfg_change);
+						break;
+					}
+				}
+				fclose(fp_orbi);
+				return;
+			}
 		}
 	}
 
-ret:
-	fclose(fd);
-	unlink("/tmp/brctl_showmacs_br0");
-	return found;
+	u->atype = SATELLITE_ATT;
+
+	if(fp_orbi)
+		fclose(fp_orbi);
+	return;
+}
+
+void update_devices_info(struct arp_struct *u) {
+	FILE *fp;
+	char line[256], *newline, *mac, *type, *model, *name, *flag, arpmac[32];
+
+	fp = fopen(LOCAL_DEVICE_FILE, "r");
+	if (fp == NULL) return;
+
+	ether_etoa(u->mac, arpmac);
+	while (fgets(line, sizeof(line), fp)) {
+		newline = strtok(line, "\n");
+		mac = strtok(newline, ",");
+		type = strtok(NULL, ",");
+		model = strtok(NULL, ",");
+		name = strtok(NULL, ",");
+		flag = strtok(NULL, ",");
+
+		if (strcmp(mac, arpmac) == 0) {
+			if (strcmp(flag, "1") == 0) {	//user customized device
+				u->dtype = (unsigned int)atoi(type);
+				strncpy(u->model, model, MAX_MODEL_LEN);
+				strncpy(u->host, name, MAX_HOSTNAME_LEN);
+			} else {
+				u->dtype = (unsigned int)atoi(type);
+				strncpy(u->model, model, MAX_MODEL_LEN);
+			}
+			break;
+		}
+	}
+
+	fclose(fp);
+	return;
 }
 
 void show_arp_table(void)
 {
-	int i, j, fd_flag;
-	FILE *fp, *fw, *fp_wired, *fp_2g, *fp_5g;
-	char mac[32];
+	int i, device_num = 1, satellite_num = 0, flag;
+	FILE *fp, *hyt_fp;
+	char mac[32], hyt_line[256], *tmp, *hytmac;
 	struct arp_struct *u;
 	struct arp_struct **pprev;
-	struct in_addr dhcp_host[256];
-	char buffer[512];
-	char *ipaddr;
 #ifdef SUPPORT_STREAMBOOST
 	FILE *sb_fp, *name_type_fp;
 	struct device_list head_node, *sb_device_list, *sb_dlp;
@@ -1093,99 +1126,96 @@ void show_arp_table(void)
 #endif
 
 	fp = fopen(ARP_FILE, "w");
-	if (fp == 0) return;
-	fp_2g = fopen(ARP_FILE_2G, "w");
-	if (fp_2g == 0) return;
-	fp_5g = fopen(ARP_FILE_5G, "w");
-	if (fp_5g == 0) return;
-	fp_wired = fopen(ARP_FILE_WIRED, "w");
-	if (fp_wired == 0) return;
-
-	if(config_match("i_opmode", "apmode"))
-		update_satellite_name();
+	hyt_fp = fopen("/tmp/soapclient/allconfig_result", "r");
+	if (fp == NULL) {
+		DEBUGP("[net-scan]open %s failed\n", ARP_FILE);
+	}
 
 	for (i = 0; i < (NEIGH_HASHMASK + 1); i++) {
+		char typechar[16];
 		for (pprev = &arp_tbl[i], u = *pprev; u; ) {
 			if (u->active == 0) {
-				char mac_tmp[32];
-                                ether_etoa(u->mac,mac_tmp);
-				FILE *tfp;
-				char buff[256],*mac_addr,*p;
-				tfp = fopen(WLAN_STA_FILE,"r");
-				if(tfp == NULL)
-					goto end;
-				while(fgets(buff,sizeof(buff),tfp)){
-					p = mac_addr = buff;
-
-					if(!check_sta_format(buff))
-						continue;
-
-					while(*p !=9 && *p != '\0')
-				        {
-						if(*p>=97 && *p<= 122)
-				                *p -= 32;
-		                                p++;
-		                        }
-		                        *p = '\0';
-					if(!strncmp(mac_tmp, mac_addr, strlen(mac_tmp)))
-					{
-						u->active =1;
-						fclose(tfp);
-						goto forgive;
-					}
-				}
-				fclose(tfp);
-			end:				
-			 	remove_disconn_dhcp(u->ip);
 				*pprev = u->next;
 				free(u);
 				u = *pprev;
-			forgive:
 				continue;
 			}
 
-			/* for GUI dealing easily:  &lt;unknown&gt;   <----> <unknown>*/
-			switch (get_device_type(u->mac))
-			{
+			if (u->atype == SATELLITE_ATT) {
+				update_satellite_attaches(u);
+				if (u->ctype == NONETYPE) {
+					system("/etc/send_soap &");
+				}
+			}
+			flag = 0;
+			if (hyt_fp != NULL && u->ctype == SATELLITE) {
+				fseek(hyt_fp, 0L, SEEK_SET);
+				while(fgets(hyt_line, sizeof(hyt_line), hyt_fp)) {
+					tmp = hyt_line;
+					hytmac = strtok(tmp, " ");
+					flag = atoi(strtok(NULL, "\n"));
+					if (strcasecmp(ether_etoa(u->mac, mac), hytmac) == 0)
+						break;
+				}
+			}
+			if (flag){
+				pprev = &u->next;
+				u = *pprev;
+				continue;
+			}
+
+			switch (u->ctype) {
 				case WIRELESS_2G:
-					fprintf(fp_2g, "%s %s %s @#$&*!\n",
-						inet_ntoa(u->ip), ether_etoa(u->mac, mac),
-						u->host[0] == '\0' ? "&lt;unknown&gt;" : host_stod(u->host));
-					fprintf(fp, "%s %s %s @#$&*!\n",
-						inet_ntoa(u->ip), ether_etoa(u->mac, mac),
-						u->host[0] == '\0' ? "&lt;unknown&gt;" : host_stod(u->host));
+					strcpy(typechar, "2.4G");
 					break;
 				case WIRELESS_5G:
-					fprintf(fp_5g, "%s %s %s @#$&*!\n",
-						inet_ntoa(u->ip), ether_etoa(u->mac, mac),
-						u->host[0] == '\0' ? "&lt;unknown&gt;" : host_stod(u->host));
-					fprintf(fp, "%s %s %s @#$&*!\n",
-						inet_ntoa(u->ip), ether_etoa(u->mac, mac),
-						u->host[0] == '\0' ? "&lt;unknown&gt;" : host_stod(u->host));
+					strcpy(typechar, "5G");
+					break;
+				case SATELLITE:
+					strcpy(typechar, "wireless");
+					update_satellites_and_attachs(u);
+					satellite_num++;
+					u->dtype = 0;
 					break;
 				case WIRED:
-					fprintf(fp_wired, "%s %s %s @#$&*!\n",
-						inet_ntoa(u->ip), ether_etoa(u->mac, mac),
-						u->host[0] == '\0' ? "&lt;unknown&gt;" : host_stod(u->host));
-					fprintf(fp, "%s %s %s @#$&*!\n",
-						inet_ntoa(u->ip), ether_etoa(u->mac, mac),
-						u->host[0] == '\0' ? "&lt;unknown&gt;" : host_stod(u->host));
+					strcpy(typechar, "wired");
+					break;
+				default:
+					strcpy(typechar, "unknown");
 					break;
 			}
-		//	fprintf(fp, "%s %s %s @#$&*!\n",
-		//		inet_ntoa(u->ip), ether_etoa(u->mac, mac),
-		//		u->host[0] == '\0' ? "&lt;unknown&gt;" : host_stod(u->host));
+
+			update_devices_info(u);
+			/* for GUI dealing easily:  &lt;unknown&gt;   <----> <unknown>*/
+			DEBUGP("-----device:%d-----\n", device_num);
+			DEBUGP("%s\n", inet_ntoa(u->ip));
+			DEBUGP("%s\n", ether_etoa(u->mac, mac));
+			DEBUGP("%d\n", u->ctype);
+			DEBUGP("%d\n", u->atype);
+			DEBUGP("%d\n", u->dtype);
+			DEBUGP("%s\n", u->model[0] == '\0' ? "Unknown" : u->model);
+			DEBUGP("%s\n", u->host[0] == '\0' ? "Unknown" : host_stod(u->host));
+
+			fprintf(fp, "-----device:%d-----\n", device_num++);
+			fprintf(fp, "%s\n", inet_ntoa(u->ip));
+			fprintf(fp, "%s\n", ether_etoa(u->mac, mac));
+			fprintf(fp, "%s\n", typechar);
+			fprintf(fp, "%d\n", u->atype);
+			fprintf(fp, "%d\n", u->dtype);
+			fprintf(fp, "%s\n", u->model[0] == '\0' ? "Unknown" : u->model);
+			fprintf(fp, "%s\n", u->host[0] == '\0' ? "Unknown" : host_stod(u->host));
+
 #ifdef SUPPORT_STREAMBOOST
 			ether_etoa(u->mac, mac);
 			if (sb_fp){
-				for(sb_dlp = sb_device_list->next; sb_dlp != NULL && strcmp(sb_dlp ->mac, mac) != 0; sb_dlp = sb_dlp->next); 
+				for(sb_dlp = sb_device_list->next; sb_dlp != NULL && strcmp(sb_dlp ->mac, mac) != 0; sb_dlp = sb_dlp->next);
 				if(sb_priority_2_netgear_prioriry(u->priority, netgear_priority) == -1){
 					/*
 					 * Sometimes if no traffic is sent to wan, the default priority of device
-					 * set to 255. Once traffic send to wan, the default priority of device 
-					 * set to 10/20/30/40. We hide this situation for end user and show Low 
+					 * set to 255. Once traffic send to wan, the default priority of device
+					 * set to 10/20/30/40. We hide this situation for end user and show Low
 					 * in GUI for now.
-					 */  
+					 */
 					strcpy(netgear_priority, "LOW");
 				}
 				if(sb_dlp){
@@ -1213,83 +1243,26 @@ void show_arp_table(void)
 					fprintf(name_type_fp, "%s %d 1 Unknown\n", mac, u->type);
 			}
 #endif
-			
+
 			pprev = &u->next;
 			u = *pprev;
 		}
 	}
+	if (fp)
+		fclose(fp);
+	if (hyt_fp)
+		fclose(hyt_fp);
 
-	if (fw = fopen(WLAN_STA_FILE, "r")) {
-		while (fgets(buffer, sizeof(buffer), fw)) {
-			if(!check_sta_format(buffer))
-				continue;
-			fd_flag = 0;
-			for (i = 0; i < (NEIGH_HASHMASK + 1); i++) {
-				for (pprev = &arp_tbl[i], u = *pprev; u; ) {
-					ether_etoa(u->mac, mac);
-					strupr(buffer);
-					if(!strncmp(mac, buffer, strlen(mac))) {
-						fd_flag = 1;
-						break;
-					}
-					pprev = &u->next;
-					u = *pprev;
-				}
-			}
-			if(!fd_flag) {
-				strncpy(mac, buffer, 17);
-				mac[17]='\0';
-				switch (get_device_type(ether_aton(mac)->ether_addr_octet))
-				{
-					strupr(mac);
-					case WIRELESS_2G:
-						fprintf(fp_2g, "%s %s %s @#$&*!\n",
-							"&lt;unknown&gt", mac , "&lt;unknown&gt;");
-						fprintf(fp, "%s %s %s @#$&*!\n",
-							"&lt;unknown&gt", mac , "&lt;unknown&gt;");
-						break;
-					case WIRELESS_5G:
-						fprintf(fp_5g, "%s %s %s @#$&*!\n",
-							"&lt;unknown&gt", mac , "&lt;unknown&gt;");
-						fprintf(fp, "%s %s %s @#$&*!\n",
-							"&lt;unknown&gt", mac , "&lt;unknown&gt;");
-						break;
-					case WIRED:
-						fprintf(fp_wired, "%s %s %s @#$&*!\n",
-							"&lt;unknown&gt", mac , "&lt;unknown&gt;");
-						fprintf(fp, "%s %s %s @#$&*!\n",
-							"&lt;unknown&gt", mac , "&lt;unknown&gt;");
-						break;
-				}
-		//		fprintf(fp, "%s %s %s @#$&*!\n",
-		//			"&lt;unknown&gt", mac , "&lt;unknown&gt;");
-#ifdef SUPPORT_STREAMBOOST
-				if (sb_fp){
-					for(sb_dlp = sb_device_list->next; sb_dlp != NULL && strcmp(sb_dlp ->mac, mac) != 0; sb_dlp = sb_dlp->next); 
-					strcpy(netgear_priority, "MEDIUM");
-					if(sb_dlp){
-						fprintf(sb_fp, "%s %s %d %s %.2f %.2f %s @#$&*!\n",
-							"&lt;unknown&gt", mac , 
-							sb_dlp->type == TYPE_SOAP_OLD ? TYPE_OTHERS : sb_dlp->type, netgear_priority, 0.0, 0.0,
-							sb_dlp->host[0] == '\0' ? "&lt;unknown&gt;" : host_stod(sb_dlp->host));
-					}
-					else{
-						fprintf(sb_fp, "%s %s %d %s %.2f %.2f %s @#$&*!\n",
-							"&lt;unknown&gt", mac , 
-							TYPE_OTHERS, netgear_priority , 0.0, 0.0,"&lt;unknown&gt;");
-					}
-				}
-#endif
-			}
-		}
-		fclose(fw);
-	}	
-	unlink(WLAN_STA_FILE);
+	if(fp = fopen(SATELLITE_NUM_FILE, "w")){
+		fprintf(fp, "%d", satellite_num);
+		fclose(fp);
+	}
 
-	fclose(fp);
-	fclose(fp_2g);
-	fclose(fp_5g);
-	fclose(fp_wired);
+	if(fp = fopen(ATTACHED_DEVICE_NUM_FILE, "w")){
+		fprintf(fp, "%d", --device_num - satellite_num);
+		fclose(fp);
+	}
+
 #ifdef SUPPORT_STREAMBOOST
 	if (sb_fp)
 		fclose(sb_fp);
@@ -1297,25 +1270,6 @@ void show_arp_table(void)
 		fclose(name_type_fp);
 	free_device_list(sb_device_list);
 #endif
-	
-	/* for fix bug 31698,remove hosts which can't be found in the arp_tbl[] from dhcpd_hostlist*/
-	j = 0;
-	if (fp = fopen(DHCP_LIST_FILE,"r")) {
-		while (fgets(buffer, sizeof(buffer), fp)) {
-			ipaddr = strtok(buffer, " \t\n");
-			if (ipaddr && inet_aton(ipaddr, &dhcp_host[j]) != 0)
-				j++;
-		}
-		fclose(fp);
-	}
-
-	for(j--;j >= 0; j--) {
-		for (i = 0; i < (NEIGH_HASHMASK + 1); i++) {
-			for (u = arp_tbl[i]; u && memcmp(&u->ip, &dhcp_host[j], sizeof(&u->ip)); u = u->next);
-			if (u) break;
-		}
-		if (!u) remove_disconn_dhcp(dhcp_host[j]);
-	}
 }
 
 /* To fix bug 22146, add function reset_arp_table, it can set active status of all nodes in the arp_tbl to 0 */
@@ -1323,9 +1277,7 @@ void reset_arp_table()
 {
 	int i;
 	struct arp_struct *u;
-	
-	system("wlan stainfo > " WLAN_STA_FILE);
-	system("/etc/send_soap &");
+
 	for (i = 0; i < (NEIGH_HASHMASK + 1); i++) {
 		for (u = arp_tbl[i]; u; u = u->next) {
 			u->active = 0;
@@ -1339,7 +1291,7 @@ void reset_arp_table()
 #endif
 }
 
-void scan_arp_table(int sock, struct sockaddr *me)
+void scan_arp_table(int sock, struct sockaddr *me, int force_soap_flag)
 {
 	int i;
 	int count = 0;
@@ -1349,13 +1301,23 @@ void scan_arp_table(int sock, struct sockaddr *me)
 	char buffer[512];
 	struct in_addr addr;
 	FILE *fp;
-	
-	while (count != 2) {
+
+	if(force_soap_flag) {
+	        config_set("soap_setting", "AttachDevice");
+	        system("/usr/bin/killall -SIGUSR1 soap_agent");
+	} else {
+		system("/etc/send_soap &");
+	}
+
+
+	while (count != 3) {
 		count++;
 		req = &arpreq;
 		for (i = 0; i < (NEIGH_HASHMASK + 1); i++) {
 			for (u = arp_tbl[i]; u; u = u->next) {
 				memcpy(req->ar_tip, &u->ip, 4);
+				memcpy(req->ar_tha, &u->mac, 6);
+				memcpy(req->h_dest, &u->mac, 6);
 				sendto(sock, req, sizeof(struct arpmsg), 0, me, sizeof(struct sockaddr));
 			}
 		}
@@ -1381,8 +1343,9 @@ void scan_arp_table(int sock, struct sockaddr *me)
 			}
 			fclose(fp);
 		}
-		if(count < 2)
+		if(count < 3)
 			usleep(500000);
 	}
-}
 
+	sleep(1);	// sleep one more second to wait soap response
+}

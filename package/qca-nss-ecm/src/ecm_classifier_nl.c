@@ -1,6 +1,6 @@
 /*
  **************************************************************************
- * Copyright (c) 2014-2015, The Linux Foundation.  All rights reserved.
+ * Copyright (c) 2014-2016, The Linux Foundation.  All rights reserved.
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
  * above copyright notice and this permission notice appear in all copies.
@@ -42,8 +42,12 @@
 #include <net/netfilter/nf_conntrack_helper.h>
 #include <net/netfilter/nf_conntrack_l4proto.h>
 #include <net/netfilter/nf_conntrack_l3proto.h>
-#include <net/netfilter/nf_conntrack_core.h>
+#if (LINUX_VERSION_CODE <= KERNEL_VERSION(4, 2, 0))
 #include <net/netfilter/nf_conntrack_zones.h>
+#else
+#include <linux/netfilter/nf_conntrack_zones_common.h>
+#endif
+#include <net/netfilter/nf_conntrack_core.h>
 #include <net/netfilter/ipv4/nf_conntrack_ipv4.h>
 #include <net/netfilter/ipv4/nf_defrag_ipv4.h>
 #include <net/genetlink.h>
@@ -161,11 +165,32 @@ ecm_classifier_nl_send_genl_msg(enum ECM_CL_NL_GENL_CMD cmd,
 				struct ecm_cl_nl_genl_attr_tuple *tuple)
 {
 	int ret;
+	int buf_len;
+	int total_len;
 	void *msg_head;
 	struct sk_buff *skb;
 
-	skb = genlmsg_new(sizeof(*tuple) + ecm_cl_nl_genl_family.hdrsize,
-			  GFP_ATOMIC);
+	/*
+	 * Calculate our packet payload size.
+	 * Start with our family header.
+	 */
+	buf_len = ecm_cl_nl_genl_family.hdrsize;
+
+	/*
+	 * Add the nla_total_size of each attribute we're going to nla_put().
+	 */
+	buf_len += nla_total_size(sizeof(*tuple));
+
+	/*
+	 * Lastly we need to add space for the NL message header since
+	 * genlmsg_new only accounts for the GENL header and not the
+	 * outer NL header. To do this, we use a NL helper function which
+	 * calculates the total size of a netlink message given a payload size.
+	 * Note this value does not include the GENL header, but that's
+	 * added automatically by genlmsg_new.
+	 */
+	total_len = nlmsg_total_size(buf_len);
+	skb = genlmsg_new(total_len, GFP_ATOMIC);
 	if (skb == NULL) {
 		DEBUG_WARN("failed to alloc nlmsg\n");
 		return -ENOMEM;
@@ -557,6 +582,7 @@ static int ecm_classifier_nl_deref(struct ecm_classifier_instance *ci)
 	return 0;
 }
 
+#if defined(CONFIG_NF_CONNTRACK_MARK)
 void
 ecm_classifier_nl_process_mark(struct ecm_classifier_nl_instance *cnli,
 			       uint32_t mark)
@@ -619,6 +645,7 @@ ecm_classifier_nl_process_mark(struct ecm_classifier_nl_instance *cnli,
 	ecm_db_connection_deref(ci);
 }
 EXPORT_SYMBOL(ecm_classifier_nl_process_mark);
+#endif
 
 /*
  * ecm_classifier_nl_process()
@@ -942,7 +969,11 @@ ip_check_done:
 	tuple.src.u.all = htons(src_port);
 	tuple.dst.u.all = htons(dst_port);
 
+#if (LINUX_VERSION_CODE <= KERNEL_VERSION(4, 2, 0))
 	h = nf_conntrack_find_get(&init_net, NF_CT_DEFAULT_ZONE, &tuple);
+#else
+	h = nf_conntrack_find_get(&init_net, &nf_ct_zone_dflt, &tuple);
+#endif
 	if (NULL == h) {
 		return NULL;
 	}
@@ -982,10 +1013,12 @@ static void ecm_classifier_nl_connection_added(void *arg, struct ecm_db_connecti
 	DEBUG_TRACE("%p: added conn, serial: %u, NL classifier: %p, CT: %p\n",
 		    ci, serial, classi, ct);
 
+#if defined(CONFIG_NF_CONNTRACK_MARK)
 	spin_lock_bh(&ecm_classifier_nl_lock);
 	cnli->process_response.flow_qos_tag = ct->mark;
 	cnli->process_response.return_qos_tag = ct->mark;
 	spin_unlock_bh(&ecm_classifier_nl_lock);
+#endif
 	nf_ct_put(ct);
 
 classi:

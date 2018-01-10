@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2015, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014-2016, The Linux Foundation. All rights reserved.
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
  * above copyright notice and this permission notice appear in all copies.
@@ -195,7 +195,7 @@ dess_hw_init(a_uint32_t dev_id, ssdk_init_cfg *cfg)
 static sw_error_t
 dess_dev_init(a_uint32_t dev_id, ssdk_init_cfg *cfg)
 {
-    a_uint32_t entry;
+    a_uint32_t entry = 0;
     sw_error_t rv;
     hsl_dev_t *pdev = NULL;
 
@@ -267,7 +267,6 @@ dess_cleanup(a_uint32_t dev_id)
     if (dess_cfg[dev_id])
     {
 #if defined(IN_NAT_HELPER)
-        sw_error_t rv;
         if(dess_nat_global_status)
             DESS_NAT_HELPER_CLEANUP(rv, dev_id);
 #endif

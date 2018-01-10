@@ -180,8 +180,8 @@ if [ -n "$DNI_CONFIG" ]; then
     hostapd_debug_level=`dniconfig get hostapd_debug_level`
     wlg_super_wifi=`dniconfig get wl_super_wifi`
     wla_super_wifi=`dniconfig get wla_super_wifi`
-    [ -z "$wlg_super_wifi" ] && wlg_super_wifi=0
-    [ -z "$wla_super_wifi" ] && wla_super_wifi=0
+    [ -z "$wlg_super_wifi" ] && wlg_super_wifi=1
+    [ -z "$wla_super_wifi" ] && wla_super_wifi=1
 
     [ -f "/tmp/ap_pin_failure_num_file" ] || {
         dniconfig set wps_lock_down=0
@@ -269,8 +269,8 @@ if [ -n "$DNI_CONFIG" ]; then
         fi
         wlg_obss_rssi_th=`dniconfig get wlg_obss_rssi_th`
         wlg_obss_rx_rssi_th=`dniconfig get wlg_obss_rx_rssi_th`
-        [ -z "$wlg_obss_rssi_th" ] && wlg_obss_rssi_th=40
-        [ -z "$wlg_obss_rx_rssi_th" ] && wlg_obss_rx_rssi_th=60
+        [ -z "$wlg_obss_rssi_th" ] && wlg_obss_rssi_th=25
+        [ -z "$wlg_obss_rx_rssi_th" ] && wlg_obss_rx_rssi_th=20
         wlg_keepalive=`dniconfig get wl_keepalive`
         wlg_sta_dfs_en=`dniconfig get wlg_sta_dfs_en`
         eval wlg_bf_onoff=\$onoff_no_default_`dniconfig get wlg_bf`
@@ -744,9 +744,9 @@ if [ -n "$DNI_CONFIG" ]; then
             wla2_keepalive=`dniconfig get wla_2nd_keepalive`
             wla2_ul_hyst=`dniconfig get wla_2nd_ul_hyst`
             wla2_sta_dfs_en=`dniconfig get wla_2nd_sta_dfs_en`
-            eval wla2_bf_onoff=\$onoff_no_default_`dniconfig get wla_2nd_bf`
-            eval wla2_implicit_bf_onoff=\$onoff_`dniconfig get wla_2nd_implicit_bf`
-            eval wla2_mu_mimo_onoff=\$onoff_`dniconfig get wla_2nd_mu_mimo`
+            wla2_bf_onoff="on"
+            wla2_implicit_bf_onoff="off"
+            wla2_mu_mimo_onoff="on"
         fi
         # Read the setting for 2nd 5G Normal AP mode
         if [ "$wla2_ap_operation_type" = "normal_ap" -o "$wla2_ap_operation_type" = "qwrap_ap" ]; then
@@ -827,6 +827,21 @@ if [ -n "$DNI_CONFIG" ]; then
         if [ "$(/bin/config get wl_country)" != "10" -o "$(/bin/config get wla_country)" != "10" ]; then
             dniconfig set wl_country=10
             dniconfig set wla_country=10
+        fi
+    elif [ "$art_region" = "CA" ]; then
+        if [ "$(/bin/config get wl_country)" != "3" -o "$(/bin/config get wla_country)" != "3" ]; then
+            dniconfig set wl_country=3
+            dniconfig set wla_country=3
+        fi
+    elif [ "$art_region" = "JP" ]; then
+        if [ "$(/bin/config get wl_country)" != "6" -o "$(/bin/config get wla_country)" != "6" ]; then
+            dniconfig set wl_country=6
+            dniconfig set wla_country=6
+        fi
+    elif [ "$art_region" = "RU" ]; then
+        if [ "$(/bin/config get wl_country)" != "19" -o "$(/bin/config get wla_country)" != "19" ]; then
+            dniconfig set wl_country=19
+            dniconfig set wla_country=19
         fi
     fi
 

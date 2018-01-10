@@ -222,7 +222,33 @@ case "$CMD" in
 		# Save to DNI configuration system.
 		env -i PROG_SRC=athr-hostapd ACTION=SET_CONFIG SUPPLICANT_MODE=1 SECTION=$section IFNAME=$IFNAME FILE=/var/run/wpa_supplicant-$IFNAME.conf /sbin/hotplug-call wps
 		wps_setup_other_same_type_interfaces "$ssid" "$wpa_version" "$psk"
-		rm -rf $supplicant_lock_file
+
+                # Save to DNI configuration system.
+                env -i PROG_SRC=athr-hostapd ACTION=SET_CONFIG SUPPLICANT_MODE=1 SECTION=$section IFNAME=$IFNAME FILE=/var/run/wpa_supplicant-$IFNAME.conf /sbin/hotplug-call wps
+                wps_setup_other_same_type_interfaces "$ssid" "$wpa_version" "$psk"
+ 
+                backhaul_ap_5g=`awk -v input_optype=BACKHAUL -v input_opmode=AP -v output_rule=section -v input_wifidev=wifi2 -f /etc/search-wifi-interfaces.awk /tmp/wifi_topology`
+ 
+                backhaul_ap_2g=`awk -v input_optype=BACKHAUL -v input_opmode=AP -v output_rule=section -v input_wifidev=wifi0 -f /etc/search-wifi-interfaces.awk /tmp/wifi_topology`
+ 
+                uci set wireless."$backhaul_ap_5g".ssid=$ssid
+                uci set wireless."$backhaul_ap_2g".ssid=$ssid
+ 
+                uci set wireless."$backhaul_ap_5g".key=$psk
+                uci set wireless."$backhaul_ap_2g".key=$psk
+                uci commit wireless
+ 
+ 
+                config set wla_2nd_ap_bh_ssid=$ssid
+                config set wlg_ap_bh_ssid=$ssid
+                config set wla_2nd_ap_bh_wpa2_psk=$psk
+                config set wlg_ap_bh_wpa2_psk=$psk
+                config commit
+                
+ 
+                rm -rf $supplicant_lock_file
+                wlan down ; wlan up
+
 		;;
 	WPS-TIMEOUT)
 		kill "$(cat "/var/run/wps-hotplug-$IFNAME.pid")"

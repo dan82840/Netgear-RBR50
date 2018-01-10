@@ -4,6 +4,11 @@ CONFIG="/bin/config"
 curorder=1
 num=1
 rmac=$($CONFIG get rbr-mac)
+
+if [ "x$(cat /tmp/orbi_type)" = "xBase" ];then
+	exit
+fi
+
 while [ 1 ]; do
 	ACCESS_CONTROL=$($CONFIG get access_control$num)
 	mac=`echo $ACCESS_CONTROL | cut -f 2 -d ' '`

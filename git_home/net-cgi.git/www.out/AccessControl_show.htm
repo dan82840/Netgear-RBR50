@@ -22,7 +22,7 @@ var enable_block_device="<% cfg_get("enable_block_device") %>";
 var new_device_statue_by_default="<% cfg_get("new_device_statue_by_default") %>";
 var allow_no_con_sta="<% cfg_get("allow_no_connect_sta") %>";
 var block_no_con_sta="<% cfg_get("block_no_connect_sta") %>";
-<% list_access_control_device_new() %>
+<% list_access_control_device() %>
 <% list_access_no_connect_devices() %>
 var have_connect=0;
 var an_router_flag = parent.an_router_flag;

@@ -37,7 +37,7 @@ static int get_all_satellite_mac(void)
 
 	FILE *fp = fopen(HYT_FILE, "r");
 	if (fp == NULL) {
-		fprintf(stderr, "can't open file /tmp/hyt_result\n");
+		DEBUGP("can't open file /tmp/hyt_result\n");
 		return -1;
 	}
 
@@ -46,7 +46,7 @@ static int get_all_satellite_mac(void)
 	while (fgets(buf, sizeof(buf), fp)) {
 		strtok(buf, ",");
 		strncpy(files[idx++], buf, sizeof(buf));
-//		fprintf(stdout, "find a connected satellite: %s\n", buf);
+		DEBUGP("find a connected satellite: %s\n", buf);
 	}
 
 	fclose(fp);
@@ -55,12 +55,12 @@ static int get_all_satellite_mac(void)
 
 static int parse_file(char *file, char **name)
 {
-//	fprintf(stdout, "parse contents of %s\n", file);
+	DEBUGP("parse contents of %s\n", file);
 
 	char buf[4096] = {0};
 	FILE *fp = fopen(file, "r");
 	if (!fp) {
-		fprintf(stderr, "can't open file %s !\n", file);
+		DEBUGP("can't open file %s !\n", file);
 		return -1;
 	} else {
 		fread(buf, sizeof(buf), 1, fp);
@@ -76,7 +76,7 @@ static int parse_file(char *file, char **name)
 	
 	while (1) {
 		s_tlv *tlv = (s_tlv *)p;
-		if (tlv->type == 0 || tlv->len == 0 ||  p >= (buf + sizeof(buf)) || name[tlv->type] == NULL)
+		if (tlv->type == 0 || p >= (buf + sizeof(buf)) || name[tlv->type] == NULL)
 			break;
 
 		/* spec define max length of release note is 512 bytes, 1024 is enough */
@@ -89,7 +89,7 @@ static int parse_file(char *file, char **name)
 			struct in_addr ip_addr;
 			struct ether_addr *mac_addr;
 			strncpy(dev_name, tlv->val, tlv->len);
-			//fprintf(stderr, "get satellite info mac:%s ip:%s device name:%s\n", mac, ip, dev_name);
+			DEBUGP("Get satellite info mac:%s ip:%s device name:%s\n", mac, ip, dev_name);
 			ip_addr.s_addr = inet_addr(ip);
 			mac_addr = ether_aton(mac);
 			update_satellite_name_arp_table(&mac_addr->ether_addr_octet, ip_addr, dev_name); 

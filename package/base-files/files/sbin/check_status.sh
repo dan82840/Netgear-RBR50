@@ -13,7 +13,7 @@ while :; do
 		fi
 	fi
 	status=`ps | grep soap_agent | grep -v grep`
-	if [ -z "$status" ] && [ "$(cat /module_name)" = "RBR50" ];then
+	if [ -z "$status" ] && [ "$(cat /tmp/orbi_type)" = "Base" ];then
 		killall soap_agent
 		time=`date '+%Y-%m-%dT%H:%M:%SZ'`
 		echo "Restart soap_agent:$time" >> /tmp/restart_process_list

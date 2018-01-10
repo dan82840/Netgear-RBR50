@@ -471,7 +471,8 @@ skip_nl_seq:
 		   connection tracking, not packet filtering.
 		   However, it is necessary for accurate tracking in
 		   this case. */
-		nf_ct_helper_log(skb, ct, "partial matching of `%s'",
+		if (net_ratelimit())
+			nf_ct_helper_log(skb, ct, "partial matching of `%s'",
 			         search[dir][i].pattern);
 		ret = NF_DROP;
 		goto out;
@@ -486,7 +487,8 @@ skip_nl_seq:
 
 	exp = nf_ct_expect_alloc(ct);
 	if (exp == NULL) {
-		nf_ct_helper_log(skb, ct, "cannot alloc expectation");
+		if (net_ratelimit())
+			nf_ct_helper_log(skb, ct, "cannot alloc expectation");
 		ret = NF_DROP;
 		goto out;
 	}
@@ -538,7 +540,9 @@ skip_nl_seq:
 	else {
 		/* Can't expect this?  Best to drop packet now. */
 		if (nf_ct_expect_related(exp) != 0) {
-			nf_ct_helper_log(skb, ct, "cannot add expectation");
+			if (net_ratelimit())
+				nf_ct_helper_log(skb, ct,
+					"cannot add expectation");
 			ret = NF_DROP;
 		} else
 			ret = NF_ACCEPT;

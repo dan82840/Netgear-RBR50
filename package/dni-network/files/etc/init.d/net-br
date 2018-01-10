@@ -54,7 +54,12 @@ setup_interface_dhcp() # $1: apmode/brmode/extmode
 	/sbin/udhcpc -a -b -i br0 -h "$hostname" -r $($CONFIG get ap_dhcp_ipaddr) &
 
 	case "$1" in
-	apmode) echo "ap mode start udhcp" ;; 
+	apmode) 
+		echo "ap mode start udhcp" 
+		killall udhcpc
+		sleep 10
+		/sbin/udhcpc -a -b -i br0 -h "$hostname" -r $($CONFIG get ap_dhcp_ipaddr) &
+		;; 
 	brmode) /etc/init.d/net-br-dhcpc-helper & ;;
 	extmode) sleep 10
 		/etc/init.d/net-br-dhcpc-helper & ;;
@@ -97,7 +102,7 @@ start0() # $1: boot/start
 	setup_interface $opmode 
 
 	/sbin/cmd_ebtables start
-	/etc/init.d/net-scan $1      # daemon for getting attached devices
+	/etc/init.d/netscan $1      # daemon for getting attached devices
 	/etc/init.d/lltd $1          # Link Layer Topology Discovery Daemon
 	/etc/init.d/telnet $1        # telnet daemon for Router Debugging Mode ...
 	/usr/sbin/update_smb
@@ -113,6 +118,7 @@ start()
 	start0 start
 	/etc/init.d/ntpclient start
 	/etc/init.d/cron start
+	/etc/init.d/dnsmasq stop
 	/etc/init.d/dnsmasq start
 }
 
@@ -128,7 +134,7 @@ stop()
 	/etc/init.d/upnp stop
 	/etc/init.d/telnet stop
 	/etc/init.d/lltd stop
-	/etc/init.d/net-scan stop
+	/etc/init.d/netscan stop
 	/sbin/cmd_ebtables stop
 	if [ "$($CONFIG get i_opmode)" = "apmode" ]; then
  	    /usr/sbin/brctl stp br0 0

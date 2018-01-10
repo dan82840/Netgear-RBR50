@@ -681,6 +681,9 @@ if( pr_oray_flag == 1 )
 		<TR><TD nowrap width=50%>$router_mac_link_status</TD>
 		<TD>
 		<script>
+			function myrefresh(){
+				window.location.reload();
+			}
 			var link_status="<% cat_file("/tmp/ez-ipupd.status") %>";
 			var enable_oray=(old_endis_ddns=="1" && dns_list == "www/var/www.oray.cn")? 1 :0;
 			if (enable_oray==0 || link_status == "0")
@@ -688,13 +691,15 @@ if( pr_oray_flag == 1 )
         		else if(link_status=="1")
                 		document.write("$oray_status_online");
         		else if(link_status=="2")
-                		document.write("$oray_status_connect");
+				document.write("$oray_status_connect");
         		else if(link_status=="3")
                 		document.write("$oray_status_auth_fail");
        			else if(link_status=="4")
                 		document.write("$oray_status_reg_fail");
         		else
                 		document.write("$oray_status_con_fail");
+			if(link_status=="2")
+				setTimeout('myrefresh()', 10000);
 		</script>
 		</TD></TR>
 		<TR><TD nowrap>$block_ser_service_type</TD>

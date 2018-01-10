@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2015, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012, 2015-2016, The Linux Foundation. All rights reserved.
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
  * above copyright notice and this permission notice appear in all copies.
@@ -43,8 +43,9 @@ _isisc_port_duplex_set(a_uint32_t dev_id, fal_port_t port_id,
                       fal_port_duplex_t duplex)
 {
     sw_error_t rv;
-    a_uint32_t phy_id, reg_save, reg_val, force, tmp;
+    a_uint32_t phy_id, reg_save, reg_val = 0, force, tmp;
     hsl_phy_ops_t *phy_drv;
+    a_bool_t status;
 
     HSL_DEV_ID_CHECK(dev_id);
 
@@ -91,7 +92,8 @@ _isisc_port_duplex_set(a_uint32_t dev_id, fal_port_t port_id,
 		SW_RTN_ON_ERROR(rv);
 		rv = phy_drv->phy_duplex_get (dev_id, phy_id, &tmp);
 		SW_RTN_ON_ERROR(rv);
-		if (tmp == duplex)
+		status = phy_drv->phy_autoneg_status_get (dev_id, phy_id);
+		if ((tmp == duplex) && (status == A_FALSE))
 			return SW_OK;
         reg_save = reg_val;
         SW_SET_REG_BY_FIELD(PORT_STATUS, LINK_EN, 0, reg_val);
@@ -130,8 +132,9 @@ _isisc_port_speed_set(a_uint32_t dev_id, fal_port_t port_id,
                      fal_port_speed_t speed)
 {
     sw_error_t rv;
-    a_uint32_t phy_id, reg_save, reg_val, force, tmp;
+    a_uint32_t phy_id, reg_save, reg_val = 0, force, tmp;
     hsl_phy_ops_t *phy_drv;
+    a_bool_t status;
 
     HSL_DEV_ID_CHECK(dev_id);
 
@@ -185,7 +188,8 @@ _isisc_port_speed_set(a_uint32_t dev_id, fal_port_t port_id,
 		SW_RTN_ON_ERROR(rv);
 		rv = phy_drv->phy_speed_get (dev_id, phy_id, &tmp);
 		SW_RTN_ON_ERROR(rv);
-		if (tmp == speed)
+		status = phy_drv->phy_autoneg_status_get (dev_id, phy_id);
+		if ((tmp == speed) && (status == A_FALSE))
 			return SW_OK;
         reg_save = reg_val;
         SW_SET_REG_BY_FIELD(PORT_STATUS, LINK_EN,  0, reg_val);
@@ -228,7 +232,7 @@ static sw_error_t
 _isisc_port_flowctrl_set(a_uint32_t dev_id, fal_port_t port_id, a_bool_t enable)
 {
     sw_error_t rv;
-    a_uint32_t val, force, reg, tmp;
+    a_uint32_t val, force, reg = 0, tmp;
 
     if (A_TRUE != hsl_port_prop_check(dev_id, port_id, HSL_PP_INCL_CPU))
     {
@@ -276,7 +280,7 @@ _isisc_port_flowctrl_forcemode_set(a_uint32_t dev_id, fal_port_t port_id,
                                   a_bool_t enable)
 {
     sw_error_t rv;
-    a_uint32_t reg, tmp;
+    a_uint32_t reg = 0, tmp;
 
     if (A_TRUE != hsl_port_prop_check(dev_id, port_id, HSL_PP_INCL_CPU))
     {
@@ -319,16 +323,35 @@ static sw_error_t
 _isisc_port_speed_get(a_uint32_t dev_id, fal_port_t port_id,
                      fal_port_speed_t * pspeed)
 {
-    sw_error_t rv = SW_OK;
-    a_uint32_t reg, field;
+	sw_error_t rv = SW_OK;
+	a_uint32_t phy_id;
+	hsl_phy_ops_t *phy_drv;
 
-    HSL_DEV_ID_CHECK(dev_id);
+	HSL_DEV_ID_CHECK(dev_id);
 
-    if (A_TRUE != hsl_port_prop_check(dev_id, port_id, HSL_PP_INCL_CPU))
-    {
-        return SW_BAD_PARAM;
-    }
+	if (A_TRUE != hsl_port_prop_check(dev_id, port_id, HSL_PP_INCL_CPU))
+	{
+		return SW_BAD_PARAM;
+	}
 
+	SW_RTN_ON_NULL (phy_drv = hsl_phy_api_ops_get (dev_id));
+	if (NULL == phy_drv->phy_speed_get)
+		return SW_NOT_SUPPORTED;
+
+	/* for those ports without PHY device supposed always 1000Mbps */
+	if (A_FALSE == _isisc_port_phy_connected(dev_id, port_id))
+	{
+		*pspeed = FAL_SPEED_1000;
+	}
+	else
+	{
+		rv = hsl_port_prop_get_phyid (dev_id, port_id, &phy_id);
+		SW_RTN_ON_ERROR (rv);
+
+		rv = phy_drv->phy_speed_get (dev_id, phy_id, pspeed);
+		SW_RTN_ON_ERROR (rv);
+	}
+#if 0
     HSL_REG_ENTRY_GET(rv, dev_id, PORT_STATUS, port_id,
                       (a_uint8_t *) (&reg), sizeof (a_uint32_t));
     SW_RTN_ON_ERROR(rv);
@@ -351,23 +374,41 @@ _isisc_port_speed_get(a_uint32_t dev_id, fal_port_t port_id,
         *pspeed = FAL_SPEED_BUTT;
         rv = SW_READ_ERROR;
     }
-
+#endif
     return rv;
 }
 static sw_error_t
 _isisc_port_duplex_get(a_uint32_t dev_id, fal_port_t port_id,
                       fal_port_duplex_t * pduplex)
 {
-    sw_error_t rv;
-    a_uint32_t reg, field;
+	sw_error_t rv = SW_OK;
+	a_uint32_t phy_id;
+	hsl_phy_ops_t *phy_drv;
 
-    HSL_DEV_ID_CHECK(dev_id);
+	HSL_DEV_ID_CHECK(dev_id);
 
-    if (A_TRUE != hsl_port_prop_check(dev_id, port_id, HSL_PP_INCL_CPU))
-    {
-        return SW_BAD_PARAM;
-    }
+	if (A_TRUE != hsl_port_prop_check(dev_id, port_id, HSL_PP_INCL_CPU))
+	{
+		return SW_BAD_PARAM;
+	}
+	SW_RTN_ON_NULL (phy_drv = hsl_phy_api_ops_get (dev_id));
+	if (NULL == phy_drv->phy_duplex_get)
+		return SW_NOT_SUPPORTED;
 
+	/* for those ports without PHY device supposed always full */
+	if (A_FALSE == _isisc_port_phy_connected(dev_id, port_id))
+	{
+		*pduplex = FAL_FULL_DUPLEX;
+	}
+	else
+	{
+		rv = hsl_port_prop_get_phyid (dev_id, port_id, &phy_id);
+		SW_RTN_ON_ERROR (rv);
+
+		rv = phy_drv->phy_duplex_get (dev_id, phy_id, pduplex);
+		SW_RTN_ON_ERROR (rv);
+	}
+#if 0
     HSL_REG_ENTRY_GET(rv, dev_id, PORT_STATUS, port_id,
                       (a_uint8_t *) (&reg), sizeof (a_uint32_t));
     SW_GET_FIELD_BY_REG(PORT_STATUS, DUPLEX_MODE, field, reg);
@@ -379,8 +420,8 @@ _isisc_port_duplex_get(a_uint32_t dev_id, fal_port_t port_id,
     {
         *pduplex = FAL_HALF_DUPLEX;
     }
-
-    return SW_OK;
+#endif
+    return rv;
 }
 
 static sw_error_t
@@ -525,7 +566,7 @@ _isisc_port_flowctrl_get(a_uint32_t dev_id, fal_port_t port_id,
                         a_bool_t * enable)
 {
     sw_error_t rv;
-    a_uint32_t rx, reg;
+    a_uint32_t rx, reg = 0;
 
     if (A_TRUE != hsl_port_prop_check(dev_id, port_id, HSL_PP_INCL_CPU))
     {
@@ -718,7 +759,7 @@ _isisc_port_rxhdr_mode_set(a_uint32_t dev_id, fal_port_t port_id,
                           fal_port_header_mode_t mode)
 {
     sw_error_t rv;
-    a_uint32_t val;
+    a_uint32_t val = 0;
 
     HSL_DEV_ID_CHECK(dev_id);
 
@@ -788,7 +829,7 @@ _isisc_port_txhdr_mode_set(a_uint32_t dev_id, fal_port_t port_id,
                           fal_port_header_mode_t mode)
 {
     sw_error_t rv;
-    a_uint32_t val;
+    a_uint32_t val = 0;
 
     HSL_DEV_ID_CHECK(dev_id);
 
@@ -856,7 +897,7 @@ _isisc_port_txhdr_mode_get(a_uint32_t dev_id, fal_port_t port_id,
 static sw_error_t
 _isisc_header_type_set(a_uint32_t dev_id, a_bool_t enable, a_uint32_t type)
 {
-    a_uint32_t reg;
+    a_uint32_t reg = 0;
     sw_error_t rv;
 
     HSL_DEV_ID_CHECK(dev_id);
@@ -892,7 +933,7 @@ _isisc_header_type_set(a_uint32_t dev_id, a_bool_t enable, a_uint32_t type)
 static sw_error_t
 _isisc_header_type_get(a_uint32_t dev_id, a_bool_t * enable, a_uint32_t * type)
 {
-    a_uint32_t data, reg;
+    a_uint32_t data, reg = 0;
     sw_error_t rv;
 
     HSL_DEV_ID_CHECK(dev_id);
@@ -921,7 +962,7 @@ static sw_error_t
 _isisc_port_txmac_status_set(a_uint32_t dev_id, fal_port_t port_id, a_bool_t enable)
 {
     sw_error_t rv;
-    a_uint32_t reg, force, val, tmp;
+    a_uint32_t reg, force, val = 0, tmp;
 
     HSL_DEV_ID_CHECK(dev_id);
 
@@ -978,7 +1019,7 @@ static sw_error_t
 _isisc_port_txmac_status_get(a_uint32_t dev_id, fal_port_t port_id, a_bool_t * enable)
 {
     sw_error_t rv;
-    a_uint32_t val;
+    a_uint32_t val = 0;
 
     HSL_DEV_ID_CHECK(dev_id);
 
@@ -1007,7 +1048,7 @@ static sw_error_t
 _isisc_port_rxmac_status_set(a_uint32_t dev_id, fal_port_t port_id, a_bool_t enable)
 {
     sw_error_t rv;
-    a_uint32_t reg, force, val, tmp;
+    a_uint32_t reg = 0, force, val = 0, tmp;
 
     HSL_DEV_ID_CHECK(dev_id);
 
@@ -1093,7 +1134,7 @@ static sw_error_t
 _isisc_port_txfc_status_set(a_uint32_t dev_id, fal_port_t port_id, a_bool_t enable)
 {
     sw_error_t rv;
-    a_uint32_t val, reg, force, tmp;
+    a_uint32_t val, reg = 0, force, tmp;
 
     HSL_DEV_ID_CHECK(dev_id);
 
@@ -1179,7 +1220,7 @@ static sw_error_t
 _isisc_port_rxfc_status_set(a_uint32_t dev_id, fal_port_t port_id, a_bool_t enable)
 {
     sw_error_t rv;
-    a_uint32_t val, reg, force, tmp;
+    a_uint32_t val = 0, reg, force, tmp;
 
     HSL_DEV_ID_CHECK(dev_id);
 
@@ -1357,7 +1398,7 @@ static sw_error_t
 _isisc_port_link_forcemode_set(a_uint32_t dev_id, fal_port_t port_id, a_bool_t enable)
 {
     sw_error_t rv;
-    a_uint32_t reg, tmp;
+    a_uint32_t reg = 0, tmp = 0;
 
     HSL_DEV_ID_CHECK(dev_id);
 
@@ -1405,7 +1446,7 @@ static sw_error_t
 _isisc_port_link_forcemode_get(a_uint32_t dev_id, fal_port_t port_id, a_bool_t * enable)
 {
     sw_error_t rv;
-    a_uint32_t val;
+    a_uint32_t val = 0;
 
     HSL_DEV_ID_CHECK(dev_id);
 
@@ -1435,7 +1476,7 @@ static sw_error_t
 _isisc_port_bp_status_set(a_uint32_t dev_id, fal_port_t port_id, a_bool_t enable)
 {
     sw_error_t rv;
-    a_uint32_t val, tmp;
+    a_uint32_t val = 0, tmp;
 
     HSL_DEV_ID_CHECK(dev_id);
 
@@ -1544,7 +1585,7 @@ static sw_error_t
 _isisc_port_mac_loopback_set(a_uint32_t dev_id, fal_port_t port_id, a_bool_t enable)
 {
     sw_error_t rv;
-    a_uint32_t val;
+    a_uint32_t val = 0;
 
     HSL_DEV_ID_CHECK(dev_id);
 
@@ -1568,7 +1609,7 @@ _isisc_port_mac_loopback_set(a_uint32_t dev_id, fal_port_t port_id, a_bool_t ena
 
     HSL_REG_FIELD_SET(rv, dev_id, PORT_HDR_CTL, port_id, LOOPBACK_EN,
                       (a_uint8_t *) (&val), sizeof (a_uint32_t));
-    return SW_OK;
+    return rv;
 }
 
 static sw_error_t

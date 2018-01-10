@@ -1,6 +1,6 @@
 /*
  **************************************************************************
- * Copyright (c) 2014,2015, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014 - 2016, The Linux Foundation. All rights reserved.
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
  * above copyright notice and this permission notice appear in all copies.
@@ -22,9 +22,9 @@
 #ifndef __NSS_CRYPTO_H
 #define __NSS_CRYPTO_H
 
-#define NSS_CRYPTO_MAX_IDXS 16			/**< Max supported sessions */
+#define NSS_CRYPTO_MAX_IDXS 64			/**< Max supported sessions */
 #define NSS_CRYPTO_MAX_ENGINES 4		/**< Max engines available */
-#define NSS_CRYPTO_BAM_PP 4			/**< BAM Pipe Pairs */
+#define NSS_CRYPTO_BAM_PP 2			/**< BAM Pipe Pairs */
 
 /**
  * @brief hash sizes supported by H/W.
@@ -75,9 +75,11 @@ enum nss_crypto_msg_type {
  */
 enum nss_crypto_msg_error {
 	NSS_CRYPTO_MSG_ERROR_NONE = 0,
-	NSS_CRYPTO_MSG_ERROR_INVAL_ENG = 1,	/**< invalid engine id */
-	NSS_CRYPTO_MSG_ERROR_UNSUPP_OP = 2,	/**< unsupported operation type */
-	NSS_CRYPTO_MSG_ERROR_INVAL_OP = 3,	/**< invalid operation type */
+	NSS_CRYPTO_MSG_ERROR_INVAL_ENG = 1,		/**< invalid engine id */
+	NSS_CRYPTO_MSG_ERROR_UNSUPP_OP = 2,		/**< unsupported operation type */
+	NSS_CRYPTO_MSG_ERROR_INVAL_OP = 3,		/**< invalid operation type */
+	NSS_CRYPTO_MSG_ERROR_INVAL_IDX_RANGE = 4,	/**< invalid session id */
+	NSS_CRYPTO_MSG_ERROR_IDX_ALLOC_FAIL = 5,	/**< session alloc fail */
 	NSS_CRYPTO_MSG_ERROR_MAX
 };
 
@@ -183,6 +185,16 @@ typedef void (*nss_crypto_msg_callback_t)(void *app_data, struct nss_crypto_msg 
 typedef void (*nss_crypto_buf_callback_t)(void *app_data, void *buf, uint32_t paddr, uint16_t len);
 
 /**
+ * @brief PM event callback
+ *
+ * @param app_data[IN] context of the callback user
+ * @param turbo[IN] turbo mode event
+ *
+ * @return true if crypto scaled to turbo
+ */
+typedef bool (*nss_crypto_pm_event_callback_t)(void *app_data, bool turbo, bool auto_scale);
+
+/**
  * @brief send an Crypto message
  *
  * @param nss_ctx[IN] NSS HLOS driver's context
@@ -218,11 +230,19 @@ extern struct nss_ctx_instance *nss_crypto_notify_register(nss_crypto_msg_callba
  * @brief register a data callback handler with HLOS driver
  *
  * @param cb[IN] data callback function
- * @param app_data[IN] conext of the callback user
+ * @param app_data[IN] context of the callback user
  *
  * @return
  */
 extern struct nss_ctx_instance *nss_crypto_data_register(nss_crypto_buf_callback_t cb, void *app_data);
+
+/**
+ * @brief register PM event callback function
+ *
+ * @param cb[IN] callack handler
+ * @param app_data[IN] context of the callback user
+ */
+extern void nss_crypto_pm_notify_register(nss_crypto_pm_event_callback_t cb, void *app_data);
 
 /**
  * @brief unregister the message notifier
@@ -241,6 +261,11 @@ extern void nss_crypto_notify_unregister(struct nss_ctx_instance *ctx);
  * @return
  */
 extern void nss_crypto_data_unregister(struct nss_ctx_instance *ctx);
+
+/**
+ * @brief unregister PM event callback function
+ */
+extern void nss_crypto_pm_notify_unregister(void);
 
 /**
  * @brief crypto specific message init

@@ -1,6 +1,6 @@
 ################################################################################
 #
-# Copyright (c) 2012, The Linux Foundation. All rights reserved.
+# Copyright (c) 2012, 2014, 2016 The Linux Foundation. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License version 2 as published by 
@@ -29,7 +29,8 @@ INCLUDES := -I$(CURDIR) \
     -I$(KBUILDPATH)/include/asm \
     -I$(KBUILDPATH)/net/bridge \
     -I$(MDIR)/$(HYFI_NF) \
-    -I$(MDIR)/$(HYFI_MC)
+    -I$(MDIR)/$(HYFI_MC) \
+    -I$(STAGING_DIR)/usr/include/qca-ssdk
 
 export EXTRA_CFLAGS += $(INCLUDES)
 

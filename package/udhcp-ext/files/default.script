@@ -139,9 +139,15 @@ fi
 [ -z "$1" ] && $ECHO "Error: should be called from udhcpc" && exit 1
 [ -n "$broadcast" ] && BROADCAST="broadcast $broadcast"
 [ -n "$subnet" ] && NETMASK="netmask $subnet"
+module_name=`cat /module_name`
 
 case "$1" in
 	deconfig)
+		if [ "$module_name" = "RBS50" ] && [ "x$(/bin/config get factory_mode)" != "x1" ]; then
+			/usr/sbin/ebtables -P FORWARD DROP
+			/usr/sbin/ebtables -A INPUT -p 0x893A -j DROP
+			/usr/sbin/ebtables -A OUTPUT -p 0x893A -j DROP
+		fi
 		#echo '##### udhcpc deconfig'
 		if [ "x`$NVRAM get lan_dhcp`" = "x1" ]; then
 			$IFCONFIG $interface 192.168.1.250 
@@ -283,6 +289,15 @@ case "$1" in
 			/sbin/wlan connection allow
 			killall telnetenable
 			/usr/sbin/telnetenable
+		fi
+		module_name=`cat /module_name`
+		if [ "$module_name" = "RBS50" ]; then
+		    if [ "x$(/bin/config get factory_mode)" != "x1" ]; then
+			/usr/sbin/ebtables -P FORWARD ACCEPT
+			/usr/sbin/ebtables -D INPUT -p 0x893A -j DROP
+			/usr/sbin/ebtables -D OUTPUT -p 0x893A -j DROP
+		    fi
+			(echo "td discovery"; sleep 2)| hyt &
 		fi
 		;;
 

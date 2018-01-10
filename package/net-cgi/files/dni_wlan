@@ -14,8 +14,8 @@ show_usage()
 
 	Commands:
 	radio <11g/11a> <arguments>      : actions related to radio
-		--status                    :: show radio status (ON or OFF)
-		--channel                   :: show current channel
+	--status                    :: show radio status (ON or OFF)
+	--channel                   :: show current channel
 	statistic                        :: show statistic info
 	help                             : show this
 EOF

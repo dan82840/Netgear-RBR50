@@ -66,7 +66,7 @@ void nss_map_t_instance_debug_stats_sync(struct nss_ctx_instance *nss_ctx, struc
 			nss_map_t_debug_stats[i].stats[NSS_STATS_MAP_T_V4_TO_V6_PBUF_EXCEPTION] += stats_msg->debug_stats.v4_to_v6.exception_pkts;
 			nss_map_t_debug_stats[i].stats[NSS_STATS_MAP_T_V4_TO_V6_PBUF_NO_MATCHING_RULE] += stats_msg->debug_stats.v4_to_v6.no_matching_rule;
 			nss_map_t_debug_stats[i].stats[NSS_STATS_MAP_T_V4_TO_V6_PBUF_NOT_TCP_OR_UDP] += stats_msg->debug_stats.v4_to_v6.not_tcp_or_udp;
-			nss_map_t_debug_stats[i].stats[NSS_STATS_MAP_T_V4_TO_V6_RULE_ERR_LOCAL_PSID_MISMATCH] += stats_msg->debug_stats.v4_to_v6.rule_err_local_psid_mismatch;
+			nss_map_t_debug_stats[i].stats[NSS_STATS_MAP_T_V4_TO_V6_RULE_ERR_LOCAL_PSID] += stats_msg->debug_stats.v4_to_v6.rule_err_local_psid;
 			nss_map_t_debug_stats[i].stats[NSS_STATS_MAP_T_V4_TO_V6_RULE_ERR_LOCAL_IPV6] += stats_msg->debug_stats.v4_to_v6.rule_err_local_ipv6;
 			nss_map_t_debug_stats[i].stats[NSS_STATS_MAP_T_V4_TO_V6_RULE_ERR_REMOTE_PSID] += stats_msg->debug_stats.v4_to_v6.rule_err_remote_psid;
 			nss_map_t_debug_stats[i].stats[NSS_STATS_MAP_T_V4_TO_V6_RULE_ERR_REMOTE_EA_BITS] += stats_msg->debug_stats.v4_to_v6.rule_err_remote_ea_bits;
@@ -149,7 +149,7 @@ static void nss_map_t_handler(struct nss_ctx_instance *nss_ctx, struct nss_cmn_m
 	 */
 	if (ncm->response == NSS_CMM_RESPONSE_NOTIFY) {
 		ncm->cb = (uint32_t)nss_ctx->nss_top->map_t_msg_callback;
-		ncm->app_data = (uint32_t)nss_ctx->nss_top->subsys_dp_register[ncm->interface].app_data;
+		ncm->app_data = (uint32_t)nss_ctx->subsys_dp_register[ncm->interface].app_data;
 	}
 
 	/*
@@ -314,13 +314,16 @@ EXPORT_SYMBOL(nss_map_t_tx_sync);
 struct nss_ctx_instance *nss_map_t_register_if(uint32_t if_num, nss_map_t_callback_t map_t_callback,
 			nss_map_t_msg_callback_t event_callback, struct net_device *netdev, uint32_t features)
 {
+	struct nss_ctx_instance *nss_ctx = (struct nss_ctx_instance *)&nss_top_main.nss[nss_top_main.map_t_handler_id];
 	int i = 0;
+
+	nss_assert(nss_ctx);
 	nss_assert(nss_is_dynamic_interface(if_num));
 
-	nss_top_main.subsys_dp_register[if_num].ndev = netdev;
-	nss_top_main.subsys_dp_register[if_num].cb = map_t_callback;
-	nss_top_main.subsys_dp_register[if_num].app_data = netdev;
-	nss_top_main.subsys_dp_register[if_num].features = features;
+	nss_ctx->subsys_dp_register[if_num].ndev = netdev;
+	nss_ctx->subsys_dp_register[if_num].cb = map_t_callback;
+	nss_ctx->subsys_dp_register[if_num].app_data = netdev;
+	nss_ctx->subsys_dp_register[if_num].features = features;
 
 	nss_top_main.map_t_msg_callback = event_callback;
 
@@ -337,7 +340,7 @@ struct nss_ctx_instance *nss_map_t_register_if(uint32_t if_num, nss_map_t_callba
 	}
 	spin_unlock_bh(&nss_map_t_debug_stats_lock);
 
-	return (struct nss_ctx_instance *)&nss_top_main.nss[nss_top_main.map_t_handler_id];
+	return nss_ctx;
 }
 EXPORT_SYMBOL(nss_map_t_register_if);
 
@@ -346,13 +349,16 @@ EXPORT_SYMBOL(nss_map_t_register_if);
  */
 void nss_map_t_unregister_if(uint32_t if_num)
 {
+	struct nss_ctx_instance *nss_ctx = (struct nss_ctx_instance *)&nss_top_main.nss[nss_top_main.map_t_handler_id];
 	int i;
+
+	nss_assert(nss_ctx);
 	nss_assert(nss_is_dynamic_interface(if_num));
 
-	nss_top_main.subsys_dp_register[if_num].ndev = NULL;
-	nss_top_main.subsys_dp_register[if_num].cb = NULL;
-	nss_top_main.subsys_dp_register[if_num].app_data = NULL;
-	nss_top_main.subsys_dp_register[if_num].features = 0;
+	nss_ctx->subsys_dp_register[if_num].ndev = NULL;
+	nss_ctx->subsys_dp_register[if_num].cb = NULL;
+	nss_ctx->subsys_dp_register[if_num].app_data = NULL;
+	nss_ctx->subsys_dp_register[if_num].features = 0;
 
 	nss_top_main.map_t_msg_callback = NULL;
 

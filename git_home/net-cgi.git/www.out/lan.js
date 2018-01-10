@@ -13,8 +13,20 @@ function dhcponoff()
 	}
 }
 
-function valid_add()
-{   
+function valid_add(type)
+{  
+  if(type)
+  {
+	var num = eval(type + "_array_num");
+	if(num == 64)
+	{
+		alert("$reservation_length_64");
+		return false;
+	}
+	location.href="reservation_add.htm#" + type;  
+  }
+  else
+  {
 	if(array_num==64)  
 	{
 		alert("$reservation_length_64");
@@ -22,6 +34,7 @@ function valid_add()
 	}
 
 	location.href="reservation_add_wait.htm";
+  }
 }
 
 function lanip_change(cf)
@@ -224,6 +237,13 @@ function checklan(form)
                	}
 	}
 
+	if(have_vlan_sb == 1)
+	{
+		//add this check function tempary, because not comfirm if it allow user set conficlt ip with othe wireless or not.
+		if(check_ip_conflict(form.lan_ipaddr.value, form.lan_subnet.value, other_ipdata) == false)
+			return false;		
+	}
+	
 	/* when change subnet or change IP pool it shuldn't change the value of change_ip_flag */
 	if( isSameIp(old_lanmask ,form.lan_subnet.value)== false || isSameIp(form.dhcp_start_old.value,form.dhcp_start.value)== false || isSameIp(form.dhcp_end_old.value,form.dhcp_end.value)== false )	//30916 add mask, start ip, end ip check
 		change_count++;
@@ -296,9 +316,45 @@ function checklan(form)
 		form.dhcp_pool_tag.value = 1;
 	if( change_count > 0)
 		alert("$change_ip_manually1");
+	
+	//check vlan id
+	if(have_vlan_sb == 1){
+		var vid = cf.vlan_id.value;
+		if(check_vlan_id(vid) == false)
+			return false;
+		if(cf.vlan_enable.value == "disable")
+			cf.hid_vlan_enable.value = "0";
+		else
+			cf.hid_vlan_enable.value = "1";
+	}
 	cf.submit();//add
 	return true;
 }
+
+function check_vlan_id(id)
+{
+	var byod_vlanid = byod_wireless_vlan_group.split(" ")[2];
+	var guest_vlanid = guest_wireless_vlan_group.split(" ")[2];
+	
+	if(id.length == 0)
+	{
+		alert("$vlan_error1");
+		return false;
+	}
+	if(!_isNumeric(id) || (parseInt(id,10) <1 || parseInt(id,10) >4094))
+	{
+		alert("$vlan_error3");
+		return false;
+	}
+	if(id == byod_vlanid || id == guest_vlanid)
+	{
+		alert("The VLAN ID is duplicate, please change to another one.")
+		return false;
+	}
+	
+	return true;
+}
+
 function getNumOfNetwork(netArray)
 {
 	var getNum=0;
@@ -307,4 +363,307 @@ function getNumOfNetwork(netArray)
 	getNum+=netArray[2]*255;
 	getNum+=netArray[3];
 	return getNum;
+}
+
+function check_lan(type, form)
+{
+	form.change_network_flag.value=0;
+	form.change_network2_flag.value=0;
+	form.change_ip_flag.value=0;
+	form.dhcp_start.value=form.sysPoolStartingAddr1.value+'.'+form.sysPoolStartingAddr2.value+'.'+form.sysPoolStartingAddr3.value+'.'+form.sysPoolStartingAddr4.value;
+	form.dhcp_end.value=form.sysPoolFinishAddr1.value+'.'+form.sysPoolFinishAddr2.value+'.'+form.sysPoolFinishAddr3.value+'.'+form.sysPoolFinishAddr4.value;
+	form.lan_ipaddr.value=form.sysLANIPAddr1.value+'.'+form.sysLANIPAddr2.value+'.'+form.sysLANIPAddr3.value+'.'+form.sysLANIPAddr4.value;
+	form.lan_subnet.value=form.sysLANSubnetMask1.value+'.'+form.sysLANSubnetMask2.value+'.'+form.sysLANSubnetMask3.value+'.'+form.sysLANSubnetMask4.value;
+
+	if (checkipaddr(form.lan_ipaddr.value)== false || is_sub_or_broad(form.lan_ipaddr.value,form.lan_ipaddr.value, form.lan_subnet.value) == false)
+	{	
+		alert("$invalid_ip");
+		return false;
+	}
+	if( checksubnet(form.lan_subnet.value, 0) == false )
+	{
+		alert("$invalid_mask");
+		return false;
+	}
+	if(form.dhcp_server.checked == true)
+	{
+		if( checkipaddr(form.dhcp_start.value)== false )
+		{
+			alert("$invalid_dhcp_startip");
+			return false;
+		}
+		form.dhcp_start.value = address_parseInt(form.dhcp_start.value);
+		if( checkipaddr(form.dhcp_end.value)== false )
+		{
+			alert("$invalid_dhcp_endip");
+			return false;	
+		}
+		form.dhcp_end.value = address_parseInt(form.dhcp_end.value);
+		if(parseInt(form.sysPoolStartingAddr4.value,10)>parseInt(form.sysPoolFinishAddr4.value,10))
+		{
+			alert("$invalid_dhcp_startendip");
+			return false;
+		}
+
+		if(!check_clientNumber(form))
+		{	
+			alert("$invalid_dhcp_startendip");
+			return false;
+		}
+		form.lan_ipaddr.value = address_parseInt(form.lan_ipaddr.value);
+		form.lan_subnet.value = address_parseInt(form.lan_subnet.value);
+		if(isSameSubNet(form.lan_ipaddr.value,form.lan_subnet.value,form.dhcp_start.value,form.lan_subnet.value) == false)
+		{
+			alert("$same_subnet_ip_dhcpstart");
+			return false;
+		}
+		if(isSameSubNet(form.lan_ipaddr.value,form.lan_subnet.value,form.dhcp_end.value,form.lan_subnet.value) == false)
+		{
+			alert("$same_subnet_ip_dhcpend");
+			return false
+		}
+
+	}
+	if( form.dhcp_server.checked == true )
+		form.dhcp_mode.value = 1;
+	else
+		form.dhcp_mode.value = 0;
+	
+	if( wan_ip!="0.0.0.0" )
+	{
+		if( wan_type == "pppoe" || wan_type == "pptp" || wan_type == "mulpppoe1" )
+		{
+			if(isSameSubNet(form.lan_ipaddr.value,form.lan_subnet.value,wan_ip,form.lan_subnet.value) == true)
+			{
+				alert("$conflict_with_wanip");
+				return false;
+			}
+		}
+		else
+		{
+			if(isSameSubNet(form.lan_ipaddr.value,form.lan_subnet.value,wan_ip,wan_mask) == true)
+			{
+				alert("$conflict_with_wanip");
+				return false;
+			}
+			if(isSameSubNet(form.lan_ipaddr.value,form.lan_subnet.value,wan_ip,form.lan_subnet.value) == true)
+			{
+				alert("$conflict_with_wanip");
+				return false;
+			}
+			if(isSameSubNet(form.lan_ipaddr.value,wan_mask,wan_ip,wan_mask) == true)
+			{
+				alert("$conflict_with_wanip");
+				return false;
+			}
+
+		}
+		if(isSameIp(wan_ip,form.lan_ipaddr.value) == true)
+		{
+			alert("$conflict_with_wanip");
+			return false;
+		}
+	}
+	if(bas_pptp_ip != "0.0.0.0" )
+	{
+                if(wan_type == "pptp")
+                {
+                    	if(isSameSubNet(form.lan_ipaddr.value,form.lan_subnet.value,bas_pptp_ip,form.lan_subnet.value) == true )
+                      	{
+                           	alert("$conflicted_with_wanip");
+                                return false;
+                        }
+                        if(isSameIp(bas_pptp_ip,form.lan_ipaddr.value) == true)
+                        {
+                                alert("$conflicted_with_wanip");
+                                return false;
+                        }
+               	}
+	}
+	
+	if(isSameIp(old_lanip,form.lan_ipaddr.value)== false)
+	{
+
+		if(isSameSubNet(form.lan_ipaddr.value,"255.255.255.0",old_lanip,"255.255.255.0")==false)//To fix bug 32125
+		{		
+			//lan subnet
+			new_lanip_array=form.lan_ipaddr.value.split('.');
+			form.net_leng.value=3;
+			form.network.value=new_lanip_array[0]+'.'+new_lanip_array[1]+'.'+new_lanip_array[2];		
+			form.change_network_flag.value=1;
+		}
+		form.change_ip_flag.value=1;
+	}
+	
+	if(isSameIp(old_lanmask,form.lan_subnet.value)==false)
+	{
+		var oldNetwork = old_lanmask.split(".");
+		var nowNetwork = form.lan_subnet.value.split(".");
+		oldNumofNetwork = getNumOfNetwork(oldNetwork);
+		newNumofNetwork = getNumOfNetwork(nowNetwork);
+		if ( oldNumofNetwork < newNumofNetwork ) //If subnet is changed and the subnet range is from big to small, router SHOULD flush all the corresponding configuration.
+		{
+			form.change_network2_flag.value=1;
+		}
+	}
+	
+	//add this check function tempary, because not comfirm if it allow user set conficlt ip with othe wireless or not.
+	if(check_ip_conflict(form.lan_ipaddr.value, form.lan_subnet.value, other_ipdata) == false)
+		return false;
+	
+	return true;
+}
+
+//this function for enabled router/ap input, when config router/ap setting, so that not post the useless data.
+function enabled_input_elements(con_id)
+{
+	var con_obj = document.getElementById(con_id);
+	var i_nodes = con_obj.childNodes;
+	
+	for(var i=0; i< i_nodes.length; i++)
+	{
+		i_nodes[i].disabled = false;		
+	}
+}
+
+//ap mode function
+function getkey1(e)
+{
+
+	var keycode, event;
+
+	if (window.event) 
+	{
+		event = window.event;
+		keycode = window.event.keyCode;
+	}	
+	else if (e)
+	{
+		event = e;
+		keycode = e.which;
+	}	
+	else 
+		return true;
+	if	(((keycode>47) && (keycode<58)) || (keycode==8)||(keycode==0) || (keycode==46))
+			return true;		
+		else 
+			return false;
+}
+
+function ap_show(type)
+{
+	cf=document.forms[0];
+	if(type == 0)
+	{
+		document.getElementById("iptab").style.display="none";	
+	}
+	else if (type == 1)
+	{
+		document.getElementById("iptab").style.display="";
+	}
+		
+}
+
+function check_ap(type, form)
+{
+	form.hid_ap_ipaddr.value=form.APaddr1.value;
+    form.hid_ap_subnet.value=form.APmask1.value;
+    form.hid_ap_gateway.value=form.APgateway1.value;
+	form.ap_dnsaddr1.value=form.APDAddr1.value;
+    form.ap_dnsaddr2.value=form.APPDAddr1.value;
+	if(form.dyn_get_ip[1].checked == true)
+    {
+				
+        if(check_static_ip_mask_gtw()==false){
+					  
+            return false;	
+		}
+        if(check_static_dns(!(form.dyn_get_ip.checked)) == false){
+					   
+             return false;
+		}
+        form.hid_dyn_get_ip.value="0";//for static
+	}
+    else
+        form.hid_dyn_get_ip.value="1"; //for dynamic
+		
+	return true;
+}
+
+function check_static_ip_mask_gtw()
+{
+	var form=document.forms[0];
+	form.hid_ap_ipaddr.value=form.APaddr1.value;
+    form.hid_ap_subnet.value=form.APmask1.value;
+    form.hid_ap_gateway.value=form.APgateway1.value;
+	
+	if(checkipaddr(form.hid_ap_ipaddr.value)==false || is_sub_or_broad(form.hid_ap_ipaddr.value, form.hid_ap_ipaddr.value, form.hid_ap_subnet.value) == false)
+	{
+		alert("$invalid_ip");
+		return false;
+	}
+	if(checksubnet(form.hid_ap_subnet.value, 0)==false)
+	{
+		alert("$invalid_mask");
+		return false;
+	}
+	if(checkgateway(form.hid_ap_gateway.value)==false || is_sub_or_broad( form.hid_ap_gateway.value, form.hid_ap_gateway.value, form.hid_ap_subnet.value) == false)
+	{
+		alert("$invalid_gateway");
+		return false;
+	}
+	if(isGateway(form.hid_ap_ipaddr.value,form.hid_ap_subnet.value,form.hid_ap_gateway.value)==false)
+	{
+		alert("$invalid_gateway");
+		return false;		
+	}
+	if( isSameIp(form.hid_ap_ipaddr.value, form.hid_ap_gateway.value) == true )
+	{
+		alert("$invalid_gateway");
+		return false;
+	}
+	if(isSameSubNet(form.hid_ap_ipaddr.value,form.hid_ap_subnet.value,form.hid_ap_gateway.value,form.hid_ap_subnet.value) == false)
+	{
+		alert("$same_subnet_ip_gtw");
+		return false;
+	}
+	return true;
+}
+
+function check_static_dns( wan_assign )
+{
+	var form=document.forms[0];
+	form.ap_dnsaddr1.value=form.APDAddr1.value;
+    form.ap_dnsaddr2.value=form.APPDAddr1.value;
+	form.hid_ap_ipaddr.value=form.APaddr1.value;
+
+	if(form.ap_dnsaddr1.value=="...")
+		form.ap_dnsaddr1.value="";
+
+	if(form.ap_dnsaddr2.value=="...")
+		form.ap_dnsaddr2.value="";
+	if( check_DNS(form.ap_dnsaddr1.value,form.ap_dnsaddr2.value,wan_assign,form.hid_ap_ipaddr.value))
+		return true;
+	else
+		return false;
+}
+//end ap mode function
+
+function check_ip_conflict(ip, mask, data)
+{
+	for(var i=0; i<data.length; i++)
+	{
+		if(isSameIp(ip, data[i].ip) == true)
+		{
+			alert("IP address is conflicted with "+data[i].type+" IP subnet, please enter again.");
+			return false;
+		}
+		if(isSameSubNet(ip, mask, data[i].ip, data[i].mask) == true)
+		{
+			alert("IP address is conflicted with "+data[i].type+" IP subnet, please enter again.");
+			return false;		
+		}	
+	}
+	
+	return true;
 }

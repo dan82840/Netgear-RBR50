@@ -1,0 +1,23 @@
+<% http_header("style/form.css") %>
+<% body_header("", "guest_portal.html", "clear_gp_file") %>
+<div class="page_title">Clear Portal Customization</div>
+<div class="main_top_button" style="top:50px;">
+<table width=100% border=0 cellpadding=0 cellspacing=3>
+<tr><td>Are you sure that you want to clear the Terms of Conditions and the logo image files from the portal?</td></tr>
+$bluebar
+<tr><td align=center>
+	<input class="common_bt" name="yes" value="Yes" onclick="apply_clear()" type="button">
+	<input class="common_bt" name="no" value="No" onclick="location.href='guest_portal.html';" type="button">
+</td></tr>
+</table>
+</div>
+</form>
+<script>
+function apply_clear()
+{
+	cf = document.forms[0];
+	cf.submit();
+}
+</script>
+<body>
+</html>

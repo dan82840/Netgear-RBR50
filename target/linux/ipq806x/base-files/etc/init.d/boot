@@ -28,14 +28,45 @@ start() {
 	touch /var/log/lastlog
 	touch /tmp/resolv.conf.auto
 	ln -sf /tmp/resolv.conf.auto /tmp/resolv.conf
+	ln -sf /lib/libpthread-0.9.33.2.so /lib/libpthread.so.1
+	ln -sf /lib/libuClibc-0.9.33.2.so /lib/libc.so.1
+
 	grep -q debugfs /proc/filesystems && mount -t debugfs debugfs /sys/kernel/debug
 	[ "$FAILSAFE" = "true" ] && touch /tmp/.failsafe
 
 	klogd
 	#syslogd -m 0
 	ifconfig lo up
-	/bin/datalib $(/sbin/artmtd -r board_model_id | cut -f 2 -d ":")
-        
+	/sbin/artmtd -r board_model_id | cut -f 2 -d ":" > /tmp/board_model_id
+	#Create /tmp/orbi_type to indicate that It is Orbi Base or Satellites.
+	model_prefix=`cat /tmp/board_model_id |cut -b3`
+	[ "$model_prefix" = "R" ] && echo "Base" > /tmp/orbi_type
+	[ "$model_prefix" = "S" ] && echo "Satellite" > /tmp/orbi_type
+	#read Orbi serial board_data and show its type to /tmp/orbi_project
+	/sbin/artmtd -r board_data | awk '{print $3}' > /tmp/board_data
+	dev_type=`cat /tmp/board_data |cut -b3-4`
+	if [ "$dev_type" = "01" ] || [ "$dev_type" = "02" ]; then
+		echo "Desktop" > /tmp/orbi_project
+	elif [ "$dev_type" = "04" ] || [ "$dev_type" = "05" ]; then
+		echo "Orbimini" > /tmp/orbi_project
+	elif [ "$dev_type" = "06" ] || [ "$dev_type" = "07" ]; then
+		echo "Orbipro" > /tmp/orbi_project
+	fi
+
+	#Since early Mini had wrong board_data, correct the project by model_name
+	model_name=`cat /tmp/board_model_id`
+	if [ "x$model_name" = "xRBR30" -o "x$model_name" = "xRBS30" -o "x$model_name" = "xRBR40" -o "x$model_name" = "xRBS40"  ];then
+		echo "Orbimini" > /tmp/orbi_project
+	fi
+
+	/bin/datalib $(cat /tmp/board_model_id)
+
+	local temp_repacd_Daisy=$(/bin/config get repacd_Daisy_Chain_Enable)
+	if [ "x$temp_repacd_Daisy" != "x0" ];then
+		/bin/config set repacd_Daisy_Chain_Enable=0
+		/bin/config commit
+	fi
+
 	# generate conf for RBR50/RBS50
 	/sbin/generate_board_conf.sh
 
@@ -306,13 +337,34 @@ start() {
 			/bin/config set wla_2nd_ap_bh_wpa2_psk="$ps_set"
 			/bin/config set wlg_ap_bh_sectype="4"
 			/bin/config set wlg_sta_sectype="4"
-			/bin/config set wla_2nd_sta_statype="4"
+			/bin/config set wla_2nd_sta_sectype="4"
 			/bin/config set wla_2nd_ap_bh_sectype="4"
 		fi	
 		/bin/config set default_ssphrase="0"
 		commit_flag=1
 	fi
 	/bin/config unset dni_hold_tds_update
+
+	# Set backhaul RTS deault 2347
+	project_and_type=`cat /tmp/orbi_project`_`cat /tmp/orbi_type`
+	case $project_and_type in
+	    "Desktop_Base")
+		/bin/config set wla_2nd_ap_bh_rts="2347"
+		;;
+	    "Desktop_Satellite")
+		/bin/config set wla_2nd_sta_rts="2347"
+		;;
+	    "Orbimini_Base")
+		/bin/config set wla_ap_bh_rts="2347"
+		;;
+	    "Orbimini_Satellite")
+		/bin/config set wla_sta_rts="2347"
+		;;
+	    *)
+		echo "exception condition"
+		;;
+	esac
+    
 	# need to update Streamboost database after upgrade firmwrare
 	[ -f /tmp/new_firmware ] && /bin/config set new_firmware=1 && commit_flag=1
 	[ "$commit_flag" = "1" ] && /bin/config commit
@@ -330,6 +382,15 @@ start() {
 	if [ "$(/bin/config get overwrite_14010)" = "0" ]; then
 		echo "not need do overwrite lbd"
 	else
+		/bin/config set lbd_PHYBasedPrioritization="1"
+		/bin/config set lbd_RSSIMeasureSamples_W2="2"
+		/bin/config set lbd_RSSIMeasureSamples_W5="2"
+		/bin/config set lbd_BcnrptPassiveDuration="110"
+		/bin/config set lbd_PhyRateScalingForAirtime="90"
+		/bin/config set lbd_BTMAssociationTime="5"
+		/bin/config set lbd_MinTxRateIncreaseThreshold="20"
+		/bin/config set lbd_AuthRejMax="2"
+		/bin/config set lbd_TSteering="15"
 		/bin/config set lbd_LowRSSIAPSteerThreshold_CAP_W2="35"
 		/bin/config set lbd_LowRSSIAPSteerThreshold_CAP_W5="20"
 		/bin/config set lbd_LowRSSIAPSteerThreshold_RE_W2="35"
@@ -347,7 +408,7 @@ start() {
 		/bin/config set lbd_BTMSteeringProhibitShortTime="15"
 		/bin/config set lbd_BTMUnfriendlyTime="30"
 		/bin/config set lbd_SteeringProhibitTime="120"
-		/bin/config set lbd_RSSISteeringPoint_UG="10"
+		/bin/config set lbd_RSSISteeringPoint_UG="15"
 		/bin/config set lbd_RateRSSIXingThreshold_UG="20"
 		/bin/config set lbd_MUOverloadThreshold_W2="80"
 		/bin/config set lbd_MUOverloadThreshold_W5="99"
@@ -355,19 +416,35 @@ start() {
 		/bin/config set lbd_MUSafetyThreshold_W5="90"
 		/bin/config set lbd_APSteerToRootMinRSSIIncThreshold="10"
 		/bin/config set lbd_DownlinkRSSIThreshold_W5="-70"
-		/bin/config set lbd_AuthRejMax="2"
 		/bin/config set overwrite_14010="0"
 		/bin/config commit
 	fi
 
-	if [ "$(/bin/config get overwrite_18012)" = "0" ]; then
-		echo "still not need do overwrite lbd"
+	if [ "$(/bin/config get overwrite_20013)" = "0" ]; then
+		echo "Also not need do overwrite lbd"
 	else
-		/bin/config set lbd_11kProhibitTimeLong="60"
+		/bin/config set lbd_PHYBasedPrioritization="1"
+		/bin/config set lbd_RSSIMeasureSamples_W2="2"
+		/bin/config set lbd_RSSIMeasureSamples_W5="2"
+		/bin/config set lbd_BcnrptPassiveDuration="110"
+		/bin/config set lbd_PhyRateScalingForAirtime="90"
+		/bin/config set lbd_BTMAssociationTime="5"
+		/bin/config set lbd_MinTxRateIncreaseThreshold="20"
 		/bin/config set lbd_AuthRejMax="2"
-		/bin/config set overwrite_18012="0"
+		/bin/config set lbd_TSteering="15"
+		/bin/config set lbd_11kProhibitTimeLong="60"
+		/bin/config set overwrite_20013="0"
 		/bin/config commit
 	fi
+
+        if [ "$(/bin/config get overwrite_20070615)" = "0" ]; then
+               echo "Also not need do overwrite lbd"
+        else
+               /bin/config set rssi_prefer_2g_bh="-82"
+               /bin/config set lbd_RSSISteeringPoint_UG="15"
+               /bin/config set overwrite_20070615="0"
+               /bin/config commit
+        fi  
 
 	#For debug page pre setting
 	local wifi_debug_option=$(/bin/config get wifi_debug_option)
@@ -394,6 +471,48 @@ start() {
 		echo 0 > /tmp/cfg_allow_upgrade_fw
 	elif [ "$Product_Name" = "344650443352" ]; then
 		echo 1 > /tmp/cfg_allow_upgrade_fw
+	fi
+
+	local ageing_time=$(/bin/config get ageing_time)
+	/usr/sbin/brctl setageing br0 $ageing_time
+
+        if [ "$model_prefix" = "S" ]; then
+            /bin/config set wla_2nd_ap_bh_ssid=$(/bin/config get wla_2nd_sta_ssid)
+            /bin/config set wlg_ap_bh_ssid=$(/bin/config get wlg_sta_ssid)
+
+            /bin/config set wla_2nd_ap_bh_wpa2_psk=$(/bin/config get wla_2nd_sta_wpa2_psk)
+            /bin/config set wlg_ap_bh_wpa2_psk=$(/bin/config get wlg_sta_wpa2_psk)
+
+            /bin/config commit
+        fi
+
+	# As NTGR request, enable radio and disable wifi schedule and set TPC value to 100% when V1.10 and V2.0 firmware boot up.
+        if [ "$model_prefix" = "R" ]; then
+	    local tmp_endis_wl_radio=$(/bin/config get endis_wl_radio)
+	    local tmp_endis_wla_radio=$(/bin/config get endis_wla_radio)
+	    local tmp_wl_tpscale=$(/bin/config get wl_tpscale)
+	    local tmp_wla_tpscale=$(/bin/config get wla_tpscale)
+	    local tmp_wladv_schedule_enable=$(/bin/config get wladv_schedule_enable)
+	    local tmp_wladv_schedule_enable_a=$(/bin/config get wladv_schedule_enable_a)
+
+	    if [ "$tmp_endis_wl_radio" = "0" -o "tmp_endis_wla_radio" = "0" -o "tmp_wl_tpscale" != "100" -o "tmp_wla_tpscale" != "100" -o "tmp_wladv_schedule_enable" = "1" -o "tmp_wladv_schedule_enable_a" = "1" ]; then
+		/bin/config set endis_wl_radio=1
+		/bin/config set endis_wla_radio=1
+		/bin/config set wl_tpscale=100
+		/bin/config set wla_tpscale=100
+		/bin/config set wladv_schedule_enable=0
+		/bin/config set wladv_schedule_enable_a=0
+		/bin/config set config_timestamp=$(date +%s)
+		/bin/config commit
+	    fi
+	fi
+
+	# disable hyd, wsplcd, and repacd for simplification of factory mode.
+	if [ "$(/bin/config get factory_mode)" = "1" ]; then
+	    /bin/config set hyd_enable=0
+	    /bin/config set wsplcd_enable=0
+	    /bin/config set repacd_enable=0
+	    /bin/config commit
 	fi
 
 #	if [  "$rssi_move_far2g" = "" ];then

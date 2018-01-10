@@ -17,12 +17,15 @@ qca-nss-drv-objs := \
 			nss_data_plane.o \
 			nss_dynamic_interface.o \
 			nss_gre_redir.o \
+			nss_gre_tunnel.o \
 			nss_if.o \
 			nss_init.o \
 			nss_ipsec.o \
 			nss_ipv4.o \
+			nss_ipv4_log.o \
 			nss_ipv4_reasm.o \
 			nss_ipv6.o \
+			nss_ipv6_log.o \
 			nss_ipv6_reasm.o \
 			nss_lag.o \
 			nss_phys_if.o \
@@ -55,6 +58,6 @@ ccflags-y += -I$(obj)/nss_hal/include
 ccflags-y += -I$(obj)/nss_hal/
 ccflags-y += -I$(obj)/exports
 ccflags-y += -I$(obj)/nss_hal/fsm9010
-ccflags-y += -DNSS_DEBUG_LEVEL=0 -DNSS_EMPTY_BUFFER_SIZE=1984 -DNSS_PKT_STATS_ENABLED=0
-ccflags-y += -DNSS_DT_SUPPORT=1 -DNSS_PM_SUPPORT=0 -DNSS_FW_DBG_SUPPORT=0
+ccflags-y += -DNSS_DEBUG_LEVEL=0 -DNSS_EMPTY_BUFFER_SIZE=1984 -DNSS_PKT_STATS_ENABLED=1
+ccflags-y += -DNSS_DT_SUPPORT=1 -DNSS_PM_SUPPORT=0 -DNSS_FW_DBG_SUPPORT=0 -DNSS_SKB_RECYCLE_SUPPORT=0
 ccflags-y += -DNSS_PPP_SUPPORT=0 -DNSS_FREQ_SCALE_SUPPORT=0 -DNSS_FABRIC_SCALING_SUPPORT=0

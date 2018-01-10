@@ -475,7 +475,7 @@ static int mmc_test_erase(struct mmc_test_card *test)
 
 	sg_init_one(&sg, test->buffer, 512);
 
-	ret = mmc_test_simple_transfer(test, &sg, 1, 0x15a22+i, 1, 512, 1);
+	ret = mmc_test_simple_transfer(test, &sg, 1, 0x1d622+i, 1, 512, 1);
 	}
 	if (ret)
 		return ret;
@@ -492,7 +492,7 @@ static int mmc_test_verify_write(struct mmc_test_card *test)
 
 	sg_init_one(&sg, test->buffer, 4096);
 	
-	ret = mmc_test_transfer(test, &sg, 1, 0x15a22+devaddr_flag*8, 8, 512, 1);
+	ret = mmc_test_transfer(test, &sg, 1, 0x1d622+devaddr_flag*8, 8, 512, 1);
 	if (ret)
 		return ret;
 
@@ -509,7 +509,7 @@ static int mmc_test_verify_read(struct mmc_test_card *test)
 	{
 		sg_init_one(&sg, test->buffer, 4096);
 
-		ret = mmc_test_transfer(test, &sg, 1, 0x15a22+i*8, 8, 512, 0);
+		ret = mmc_test_transfer(test, &sg, 1, 0x1d622+i*8, 8, 512, 0);
 		
 		if(i==8)	
 			sprintf(dni_panic_flag,"%d",i);

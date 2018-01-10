@@ -556,6 +556,12 @@ static void ecm_nss_non_ported_ipv4_connection_accelerate(struct ecm_front_end_c
 				break;
 			}
 			ecm_db_iface_bridge_address_get(ii, from_nss_iface_address);
+			if (is_valid_ether_addr(from_nss_iface_address)) {
+				memcpy(nircm->src_mac_rule.flow_src_mac, from_nss_iface_address, ETH_ALEN);
+				nircm->src_mac_rule.mac_valid_flags |= NSS_IPV4_SRC_MAC_FLOW_VALID;
+				nircm->valid_flags |= NSS_IPV4_RULE_CREATE_SRC_MAC_VALID;
+			}
+
 			DEBUG_TRACE("%p: Bridge - mac: %pM\n", nnpci, from_nss_iface_address);
 			break;
 		case ECM_DB_IFACE_TYPE_ETHERNET:
@@ -639,10 +645,13 @@ static void ecm_nss_non_ported_ipv4_connection_accelerate(struct ecm_front_end_c
 			/*
 			 * If we have not yet got an ethernet mac then take this one (very unlikely as mac should have been propagated to the slave (outer) device
 			 */
-			if (interface_type_counts[ECM_DB_IFACE_TYPE_ETHERNET] == 0) {
-				memcpy(from_nss_iface_address, vlan_info.address, ETH_ALEN);
-				interface_type_counts[ECM_DB_IFACE_TYPE_ETHERNET]++;
+			memcpy(from_nss_iface_address, vlan_info.address, ETH_ALEN);
+			if (is_valid_ether_addr(from_nss_iface_address)) {
 				DEBUG_TRACE("%p: VLAN use mac: %pM\n", nnpci, from_nss_iface_address);
+				interface_type_counts[ECM_DB_IFACE_TYPE_ETHERNET]++;
+				memcpy(nircm->src_mac_rule.flow_src_mac, from_nss_iface_address, ETH_ALEN);
+				nircm->src_mac_rule.mac_valid_flags |= NSS_IPV4_SRC_MAC_FLOW_VALID;
+				nircm->valid_flags |= NSS_IPV4_RULE_CREATE_SRC_MAC_VALID;
 			}
 			DEBUG_TRACE("%p: vlan tag: %x\n", nnpci, vlan_value);
 #else
@@ -732,6 +741,12 @@ static void ecm_nss_non_ported_ipv4_connection_accelerate(struct ecm_front_end_c
 				break;
 			}
 			ecm_db_iface_bridge_address_get(ii, to_nss_iface_address);
+			if (is_valid_ether_addr(to_nss_iface_address)) {
+				memcpy(nircm->src_mac_rule.return_src_mac, to_nss_iface_address, ETH_ALEN);
+				nircm->src_mac_rule.mac_valid_flags |= NSS_IPV4_SRC_MAC_RETURN_VALID;
+				nircm->valid_flags |= NSS_IPV4_RULE_CREATE_SRC_MAC_VALID;
+			}
+
 			DEBUG_TRACE("%p: Bridge - mac: %pM\n", nnpci, to_nss_iface_address);
 			break;
 		case ECM_DB_IFACE_TYPE_ETHERNET:
@@ -814,11 +829,15 @@ static void ecm_nss_non_ported_ipv4_connection_accelerate(struct ecm_front_end_c
 			/*
 			 * If we have not yet got an ethernet mac then take this one (very unlikely as mac should have been propagated to the slave (outer) device
 			 */
-			if (interface_type_counts[ECM_DB_IFACE_TYPE_ETHERNET] == 0) {
-				memcpy(to_nss_iface_address, vlan_info.address, ETH_ALEN);
-				interface_type_counts[ECM_DB_IFACE_TYPE_ETHERNET]++;
+			memcpy(to_nss_iface_address, vlan_info.address, ETH_ALEN);
+			if (is_valid_ether_addr(to_nss_iface_address)) {
 				DEBUG_TRACE("%p: VLAN use mac: %pM\n", nnpci, to_nss_iface_address);
+				interface_type_counts[ECM_DB_IFACE_TYPE_ETHERNET]++;
+				memcpy(nircm->src_mac_rule.return_src_mac, to_nss_iface_address, ETH_ALEN);
+				nircm->src_mac_rule.mac_valid_flags |= NSS_IPV4_SRC_MAC_RETURN_VALID;
+				nircm->valid_flags |= NSS_IPV4_RULE_CREATE_SRC_MAC_VALID;
 			}
+
 			DEBUG_TRACE("%p: vlan tag: %x\n", nnpci, vlan_value);
 #else
 			rule_invalid = true;
@@ -1821,7 +1840,11 @@ unsigned int ecm_nss_non_ported_ipv4_process(struct net_device *out_dev, struct 
 	 * Look up a connection.
 	 */
 	protocol = (int)orig_tuple->dst.protonum;
+#ifdef ECM_INTERFACE_PPTP_ENABLE
 	if ((protocol == IPPROTO_IPV6) || (protocol == IPPROTO_ESP || (protocol == IPPROTO_GRE))) {
+#else
+	if ((protocol == IPPROTO_IPV6) || (protocol == IPPROTO_ESP)) {
+#endif
 		src_port = 0;
 		src_port_nat = 0;
 		dest_port = 0;
@@ -1894,45 +1917,11 @@ unsigned int ecm_nss_non_ported_ipv4_process(struct net_device *out_dev, struct 
 		}
 		spin_unlock_bh(&ecm_nss_ipv4_lock);
 
-		if (!ecm_front_end_ipv4_interface_construct_set_and_hold(skb, sender, ecm_dir, is_routed,
-							in_dev, out_dev,
-							ip_src_addr, ip_src_addr_nat,
-							ip_dest_addr, ip_dest_addr_nat,
-							&efeici)) {
-			DEBUG_WARN("ECM front end ipv4 interface construct set failed for routed traffic\n");
-			return NF_ACCEPT;
-		}
-
-		/*
-		 * Does this connection have a conntrack entry?
-		 */
-		if (ct) {
-			unsigned int conn_count;
-
-			/*
-			 * If we have exceeded the connection limit (according to conntrack) then abort
-			 * NOTE: Conntrack, when at its limit, will destroy a connection to make way for a new.
-			 * Conntrack won't exceed its limit but ECM can due to it needing to hold connections while
-			 * acceleration commands are in-flight.
-			 * This means that ECM can 'fall behind' somewhat with the connection state wrt conntrack connection state.
-			 * This is not seen as an issue since conntrack will have issued us with a destroy event for the flushed connection(s)
-			 * and we will eventually catch up.
-			 * Since ECM is capable of handling connections mid-flow ECM will pick up where it can.
-			 */
-			conn_count = (unsigned int)ecm_db_connection_count_get();
-			if (conn_count >= nf_conntrack_max) {
-				ecm_front_end_ipv4_interface_construct_netdev_put(&efeici);
-				DEBUG_WARN("ECM Connection count limit reached: db: %u, ct: %u\n", conn_count, nf_conntrack_max);
-				return NF_ACCEPT;
-			}
-		}
-
 		/*
 		 * Now allocate the new connection
 		 */
 		nci = ecm_db_connection_alloc();
 		if (!nci) {
-			ecm_front_end_ipv4_interface_construct_netdev_put(&efeici);
 			DEBUG_WARN("Failed to allocate connection\n");
 			return NF_ACCEPT;
 		}
@@ -1943,10 +1932,21 @@ unsigned int ecm_nss_non_ported_ipv4_process(struct net_device *out_dev, struct 
 		feci = (struct ecm_front_end_connection_instance *)ecm_nss_non_ported_ipv4_connection_instance_alloc(nci, can_accel);
 		if (!feci) {
 			ecm_db_connection_deref(nci);
-			ecm_front_end_ipv4_interface_construct_netdev_put(&efeici);
 			DEBUG_WARN("Failed to allocate front end\n");
 			return NF_ACCEPT;
 		}
+
+		if (!ecm_front_end_ipv4_interface_construct_set_and_hold(skb, sender, ecm_dir, is_routed,
+							in_dev, out_dev,
+							ip_src_addr, ip_src_addr_nat,
+							ip_dest_addr, ip_dest_addr_nat,
+							&efeici)) {
+			feci->deref(feci);
+			ecm_db_connection_deref(nci);
+			DEBUG_WARN("ECM front end ipv4 interface construct set failed for routed traffic\n");
+			return NF_ACCEPT;
+		}
+
 
 		/*
 		 * Get the src and destination mappings.
@@ -1955,7 +1955,7 @@ unsigned int ecm_nss_non_ported_ipv4_process(struct net_device *out_dev, struct 
 		 * GGG TODO The empty list checks should not be needed, mapping_establish_and_ref() should fail out if there is no list anyway.
 		 */
 		DEBUG_TRACE("%p: Create the 'from' interface heirarchy list\n", nci);
-		from_list_first = ecm_interface_heirarchy_construct(feci, from_list, efeici.from_dev, efeici.from_other_dev, ip_dest_addr, efeici.from_mac_lookup_ip_addr, 4, protocol, in_dev, is_routed, in_dev, src_node_addr, dest_node_addr, NULL, skb);
+		from_list_first = ecm_interface_heirarchy_construct(feci, from_list, efeici.from_dev, efeici.from_other_dev, ip_dest_addr, efeici.from_mac_lookup_ip_addr, ip_src_addr, 4, protocol, in_dev, is_routed, in_dev, src_node_addr, dest_node_addr, NULL, skb);
 		if (from_list_first == ECM_DB_IFACE_HEIRARCHY_MAX) {
 			feci->deref(feci);
 			ecm_db_connection_deref(nci);
@@ -1988,7 +1988,7 @@ unsigned int ecm_nss_non_ported_ipv4_process(struct net_device *out_dev, struct 
 		}
 
 		DEBUG_TRACE("%p: Create the 'to' interface heirarchy list\n", nci);
-		to_list_first = ecm_interface_heirarchy_construct(feci, to_list, efeici.to_dev, efeici.to_other_dev, ip_src_addr, efeici.to_mac_lookup_ip_addr, 4, protocol, out_dev, is_routed, in_dev, dest_node_addr, src_node_addr, NULL, skb);
+		to_list_first = ecm_interface_heirarchy_construct(feci, to_list, efeici.to_dev, efeici.to_other_dev, ip_src_addr, efeici.to_mac_lookup_ip_addr, ip_dest_addr, 4, protocol, out_dev, is_routed, in_dev, dest_node_addr, src_node_addr, NULL, skb);
 		if (to_list_first == ECM_DB_IFACE_HEIRARCHY_MAX) {
 			ecm_db_mapping_deref(src_mi);
 			ecm_db_node_deref(src_ni);
@@ -2038,9 +2038,9 @@ unsigned int ecm_nss_non_ported_ipv4_process(struct net_device *out_dev, struct 
 		 */
 		DEBUG_TRACE("%p: Create the 'from NAT' interface heirarchy list\n", nci);
 		if ((protocol == IPPROTO_IPV6) || (protocol == IPPROTO_ESP)) {
-			from_nat_list_first = ecm_interface_heirarchy_construct(feci, from_nat_list, efeici.from_nat_dev, efeici.from_nat_other_dev, ip_dest_addr, efeici.from_nat_mac_lookup_ip_addr, 4, protocol, in_dev, is_routed, in_dev, src_node_addr_nat, dest_node_addr_nat, NULL, skb);
+			from_nat_list_first = ecm_interface_heirarchy_construct(feci, from_nat_list, efeici.from_nat_dev, efeici.from_nat_other_dev, ip_dest_addr, efeici.from_nat_mac_lookup_ip_addr, ip_src_addr_nat, 4, protocol, in_dev, is_routed, in_dev, src_node_addr_nat, dest_node_addr_nat, NULL, skb);
 		} else {
-			from_nat_list_first = ecm_interface_heirarchy_construct(feci, from_nat_list, efeici.from_nat_dev, efeici.from_nat_other_dev, ip_dest_addr, efeici.from_nat_mac_lookup_ip_addr, 4, protocol, in_dev_nat, is_routed, in_dev, src_node_addr_nat, dest_node_addr_nat, NULL, skb);
+			from_nat_list_first = ecm_interface_heirarchy_construct(feci, from_nat_list, efeici.from_nat_dev, efeici.from_nat_other_dev, ip_dest_addr, efeici.from_nat_mac_lookup_ip_addr, ip_src_addr_nat, 4, protocol, in_dev_nat, is_routed, in_dev, src_node_addr_nat, dest_node_addr_nat, NULL, skb);
 		}
 
 		if (from_nat_list_first == ECM_DB_IFACE_HEIRARCHY_MAX) {
@@ -2086,7 +2086,7 @@ unsigned int ecm_nss_non_ported_ipv4_process(struct net_device *out_dev, struct 
 		}
 
 		DEBUG_TRACE("%p: Create the 'to NAT' interface heirarchy list\n", nci);
-		to_nat_list_first = ecm_interface_heirarchy_construct(feci, to_nat_list, efeici.to_nat_dev, efeici.to_nat_other_dev, ip_src_addr, efeici.to_nat_mac_lookup_ip_addr, 4, protocol, out_dev_nat, is_routed, in_dev, dest_node_addr_nat, src_node_addr_nat, NULL, skb);
+		to_nat_list_first = ecm_interface_heirarchy_construct(feci, to_nat_list, efeici.to_nat_dev, efeici.to_nat_other_dev, ip_src_addr, efeici.to_nat_mac_lookup_ip_addr, ip_dest_addr_nat, 4, protocol, out_dev_nat, is_routed, in_dev, dest_node_addr_nat, src_node_addr_nat, NULL, skb);
 		if (to_nat_list_first == ECM_DB_IFACE_HEIRARCHY_MAX) {
 			ecm_db_mapping_deref(src_nat_mi);
 			ecm_db_node_deref(src_nat_ni);
@@ -2162,7 +2162,7 @@ unsigned int ecm_nss_non_ported_ipv4_process(struct net_device *out_dev, struct 
 		 * NOTE: Default classifier is a special case considered previously
 		 */
 		for (classifier_type = ECM_CLASSIFIER_TYPE_DEFAULT + 1; classifier_type < ECM_CLASSIFIER_TYPES; ++classifier_type) {
-			struct ecm_classifier_instance *aci = ecm_nss_ipv4_assign_classifier(nci, classifier_type);
+			struct ecm_classifier_instance *aci = ecm_classifier_assign_classifier(nci, classifier_type);
 			if (aci) {
 				aci->deref(aci);
 			} else {
@@ -2181,6 +2181,8 @@ unsigned int ecm_nss_non_ported_ipv4_process(struct net_device *out_dev, struct 
 				return NF_ACCEPT;
 			}
 		}
+
+		ecm_db_front_end_instance_ref_and_set(nci, feci);
 
 		/*
 		 * Now add the connection into the database.
@@ -2215,7 +2217,7 @@ unsigned int ecm_nss_non_ported_ipv4_process(struct net_device *out_dev, struct 
 			 * Add the new connection we created into the database
 			 * NOTE: assign to a short timer group for now - it is the assigned classifiers responsibility to do this
 			 */
-			ecm_db_connection_add(nci, feci, src_mi, dest_mi, src_nat_mi, dest_nat_mi,
+			ecm_db_connection_add(nci, src_mi, dest_mi, src_nat_mi, dest_nat_mi,
 					src_ni, dest_ni, src_nat_ni, dest_nat_ni,
 					4, protocol, ecm_dir,
 					NULL /* final callback */,

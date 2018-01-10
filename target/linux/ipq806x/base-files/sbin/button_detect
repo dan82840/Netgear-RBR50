@@ -89,7 +89,8 @@ do
 
 	if [ ${PUSH} -eq ${pushbutton} ]; then
                 echo "********wps button pushed**********" > /dev/console
-                echo "wps_pbc" > /var/run/repacd.pipe
+                echo "wps_pbc" > /var/run/repacd.pipe &
+                echo "wps_pbc" > /var/run/led_ctrl.pipe &
 
 		# WPS is enabled
                 echo "start" > /tmp/wps_process_state

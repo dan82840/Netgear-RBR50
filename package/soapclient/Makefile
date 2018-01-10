@@ -17,6 +17,8 @@ PKG_BUILD_DIR:=$(BUILD_DIR)/$(PKG_NAME)
 
 include $(INCLUDE_DIR)/package.mk
 
+PKG_GIT_TREEISH:=soapclient-dni09
+
 define Package/soapclient
   SECTION:=net
   CATEGORY:=Network
@@ -24,8 +26,7 @@ define Package/soapclient
 endef
 
 define Build/Prepare
-	mkdir -p $(PKG_BUILD_DIR)
-	$(CP) ./src/* $(PKG_BUILD_DIR)/
+	$(CP) $(GIT_HOME)/soapclient.git/* $(PKG_BUILD_DIR)/
 endef
 
 define Build/Compile
@@ -38,9 +39,12 @@ define Package/soapclient/install
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/satelliteinfo $(1)/usr/sbin/
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/soap_check_fw $(1)/usr/sbin/
 	$(INSTALL_DIR) $(1)/etc/init.d
-	$(INSTALL_BIN) ./files/soap_agent.init $(1)/etc/init.d/soap_agent
-	$(INSTALL_BIN) ./files/checkfirmware.sh $(1)/usr/sbin/checkfirmware.sh
-	$(INSTALL_BIN) ./files/check_wps_soap $(1)/usr/sbin/check_wps_soap
+	$(INSTALL_BIN) $(PKG_BUILD_DIR)/files/soap_agent.init $(1)/etc/init.d/soap_agent
+	$(INSTALL_BIN) $(PKG_BUILD_DIR)/files/checkfirmware.sh $(1)/usr/sbin/checkfirmware.sh
+	$(INSTALL_BIN) $(PKG_BUILD_DIR)/files/check_wps_soap $(1)/usr/sbin/check_wps_soap
+	$(INSTALL_BIN) $(PKG_BUILD_DIR)/files/soap_wifi_action.sh $(1)/usr/sbin/soap_wifi_action.sh
+	$(INSTALL_BIN) $(PKG_BUILD_DIR)/files/check_soapagent.sh $(1)/usr/sbin/check_soapagent.sh
+	$(INSTALL_BIN) ./files/check_satellite_allconfig $(1)/usr/sbin/check_satellite_allconfig
 endef
 
 $(eval $(call BuildPackage,soapclient))

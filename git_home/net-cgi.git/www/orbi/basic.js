@@ -352,16 +352,36 @@ function click_action(id)
                         basic_menu_color_change('parental');
 			open_window('parental_ctrl.htm');
                 }
+		else if( id == "circle_parental" && top.enable_ap_flag != 1 && top.enable_bridge_flag == 0 && top.enable_extender_flag == "0" && top.device_mode != "1" )
+		{
+			basic_menu_color_change('parental');
+			goto_formframe('parental_basic.htm');
+		}
                 else if( id == "readyshare" && top.device_mode != "1" )
                 {
                         basic_menu_color_change('readyshare');
                         goto_formframe('USB_basic.htm');
                 }
+		else if( id == "readyshare_p" && top.device_mode != "1" )
+		{
+			basic_menu_color_change('readyshare_p');
+			goto_formframe('RMT_print_tmp.htm');
+		}
                 else if( id == "guest" && top.enabled_wds == 0 && top.enable_bridge_flag == 0 && top.enable_extender_flag == "0" && top.device_mode != "1")
                 {
                         basic_menu_color_change('guest');
                         goto_formframe('WLG_wireless_guest1.htm');
                 }
+		else if( id == "byod")
+		{
+			basic_menu_color_change("wireless");
+			goto_formframe("WLG_byod_network.html");
+		}
+		else if( id == "guest_portal")
+		{
+			basic_menu_color_change("guest_portal");
+			goto_formframe("guest_portal.html");
+		}
 		else if( id == "quick_qos" )
 		{
 			basic_menu_color_change('quick_qos');
@@ -408,7 +428,11 @@ function click_action(id)
 			basic_menu_color_change('satellite');
 			goto_formframe('Place_satellite.htm');
 		}
-
+		else if(id == "speedtest")
+		{
+			basic_menu_color_change("speedtest");
+			goto_formframe("QOS_speedtest.htm");
+		}
         }
 }
 

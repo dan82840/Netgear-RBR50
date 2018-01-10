@@ -2,7 +2,7 @@
  * If you have your own dniconfig.h in project for ntpclient,
  * you can replace with yours.
  */
-#define NET_IFNAME              "eth0"  /* The router's wan side interface name. */
+#define NET_IFNAME              "brwan"  /* The router's wan side interface name. */
 #define PPP_IFNAME              "ppp0"
 
 #define NETGEAR_DAYLIGHT_SAVING_TIME

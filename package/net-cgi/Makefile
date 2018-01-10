@@ -13,7 +13,7 @@ WEB_PATH_CC:=www.satellite
 
 include $(INCLUDE_DIR)/package.mk
 
-PKG_GIT_TREEISH:=orbi-gui-dni011
+PKG_GIT_TREEISH:=orbi-gui-dni083
 
 define Package/net-cgi
   SECTION:=utils
@@ -34,6 +34,8 @@ endef
 define Package/net-cgi/install
 	$(MAKE) -C $(PKG_BUILD_DIR) install INS_DIR_PRE=$(1)
 
+	$(INSTALL_DIR) $(1)/etc/init.d
+	$(INSTALL_BIN) ./files/net-cgi.init $(1)/etc/init.d/net-cgi
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/files/support_soap_list $(TOPDIR)/bin/
 
 	$(LN) /tmp/openvpn/windows.zip $(1)/$(WEB_PATH)/windows.zip

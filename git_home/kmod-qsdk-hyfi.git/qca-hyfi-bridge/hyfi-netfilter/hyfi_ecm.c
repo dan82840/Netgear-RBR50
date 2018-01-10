@@ -16,6 +16,8 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+#define DEBUG_LEVEL HYFI_NF_DEBUG_LEVEL
+
 #include <linux/kernel.h>
 #include <linux/export.h>
 #include <linux/types.h>
@@ -46,21 +48,11 @@ static void hyfi_ecm_mark_as_newly_accelerated(u_int64_t num_bytes, u_int64_t nu
 	struct net_hatbl_entry *ha, const struct hyfi_ecm_flow_data_t *flow,
 	bool *should_keep_on_fdb_update)
 {
-#if 0
-	printk("hyfi: New accelerated connection with serial number (prev): %d (%d), hash: 0x%02x, should_keep %d\n",
+	DEBUG_TRACE("hyfi: New accelerated connection with serial number (prev): %d (%d), hash: 0x%02x, should_keep %d\n",
 		flow->ecm_serial, ha->ecm_serial, ha->hash,
- 		!hyfi_ha_has_flag(ha, HYFI_HACTIVE_TBL_STATIC_ENTRY));
-#endif
+		!hyfi_ha_has_flag(ha, HYFI_HACTIVE_TBL_STATIC_ENTRY));
 
-	hyfi_ha_set_flag(ha, HYFI_HACTIVE_TBL_ACCL_ENTRY);
-
-	/* Flush seamless buffer - does not apply for accelerated flows */
-	if (hyfi_ha_has_flag(ha, HYFI_HACTIVE_TBL_SEAMLESS_ENABLED)) {
-		hyfi_ha_clear_flag(ha, HYFI_HACTIVE_TBL_SEAMLESS_ENABLED);
-		hyfi_psw_flush_track_q(&ha->psw_stm_entry);
-	}
-
-	ha->ecm_serial = flow->ecm_serial;
+	hyfi_hatbl_mark_accelerated(ha, flow->ecm_serial);
 	ha->prev_num_bytes = num_bytes;
 	ha->prev_num_packets = num_packets;
 
@@ -135,42 +127,59 @@ static int hyfi_ecm_new_connection(struct hyfi_net_bridge *hyfi_br,
 				*ha_ret = ha;
 				return 0;
 			} else {
-#if 0
-				printk("hyfi: Failed to create new accelerated connection to %02X:%02X:%02X:%02X:%02X:%02X from HD with serial number: %d, hash: 0x%02x",
+				DEBUG_TRACE("hyfi: Failed to create new accelerated connection to %02X:%02X:%02X:%02X:%02X:%02X from HD with serial number: %d, hash: 0x%02x",
 					da[0], da[1], da[2], da[3],
 					da[4], da[5], flow->ecm_serial, hash);
-#endif
 				return -1;
 			}
 		} else {
 			struct net_bridge_fdb_entry *dst;
-#if 0
-			printk("hyfi: no hd to %02X:%02X:%02X:%02X:%02X:%02X\n", da[0],
+			struct net_device *br_dev;
+			DEBUG_TRACE("hyfi: no hd to %02X:%02X:%02X:%02X:%02X:%02X\n", da[0],
 					da[1], da[2], da[3],
 					da[4], da[5] );
-#endif
+
 			/* No such H-Default entry, unlock hd-lock */
 			spin_unlock_bh(&hyfi_br->hash_hd_lock);
 
-			dst = os_br_fdb_get(netdev_priv(hyfi_br->dev), da);
+			rcu_read_lock();
+			br_dev = hyfi_bridge_dev_get_rcu(hyfi_br);
+			if (!br_dev) {
+
+				rcu_read_unlock();
+
+				/* Hy-Fi bridge must have been detached while this function was
+				 running */
+				DEBUG_TRACE("hyfi: Bridge detached while processing, failed to create "
+					"new accelerated connection to %02X:%02X:%02X:%02X:%02X:%02X "
+					"from FDB with serial number: %d, hash: 0x%02x",
+					da[0], da[1], da[2], da[3],
+					da[4], da[5], flow->ecm_serial, hash);
+
+				return 2;
+			}
+
+			dst = os_br_fdb_get(netdev_priv(br_dev), da);
 			/* Try and insert from FDB */
 			if (dst && !dst->is_local) {
 				ha = hyfi_hatbl_insert_from_fdb(hyfi_br, hash, dst->dst, sa,
 					da, hyfi_br->dev->dev_addr,
 					traffic_class, flow->priority, true /* keep_lock */);
+				rcu_read_unlock();
 				if (ha) {
 					*ha_ret = ha;
 					*unlock_bh = false;
 					return 0;
 				} else {
-#if 0
-					printk("hyfi: Failed to create new accelerated connection to %02X:%02X:%02X:%02X:%02X:%02X from FDB with serial number: %d, hash: 0x%02x",
+
+					DEBUG_TRACE("hyfi: Failed to create new accelerated connection to %02X:%02X:%02X:%02X:%02X:%02X from FDB with serial number: %d, hash: 0x%02x",
 						da[0], da[1], da[2], da[3],
 						da[4], da[5], flow->ecm_serial, hash);
-#endif
+
 					return -1;
 				}
 			}
+			rcu_read_unlock();
 			/* Not found in FDB either - can't handle */
 			return 1;
 		}
@@ -213,7 +222,8 @@ static u_int32_t hyfi_ecm_calculate_weighted_average(u_int32_t new_rate,
 
 int hyfi_ecm_update_stats(const struct hyfi_ecm_flow_data_t *flow, u_int32_t hash,
 	u_int8_t *da, u_int8_t *sa, u_int64_t num_bytes, u_int64_t num_packets,
-	u_int32_t time_now, bool *should_keep_on_fdb_update, u_int32_t *new_elapsed_time)
+	u_int32_t time_now, bool *should_keep_on_fdb_update, u_int32_t *new_elapsed_time,
+	const char *br_name)
 {
 	struct net_hatbl_entry *ha = NULL;
 	struct hyfi_net_bridge *hyfi_br;
@@ -226,9 +236,8 @@ int hyfi_ecm_update_stats(const struct hyfi_ecm_flow_data_t *flow, u_int32_t has
 	if(!flow)
 		return -1;
 
-	hyfi_br = hyfi_bridge_get(HYFI_BRIDGE_ME);
-
-	if(!hyfi_br) {
+	hyfi_br = hyfi_ecm_bridge_attached(br_name);
+	if (!hyfi_br) {
 		/* Hy-Fi bridge not attached */
 		return 2;
 	}
@@ -276,12 +285,12 @@ int hyfi_ecm_update_stats(const struct hyfi_ecm_flow_data_t *flow, u_int32_t has
 			ha->num_packets += (num_packets - ha->prev_num_packets);
 			ha->prev_num_bytes = num_bytes;
 			ha->prev_num_packets = num_packets;
-#if 0
-			printk("hyfi: Hash 0x%02x, serial=%d, num_bytes=%d, num_packets=%d, rate=%u, elapsed time %u ms, new_elapsed_time %u ms\n",
+
+			DEBUG_TRACE("hyfi: Hash 0x%02x, serial=%d, num_bytes=%d, num_packets=%d, rate=%u, elapsed time %u ms, new_elapsed_time %u ms\n",
 				hash, flow->ecm_serial, ha->num_bytes, ha->num_packets,
 				ha->rate, elapsed_time_ms,
 				jiffies_to_msecs(*new_elapsed_time));
-#endif
+
 		}
 
 		spin_unlock_bh(&hyfi_br->hash_ha_lock);
@@ -315,16 +324,25 @@ int hyfi_ecm_update_stats(const struct hyfi_ecm_flow_data_t *flow, u_int32_t has
 
 EXPORT_SYMBOL(hyfi_ecm_update_stats);
 
-void hyfi_ecm_decelerate(u_int32_t hash, u_int32_t ecm_serial, u_int8_t *da)
+void hyfi_ecm_decelerate(u_int32_t hash, u_int32_t ecm_serial, u_int8_t *da,
+	const char *br_name)
 {
 	struct net_hatbl_entry *ha = NULL;
-	struct hyfi_net_bridge *hyfi_br;
-	hyfi_br = hyfi_bridge_get(HYFI_BRIDGE_ME);
+	struct hyfi_net_bridge *hyfi_br = NULL;
 
+	/* TODO
+	 * Initialize the hyfi_br pointer with valid instance of hyfi_br.
+	 * For now hyfi_ecm_bridge_attached will return 0, as ecm is not
+	 * supported with hyfi multipe bridges.
+	 */
+	hyfi_br = hyfi_ecm_bridge_attached(br_name);
 	if (!hyfi_br) {
 		/* Hy-Fi bridge not attached */
 		return;
 	}
+
+	if (hyfi_br == NULL)
+		return;
 
 	spin_lock_bh(&hyfi_br->hash_ha_lock);
 
@@ -332,8 +350,7 @@ void hyfi_ecm_decelerate(u_int32_t hash, u_int32_t ecm_serial, u_int8_t *da)
 	/* Find H-Active entry */
 	if (ha) {
 		/* Clear the accelerated flag and serial number */
-		hyfi_ha_clear_flag(ha, HYFI_HACTIVE_TBL_ACCL_ENTRY);
-		ha->ecm_serial = 0;
+		hyfi_hatbl_mark_decelerated(ha);
 	}
 
 	spin_unlock_bh(&hyfi_br->hash_ha_lock);
@@ -341,7 +358,8 @@ void hyfi_ecm_decelerate(u_int32_t hash, u_int32_t ecm_serial, u_int8_t *da)
 
 EXPORT_SYMBOL(hyfi_ecm_decelerate);
 
-bool hyfi_ecm_should_keep(const struct hyfi_ecm_flow_data_t *flow, uint8_t *mac)
+bool hyfi_ecm_should_keep(const struct hyfi_ecm_flow_data_t *flow, uint8_t *mac,
+	const char *br_name)
 {
 	if (!memcmp(&flow->da[0], mac, ETH_ALEN)) {
 		/* Need to check the forward */
@@ -355,15 +373,15 @@ bool hyfi_ecm_should_keep(const struct hyfi_ecm_flow_data_t *flow, uint8_t *mac)
 EXPORT_SYMBOL(hyfi_ecm_should_keep);
 
 bool hyfi_ecm_port_matches(const struct hyfi_ecm_flow_data_t *flow,
-	int32_t to_system_index, int32_t from_system_index)
+	int32_t to_system_index, int32_t from_system_index, const char *br_name)
 {
 	struct net_hatbl_entry *ha = NULL;
 	struct hyfi_net_bridge *hyfi_br;
 	u_int32_t traffic_class;
 	bool ret = false;
 	bool unlock_bh;
-	hyfi_br = hyfi_bridge_get(HYFI_BRIDGE_ME);
 
+	hyfi_br = hyfi_ecm_bridge_attached(br_name);
 	if (!hyfi_br) {
 		/* Hy-Fi bridge not attached */
 		return true;
@@ -384,11 +402,11 @@ bool hyfi_ecm_port_matches(const struct hyfi_ecm_flow_data_t *flow,
 			ret = true;
 		} else {
 			if (ha->dst->dev->ifindex != to_system_index) {
-#if 0
-				printk("%x: to connection iface %d != H-Active intf %d (%s)\n",
+
+				DEBUG_TRACE("%x: to connection iface %d != H-Active intf %d (%s)\n",
 					flow->hash, to_system_index, ha->dst->dev->ifindex,
 					ha->dst->dev->name);
-#endif
+
 			} else {
 				ret = true;
 			}
@@ -408,11 +426,11 @@ bool hyfi_ecm_port_matches(const struct hyfi_ecm_flow_data_t *flow,
 			flow->sa, flow->da, &ha, &unlock_bh);
 		if (ha) {
 			if (ha->dst->dev->ifindex != from_system_index) {
-#if 0
-				printk("%x: from connection iface %d != H-Active intf %d (%s)\n",
+
+				DEBUG_TRACE("%x: from connection iface %d != H-Active intf %d (%s)\n",
 					flow->reverse_hash, from_system_index, ha->dst->dev->ifindex,
 					ha->dst->dev->name);
-#endif
+
 				ret = false;
 			}
 
@@ -431,16 +449,8 @@ EXPORT_SYMBOL(hyfi_ecm_port_matches);
 
 bool hyfi_ecm_is_port_on_hyfi_bridge(int32_t system_index)
 {
-	struct hyfi_net_bridge *hyfi_br;
 	struct net_device *dev;
 	bool ret = false;
-
-	hyfi_br = hyfi_bridge_get(HYFI_BRIDGE_ME);
-
-	if (!hyfi_br) {
-		/* Hy-Fi bridge not attached */
-		return ret;
-	}
 
 	rcu_read_lock();
 	dev = dev_get_by_index_rcu(&init_net, system_index);
@@ -458,16 +468,15 @@ bool hyfi_ecm_is_port_on_hyfi_bridge(int32_t system_index)
 
 EXPORT_SYMBOL(hyfi_ecm_is_port_on_hyfi_bridge);
 
-bool hyfi_ecm_bridge_attached(void)
+struct hyfi_net_bridge * hyfi_ecm_bridge_attached(const char *br_name)
 {
-	struct hyfi_net_bridge *hyfi_br = hyfi_bridge_get(HYFI_BRIDGE_ME);
+	struct net_device *br_dev = NULL;
 
-	if (!hyfi_br) {
-		/* Hy-Fi bridge not attached */
-		return false;
-	}
-
-	return true;
+	br_dev = dev_get_by_name(&init_net, br_name);
+	if (br_dev)
+		return hyfi_bridge_get_by_dev(br_dev);
+	else
+		return NULL;
 }
 
 EXPORT_SYMBOL(hyfi_ecm_bridge_attached);

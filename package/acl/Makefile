@@ -33,6 +33,7 @@ define Package/acl/install
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/acl_update_name $(1)/usr/sbin/
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/aclctl $(1)/usr/sbin/
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/aclhijackdns $(1)/usr/sbin/
+	$(INSTALL_BIN) $(PKG_BUILD_DIR)/acl_group $(1)/usr/sbin/
 	$(INSTALL_DIR) $(1)/etc/init.d
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/files/acl $(1)/etc/init.d/acl
 endef
