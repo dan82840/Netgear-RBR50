@@ -110,13 +110,13 @@ DIST_ARCHIVES = $(distdir).tar.gz
 GZIP_ENV = --best
 distuninstallcheck_listfiles = find . -type f -print
 distcleancheck_listfiles = find . -type f -print
-ACLOCAL = ${SHELL} /home/haiyan.zhuang/project/orbi.git/build_dir/target-arm_v7-a_uClibc-0.9.33.2_eabi/radvd-1.5/missing --run aclocal-1.9
+ACLOCAL = ${SHELL} /home3/chengjia.lu/project/3orbi.git/build_dir/target-arm_v7-a_uClibc-0.9.33.2_eabi/radvd-1.5/missing --run aclocal-1.9
 AMDEP_FALSE = #
 AMDEP_TRUE = 
-AMTAR = ${SHELL} /home/haiyan.zhuang/project/orbi.git/build_dir/target-arm_v7-a_uClibc-0.9.33.2_eabi/radvd-1.5/missing --run tar
-AUTOCONF = ${SHELL} /home/haiyan.zhuang/project/orbi.git/build_dir/target-arm_v7-a_uClibc-0.9.33.2_eabi/radvd-1.5/missing --run autoconf
-AUTOHEADER = ${SHELL} /home/haiyan.zhuang/project/orbi.git/build_dir/target-arm_v7-a_uClibc-0.9.33.2_eabi/radvd-1.5/missing --run autoheader
-AUTOMAKE = ${SHELL} /home/haiyan.zhuang/project/orbi.git/build_dir/target-arm_v7-a_uClibc-0.9.33.2_eabi/radvd-1.5/missing --run automake-1.9
+AMTAR = ${SHELL} /home3/chengjia.lu/project/3orbi.git/build_dir/target-arm_v7-a_uClibc-0.9.33.2_eabi/radvd-1.5/missing --run tar
+AUTOCONF = ${SHELL} /home3/chengjia.lu/project/3orbi.git/build_dir/target-arm_v7-a_uClibc-0.9.33.2_eabi/radvd-1.5/missing --run autoconf
+AUTOHEADER = ${SHELL} /home3/chengjia.lu/project/3orbi.git/build_dir/target-arm_v7-a_uClibc-0.9.33.2_eabi/radvd-1.5/missing --run autoheader
+AUTOMAKE = ${SHELL} /home3/chengjia.lu/project/3orbi.git/build_dir/target-arm_v7-a_uClibc-0.9.33.2_eabi/radvd-1.5/missing --run automake-1.9
 AWK = gawk
 CC = arm-openwrt-linux-uclibcgnueabi-gcc
 CCDEPMODE = depmode=gcc3
@@ -124,7 +124,7 @@ CFLAGS = -Os -pipe -march=armv7-a -mfpu=vfpv3-d16 -mfloat-abi=softfp -fhonour-co
 	-Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations
 
 CPP = arm-openwrt-linux-uclibcgnueabi-gcc -E
-CPPFLAGS = -I/home/haiyan.zhuang/project/orbi.git/staging_dir/target-arm_v7-a_uClibc-0.9.33.2_eabi/usr/include -I/home/haiyan.zhuang/project/orbi.git/staging_dir/target-arm_v7-a_uClibc-0.9.33.2_eabi/include -I/home/haiyan.zhuang/project/orbi.git/staging_dir/toolchain-arm_v7-a_gcc-4.8-linaro_uClibc-0.9.33.2_eabi/usr/include -I/home/haiyan.zhuang/project/orbi.git/staging_dir/toolchain-arm_v7-a_gcc-4.8-linaro_uClibc-0.9.33.2_eabi/include 
+CPPFLAGS = -I/home3/chengjia.lu/project/3orbi.git/staging_dir/target-arm_v7-a_uClibc-0.9.33.2_eabi/usr/include -I/home3/chengjia.lu/project/3orbi.git/staging_dir/target-arm_v7-a_uClibc-0.9.33.2_eabi/include -I/home3/chengjia.lu/project/3orbi.git/staging_dir/toolchain-arm_v7-a_gcc-4.8-linaro_uClibc-0.9.33.2_eabi/usr/include -I/home3/chengjia.lu/project/3orbi.git/staging_dir/toolchain-arm_v7-a_gcc-4.8-linaro_uClibc-0.9.33.2_eabi/include 
 CYGPATH_W = echo
 DEFS = -DPATH_RADVD_CONF=\"$(PATH_RADVD_CONF)\" \
 	-DPATH_RADVD_LOG=\"$(PATH_RADVD_LOG)\" -DLOG_FACILITY=$(LOG_FACILITY) \
@@ -142,7 +142,7 @@ INSTALL_DATA = ${INSTALL} -m 644
 INSTALL_PROGRAM = ${INSTALL}
 INSTALL_SCRIPT = ${INSTALL}
 INSTALL_STRIP_PROGRAM = ${SHELL} $(install_sh) -c -s
-LDFLAGS = -L/home/haiyan.zhuang/project/orbi.git/staging_dir/target-arm_v7-a_uClibc-0.9.33.2_eabi/usr/lib -L/home/haiyan.zhuang/project/orbi.git/staging_dir/target-arm_v7-a_uClibc-0.9.33.2_eabi/lib -L/home/haiyan.zhuang/project/orbi.git/staging_dir/toolchain-arm_v7-a_gcc-4.8-linaro_uClibc-0.9.33.2_eabi/usr/lib -L/home/haiyan.zhuang/project/orbi.git/staging_dir/toolchain-arm_v7-a_gcc-4.8-linaro_uClibc-0.9.33.2_eabi/lib 
+LDFLAGS = -L/home3/chengjia.lu/project/3orbi.git/staging_dir/target-arm_v7-a_uClibc-0.9.33.2_eabi/usr/lib -L/home3/chengjia.lu/project/3orbi.git/staging_dir/target-arm_v7-a_uClibc-0.9.33.2_eabi/lib -L/home3/chengjia.lu/project/3orbi.git/staging_dir/toolchain-arm_v7-a_gcc-4.8-linaro_uClibc-0.9.33.2_eabi/usr/lib -L/home3/chengjia.lu/project/3orbi.git/staging_dir/toolchain-arm_v7-a_gcc-4.8-linaro_uClibc-0.9.33.2_eabi/lib 
 LEX = flex
 LEXLIB = 
 LEX_OUTPUT_ROOT = lex.yy
@@ -151,7 +151,7 @@ LIBS = -lc
 LN = /bin/ln
 LOG_FACILITY = LOG_DAEMON
 LTLIBOBJS = 
-MAKEINFO = ${SHELL} /home/haiyan.zhuang/project/orbi.git/build_dir/target-arm_v7-a_uClibc-0.9.33.2_eabi/radvd-1.5/missing --run makeinfo
+MAKEINFO = ${SHELL} /home3/chengjia.lu/project/3orbi.git/build_dir/target-arm_v7-a_uClibc-0.9.33.2_eabi/radvd-1.5/missing --run makeinfo
 OBJEXT = o
 PACKAGE = radvd
 PACKAGE_BUGREPORT = 
@@ -164,7 +164,7 @@ PATH_RADVD_LOG = /var/log/radvd.log
 PATH_RADVD_PID = /var/run/radvd.pid
 PATH_SEPARATOR = :
 RM = /bin/rm
-SED = /home/haiyan.zhuang/project/orbi.git/staging_dir/host/bin/sed
+SED = /home3/chengjia.lu/project/3orbi.git/staging_dir/host/bin/sed
 SET_MAKE = 
 SHELL = /bin/sh
 STRIP = arm-openwrt-linux-uclibcgnueabi-strip
@@ -195,7 +195,7 @@ host_os = linux-gnu
 host_vendor = openwrt
 includedir = ${prefix}/include
 infodir = /usr/info
-install_sh = /home/haiyan.zhuang/project/orbi.git/build_dir/target-arm_v7-a_uClibc-0.9.33.2_eabi/radvd-1.5/install-sh
+install_sh = /home3/chengjia.lu/project/3orbi.git/build_dir/target-arm_v7-a_uClibc-0.9.33.2_eabi/radvd-1.5/install-sh
 libdir = ${exec_prefix}/lib
 libexecdir = /usr/lib
 localstatedir = /var
