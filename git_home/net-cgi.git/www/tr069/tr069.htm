@@ -25,6 +25,9 @@ var get_acs_password="<% cfg_get("cwmp_acs_password") %>";
 var get_con_port="<% cfg_get("cwmp_con_port") %>";
 var get_con_name="<% cfg_get("cwmp_con_name") %>";
 var get_con_pass="<% cfg_get("cwmp_con_pass") %>";
+var get_server_enable="<% cfg_get("cwmp_STUN_enable") %>";
+var get_server_url="<% cfg_get("cwmp_STUNServerAddr") %>";
+var get_server_port="<% cfg_get("cwmp_STUNServerPort") %>";
 /*
 get_kick=$($nvram get cwmp_set_kick)
 
@@ -48,6 +51,11 @@ function loadvalue()
 	else
 		form.inform_enable[1].checked = true;
 
+	if ( get_server_enable == "1" )
+		form.server_enable[0].checked = true;
+	else
+		form.server_enable[1].checked = true;
+
 	form.interval.value=get_inform_interval;
 	form.acs_url.value=get_acs_url;
 	form.acs_name.value=get_acs_name;
@@ -55,6 +63,8 @@ function loadvalue()
 	form.con_port.value=get_con_port;
 	form.con_name.value=get_con_name;
 	form.con_password.value=get_con_pass;
+	form.server_url.value=get_server_url;
+	form.server_port.value=get_server_port;
 		 
 }
 </script>
@@ -99,6 +109,24 @@ $bluebar
 <tr>
 	<td nowrap>$tr069_requestPassword</td>
 	<td nowrap><input type="password" name="con_password" size="20" maxlength="60"></td>
+</tr>
+<tr>
+<TD>&nbsp; </TD><TD>&nbsp;</TD>
+</tr>
+<tr>
+    <td nowrap>STUN Server Enable</td>
+    <td nowrap>
+        <input type="radio" name="server_enable" value="1" >$r_enable&nbsp;
+        <input type="radio" name="server_enable" value="0" >$r_disable
+    </td>
+</tr>
+<tr>
+	<td nowrap>STUN Server URL</td>
+	<td nowrap><input type="text" name="server_url" size="40" maxlength="60"></td>
+</tr>
+<tr>
+	<td nowrap>STUN Server Port</td>
+	<td nowrap><input type="text" name="server_port" size="20" maxlength="60"></td>
 </tr>
 
 $bluebar

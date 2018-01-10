@@ -44,6 +44,13 @@ var wl_radiusSecret="<% cfg_get("wl_radiusSecret") %>";
 var enable_ap_flag="<% cfg_get("ap_mode") %>";//bug 22880 according to the page 128 of spec 2.0,add AP mode
 var dyn_get_ip_flag="<% cfg_get("ap_ether_ip_assign") %>";
 
+//for vlan
+var have_vlan_sb = top.vlan_sb_flag;
+var main_wireless_vlan_group = "<% cfg_get("vlan_sb_base_group_0") %>";
+var byod_wireless_vlan_group = "<% cfg_get("vlan_sb_base_group_1") %>";
+var guest_wireless_vlan_group = "<% cfg_get("vlan_sb_base_group_2") %>";
+var other_ipdata = [{"type":"Guest Portal", "ip": "<% cfg_get("guest_ap_ipaddr") %>", "mask":"<% cfg_get("guest_ap_netmask") %>"}, {"type":"BYOD Network", "ip":"<% cfg_get("byod_ap_ipaddr") %>", "mask":"<% cfg_get("byod_ap_netmask") %>"}];
+
 function getkey1()
 {
 
@@ -153,8 +160,19 @@ function  check_ap()
 				}
                else
                        form.hid_dyn_get_ip.value="1"; //for dynamic
-			   }
-       else
+       
+	       //check vlan id
+	       if(have_vlan_sb == 1){
+		       var vid = form.vlan_id.value;
+		       if(check_vlan_id(vid) == false)
+			       return false;
+		       //add this check function tempary, because not comfirm if it allow user set conficlt ip with othe wireless or not.
+		       if(check_ip_conflict(form.hid_ap_ipaddr.value, form.hid_ap_subnet.value, other_ipdata) == false)
+			       return false;
+	       }
+       
+       }		   
+	else
        {
                form.hid_enable_apmode.value="0"; //when ap mode is off 
 			   form.hid_dyn_get_ip.value="1"; //for dynamic
@@ -255,8 +273,56 @@ var form=document.forms[0];
 			form.APPDAddr1.value=apmode_get_dns2;
 		}
 	}
+	if(have_vlan_sb == 1)
+	{
+		document.getElementById("main_vlan_conf").style.display = "";
+		var vlan_id = main_wireless_vlan_group.split(" ")[2];
+		form.vlan_id.value = vlan_id;
+	}
 }
 
+function check_vlan_id(id)
+{
+	var byod_vlanid = byod_wireless_vlan_group.split(" ")[2];
+	var guest_vlanid = guest_wireless_vlan_group.split(" ")[2];
+	
+	if(id.length == 0)
+	{
+		sAlert("$vlan_error1");
+		return false;
+	}
+	if(!_isNumeric(id) || (parseInt(id,10) <1 || parseInt(id,10) >4094))
+	{
+		sAlert("$vlan_error3");
+		return false;
+	}
+	if(id == byod_vlanid || id == guest_vlanid)
+	{
+		sAlert("The VLAN ID is duplicate, please change to another one.")
+		return false;
+	}
+	
+	return true;
+}
+
+function check_ip_conflict(ip, mask, data)
+{
+	for(var i=0; i<data.length; i++)
+	{
+		if(isSameIp(ip, data[i].ip) == true)
+		{
+			sAlert("IP address is conflicted with "+data[i].type+" IP subnet, please enter again.")
+			return false;
+		}
+		if(isSameSubNet(ip, mask, data[i].ip, data[i].mask) == true)
+		{
+			sAlert("IP address is conflicted with "+data[i].type+" IP subnet, please enter again.")
+			return false;		
+		}	
+	}
+	
+	return true;
+}
 </script>
 <input type="hidden" name="hid_enable_apmode">
 <input type="hidden" name="hid_dyn_get_ip">
@@ -275,6 +341,11 @@ var form=document.forms[0];
 	<TD  colspan=3><A tabindex=-1 href="javascript:loadhelp('_rae_ap','ip_tag')"><b>$ap_mode:</b></a> $ap_descript</TD>
 </TR>
 <TR><TD height="20px"></TD></TR>
+<tr id="main_vlan_conf" style="display:none">
+	<input type="hidden" name="hid_vlan_enable" value="1" />
+	<td nowrap width="100"><b>$vlan_id</b> </td>
+	<td colspan=2><input type="text" name="vlan_id" value="" size=5></td>
+</tr>
 <TR>
 	<td nowrap colspan=3>$ap_IP</td>
 </TR>

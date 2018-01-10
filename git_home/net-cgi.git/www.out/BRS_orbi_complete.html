@@ -5,12 +5,17 @@
 <% orbi_flow_head() %>
 <% hijack_language() %>
 </head>
-
+<style>
+	.word_wrap{ word-wrap:break-word; word-break:break-all;}
+	td{padding:0; width:50%}
+</style>
 <body>
-
+<% form_submit("apply", "BRS_orbi_check_ap.html", "hijack_check_ap") %>
 <script language="javascript" type="text/javascript">
 <% cfg_set("hijack_config_status", "4") %>
 var manual_setting = "<% cfg_get("manual_set_wan") %>";
+<% save_timestamp("hijack_check_ap", "hijack_save_time")%>
+var ts = "<% cfg_get("hijack_check_ap") %>";
 
 function printSucessPage()
 {
@@ -34,6 +39,10 @@ function to_next()
 		cf.target = "_top";
 		return true;
 	}else{
+		if(parent.business_ap_detect == 1){
+			cf.action="/apply.cgi?/BRS_orbi_check_fw.html timestamp="+ts;
+			cf.submit_flag.value = "hijack_save_time";
+		}
 		return true;
 	}
 	return false;
@@ -47,19 +56,20 @@ function to_next()
 			<div class="desc-title"><script>document.write(bh_orbi_complete);</script></div>
 			<div class="desc-text"><script>document.write(bh_orbi_complete_msg1);</script></div>
 
-			<div class="master-pin-wrapper">
-				<div class="pin-wrapper pin-wrapper-admin">
+			<div class="master-pin-wrapper" style="width:80%;">
+			  <table style="table-layout:fixed"><tr><td>
+				<div class="pin-wrapper pin-wrapper-admin" style="width:49%;height:auto;overflow:visible;">
 					<img class="pin-admin" src="images/pin_admin.png">
-					<div class="pin-title"><% cfg_get("http_username") %></div>
-					<div class="pin-desc"><% cfg_sed_xss("http_passwd") %></div>
+					<div class="pin-title word_wrap"><% cfg_get("http_username") %></div>
+					<div class="pin-desc word_wrap"><% cfg_sed_xss("http_passwd") %></div>
 				</div>
-				<div class="pin-wrapper pin-wrapper-WiFi">
+				<div class="pin-wrapper pin-wrapper-WiFi" style="width:49%;height:auto;overflow:visible;">
 					<img class="pin-WiFi" src="images/pin_WiFi.png">
-					<div class="pin-title"><% cfg_get_ssid_html("wl_ssid") %></div>
-					<div class="pin-desc"><% passphrase_bg_msg() %></div>
+					<div class="pin-title word_wrap"><% cfg_get_ssid_html("wl_ssid") %></div>
+					<div class="pin-desc word_wrap"><% passphrase_bg_msg() %></div>
 				</div>
+			  </td></tr></table>
 			</div>
-			<% form_submit("apply", "BRS_orbi_check_ap.html", "hijack_check_ap") %>
 			<input type="hidden" name="hid_save_time" value="7">
 				<button class="waves-effect waves-light btn button-nav" onclick="return to_next();">
 					<span><script>document.write(bh_orbi_next_mark);</script></span>

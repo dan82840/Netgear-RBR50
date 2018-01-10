@@ -7,6 +7,30 @@
 <script language="javascript" type="text/javascript">
 var restore_status="<% restore_status() %>";
 
+function check_satellite_status()
+{
+	var forms = document.getElementsByTagName("form");
+	var cf = forms[0];
+
+	var xmlhttp;
+	if ( window.XMLHttpRequest)
+		xmlhttp = new XMLHttpRequest();
+	else
+		xmlhttp = new ActiveXObject("Microsoft.XMLHTTP");
+	xmlhttp.onreadystatechange = function()
+	{
+		if ( xmlhttp.readyState == 4 && xmlhttp.status == 200 )
+		{
+			if(xmlhttp.responseText == 0)
+				cf.submit();
+			else
+				setTimeout("check_satellite_status()",3000);
+		}
+	};
+	xmlhttp.open("GET", "restore_info.html?ts=" + new Date().getTime(), true);
+	xmlhttp.send();
+}
+
 function statusChecking()
 {
 	if(restore_status == "0" || restore_status == "1")
@@ -19,10 +43,7 @@ function statusChecking()
 	}
 	else if(restore_status == "3")
 	{
-		var forms = document.getElementsByTagName("form");
-		var cf = forms[0];
-
-		cf.submit();
+		check_satellite_status();
 	}
 }
 

@@ -228,7 +228,7 @@
 				$$('#updateFirmwareForm').show();
 				$$.submit_wait('.main:first', $$.PAGE_WAITING_DIV);
 				var action = $$('#updateFirmwareForm').attr('action');
-				$$('#updateFirmwareForm').attr('action', action+$$.ID_1);
+				$$('#updateFirmwareForm').attr('action', action+' timestamp='+ts+$$.ID_1);
 				$$('#updateFirmwareForm').submit();
 			});
 		}

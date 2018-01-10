@@ -4,11 +4,17 @@
 <head>
 <% orbi_flow_head() %>
 <% hijack_language() %>
-<meta http-equiv="refresh" content="6; url=BRS_orbi_check_ap.html" />
 
 </head>
 
-<body>
+<body onLoad="loadvalue();">
+<% tos_form_submit() %>
+<script>
+	function loadvalue(){
+		setTimeout("document.forms[0].submit()", 6000);
+	}
+</script>
+<input type="hidden" name="hid_save_time" value="1">
 <div id="container">
 	<div class="dialog-content">
 		<!-- Searching for Internet -->
@@ -21,6 +27,7 @@
 		</div>
 	</div>
 </div>
+</form>
 </body>
 
 </html>

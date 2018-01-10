@@ -1,8 +1,13 @@
 <% cfg_set("en_dyn_basic", "0") %>                                                                     
 <% http_header("style/form2.css", "/funcs.js", "/basic.js", "/advanced.js" "/streamboost.js", "/jquery-1.7.2.min.js") %>
 <% body_header("_quality_service", "QOS_speedtest.htm", "apply_streamboost") %>
-<div class="qospage_title">$qos_head</div>
+
 <script>
+var have_speedtest_menu = top.have_speedtest_menu;
+if(have_speedtest_menu == 1)
+	document.write('<div class="qospage_title">$speedtest</div>');
+else
+	document.write('<div class="qospage_title">$qos_head</div>');
 if(parent.type == "basic")
         {
                 document.write("<div class=\"button\">");
@@ -59,8 +64,9 @@ else if(parent.type == "basic")
 
 <div id="main" class="main_top_button" >
 <table width="100%" border="0" cellpadding="0" cellspacing="3">
-
 <script>
+if(have_speedtest_menu ==1)
+	document.write("$bluebar");
 <% save_timestamp("apply_streamboost", "ookla_speedtest", "detect_update") %>
 var ts='<% cfg_get("apply_streamboost") %>';
 
@@ -180,11 +186,6 @@ function loadvalue()
         }
         document.getElementById("streamboost_qos").className="label_click";
     var cf=document.forms[0];
-        if(parent.type == "advanced")
-                $$(".main_top_button").css("top", "185px");
-        else if(parent.type == "basic")
-                $$(".main_top_button").css("top", "155px");
-
         if(parent.ookla_speedtest_flag == 1 )
         {
                 //cf.apply.disabled=true;
@@ -282,6 +283,17 @@ function loadvalue()
 </TR>
 </TABLE>
 </div>
+<script>
+	if(have_speedtest_menu == 1)
+		$$(".main_top_button").css("top", "55px");
+	else
+	{
+        if(parent.type == "advanced")
+                $$(".main_top_button").css("top", "185px");
+        else if(parent.type == "basic")
+                $$(".main_top_button").css("top", "155px");
+	}
+</script>
 <% help_box("0","_quality_service") %>
 </FORM>
 </BODY>

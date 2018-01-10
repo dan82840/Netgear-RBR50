@@ -120,7 +120,6 @@
         <TD nowrap><B>WAN speed : </B></TD>
         <TD nowrap> &nbsp;<% cat_file("/tmp/WAN_status")%> &nbsp;</TD>
 </TR>
-<% list_satellite_ip() %>
 <tbody id=vpn_info>
 <TR>
         <TD nowrap><B>VPN Cert : </B></TD>
@@ -141,6 +140,7 @@ if(vpn_show_flag == 0)
 else
         document.getElementById("vpn_info").style.display="";
 </script>
+<% list_satellite_ip() %>
 </table>
 </BODY>
 </HTML>

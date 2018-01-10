@@ -21,7 +21,7 @@
 
 </style>
 <script>
-<% refresh_timestamp("upgrade_orbi_image", "upgrade_base_image", "manual_upgrade", "download_orbi_confile", "upgrade_satellite_image", "orbi_auto_upgrade") %>
+<% refresh_timestamp("upgrade_orbi_image", "upgrade_base_image", "manual_upgrade", "download_orbi_confile", "upgrade_satellite_image", "orbi_auto_upgrade", "upgrade_check") %>
 
 if(top.location.href.indexOf("adv_index") != -1)
 {
@@ -145,7 +145,7 @@ function manual_upgrade1()
 	document.getElementById("manual_content").style.display = "none";
 	pls_wait_div.style.display = "block";
 
-	form.action="/upgrade_check.cgi";
+	form.action="/upgrade_check.cgi? timestamp=<% cfg_get("upgrade_check")%>";
 	form.submit();
 	return true;
 }

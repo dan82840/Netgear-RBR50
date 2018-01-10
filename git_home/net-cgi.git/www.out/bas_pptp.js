@@ -88,7 +88,7 @@ function pptp_servip_update()
 		disable=true;
 	}
 
-	if( russian_ppp_flag == 1 )
+	if( russian_ppp_flag == 1 && (netgear_region == "RU" || (netgear_region == "WW" && gui_region == "Russian")))
 	{
 	   	if( disable == true && cf.myip_1.value == "") 
 	   	{

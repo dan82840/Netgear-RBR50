@@ -1,0 +1,127 @@
+<% http_header("style/form.min.css", "/funcs_min.js") %>
+<% body_header("_parental", "parental_basic.htm", "parental") %>
+<input type="hidden" name="hidden_enable_circle">
+<input type="hidden" name="hidden_enable_opendns">
+<div class="page_title" id="page_title">Parental Controls</div>
+<div class="fix_button">
+<TABLE width=100% border=0 cellpadding=0 cellspacing=2>
+<TR>
+<script>
+var master="<% cfg_get("http_loginname") %>";
+if( master == "admin" )
+        document.write('<TD nowrap colspan=2 align=center><input class="cancel_bt" type="button" name="Cancel" id="cancel" value="$cancel_mark" onClick="location.href=\'parental_basic.htm\';">&nbsp;&nbsp;<input class="apply_bt" type="button" name="Apply" id="apply" value="$apply_mark" onClick="return check_plc(document.forms[0])"></TD>');
+else
+        document.write(' <TD nowrap colspan=2 align=center><input class="cancel1_bt" type="button" name="Cancel" id="cancel" value="$cancel_mark" disabled>&nbsp;&nbsp;<input class="apply1_bt" type="button" name="Apply" id="apply" value="$apply_mark" disabled></TD>');
+var opendns="<% cfg_get("ParentalControl") %>";
+var circle="<% cfg_get("enable_circle_plc") %>";
+</script>
+
+</TR>
+</TABLE>
+
+</div>
+<div id="main" class="main_top_button">
+<% table_header() %>
+<TR>
+	<TD nowrap colspan=2><B>Parental Control Settings</B></TD>
+</TR>
+<TR>
+	<TD nowrap colspan=2>
+	<input type="radio" name="disabled_plc" id="disabled_plc" onclick="change_plc('0');">Disable Parental Controls
+	</TD>
+</TR>
+<TR>
+        <TD nowrap colspan=2>
+        <input type="radio" name="circleplc" id="circleplc" onclick="change_plc('1');">Enable Circle with Disney
+        </TD>
+</TR>
+<TR>
+	<TD nowrap colspan=2>
+	<input type="radio" name="standard_plc" id="stamdard_plc" onclick="change_plc('2');">Enable Standard Parental Controls
+	</TD>
+</TR>
+$bluebar
+<TBODY id="circle_info" style="display: none;">
+<% circle_plc_version() %>
+
+$bluebar
+</TBODY>
+</TABLE>
+</div>
+</FORM>
+</BODY>
+<script>
+function loadvalue()
+{
+        var cf = document.forms[0];
+
+        if(circle == "1")
+	{
+		cf.disabled_plc.checked = false;
+		cf.circleplc.checked = true;
+		cf.standard_plc.checked = false;
+		document.getElementById("circle_info").style.display="";
+	}
+	else if(opendns == "1")
+	{
+		cf.disabled_plc.checked = false;
+		cf.circleplc.checked = false;
+		cf.standard_plc.checked = true;
+	}
+	else
+	{
+		cf.disabled_plc.checked = true;
+		cf.circleplc.checked = false;
+		cf.standard_plc.checked = false;
+	}
+}
+
+function check_plc(cf)
+{
+	if( cf.circleplc.checked == true)
+	{
+		if(opendns == "1"){
+			alert("Please disable Standard Parental Control first.");
+			return false;
+		} else {
+			cf.hidden_enable_circle.value="1";
+			cf.hidden_enable_opendns.value="0";
+		}
+	}
+	else if( cf.standard_plc.checked == true)
+	{
+		if(circle == "1") {
+			alert("Please disable Circle Parental Control first.");
+			return false;
+		} else {
+			cf.hidden_enable_opendns.value="1";
+			cf.hidden_enable_circle.value="0";
+		}
+	}
+	else
+	{
+		cf.hidden_enable_circle.value="0";
+		cf.hidden_enable_opendns.value="0";
+	}
+	cf.submit();
+}
+
+function change_plc(id)
+{
+	var cf = document.forms[0];
+	if(id == "0") {
+		cf.disabled_plc.checked = true;
+		cf.circleplc.checked = false;
+		cf.standard_plc.checked = false;
+	} else if(id == "1") {
+		cf.disabled_plc.checked = false;
+		cf.circleplc.checked = true;
+		cf.standard_plc.checked = false;
+	} else {
+		cf.disabled_plc.checked = false;
+		cf.circleplc.checked = false;
+		cf.standard_plc.checked = true;
+	}
+}
+</script>
+</HTML>

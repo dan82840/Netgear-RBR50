@@ -21,7 +21,6 @@ opt_folders+=email
 opt_folders+=parental_control
 endif
 ifeq ($(HAVE_ADVANCED), 1)
-opt_folders+=old_forwarding
 opt_folders+=forwarding_range
 opt_folders+=triggering
 opt_folders+=ddns
@@ -266,6 +265,15 @@ endif
 ifeq ($(IS_ORBI),1)
   opt_folders+=orbi
 endif
+ifeq ($(BUSINESS_AP_DETECT), 1)
+  opt_folders+=business_ap_dect
+endif
+ifeq ($(AP_GUEST_PORTAL), 1)
+  opt_folders+=guest_portal
+endif
+ifeq ($(HAVE_BYOD_NETWORK), 1)
+  opt_folders+=byod_network
+endif
 endif #NEW_SOURCE
 
 define copy_folder
@@ -276,7 +284,7 @@ virtual_cgis:=apply.cgi func.cgi upgrade_check.cgi upgrade.cgi \
 	backup.cgi brs_backup.cgi restore.cgi langupg.cgi \
 	ubootupg.cgi unauth.cgi recover.cgi debug_cloud.cgi \
 	debug.cgi green_upg.cgi bt_file.cgi mobile_install.cgi \
-	admin.cgi
+	admin.cgi upload_file.cgi upload_temp_file.cgi
 
 .PHONY: all install clean
 all:

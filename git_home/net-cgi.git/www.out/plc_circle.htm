@@ -1,0 +1,66 @@
+<% http_header("style/form.min.css", "/funcs_min.js") %>
+<% body_header("_circle", "plc_circle.htm", "circle") %>
+<input type="hidden" name="hidden_enable_circle">
+<div class="page_title" id="page_title">Circle Parental Control</div>
+<div class="fix_button">
+<TABLE width=100% border=0 cellpadding=0 cellspacing=2>
+<TR>
+<script>
+var opendns="<% cfg_get("ParentalControl") %>";
+var master="<% cfg_get("http_loginname") %>";
+if( master == "admin" )
+	document.write('<TD nowrap colspan=2 align=center><input class="cancel_bt" type="button" name="Cancel" id="cancel" value="$cancel_mark" onClick="location.href=\'plc_circle.htm\';">&nbsp;&nbsp;<input class="apply_bt" type="button" name="Apply" id="apply" value="$apply_mark" onClick="return check_circle(document.forms[0])"></TD>');
+else
+	document.write(' <TD nowrap colspan=2 align=center><input class="cancel1_bt" type="button" name="Cancel" id="cancel" value="$cancel_mark" disabled>&nbsp;&nbsp;<input class="apply1_bt" type="button" name="Apply" id="apply" value="$apply_mark" disabled></TD>');
+</script>
+       
+</TR>
+</TABLE>
+
+</div>
+<div id="main" class="main_top_button"> 
+<% table_header() %>
+<TR>
+        <TD nowrap colspan=2>
+        <input type="checkbox" name="enable_circleplc" id="enable_circleplc" ><b> Enable Circle Parental Control</b>
+        </TD>
+</TR>
+<% circle_plc_version() %>
+
+$bluebar
+</TABLE>
+</div>
+</FORM>
+</BODY>
+<script>
+function loadvalue()
+{
+	var cf = document.forms[0];
+
+	var enable_plc="<% cfg_get("enable_circle_plc") %>";
+	if(enable_plc == "1")
+		cf.enable_circleplc.checked = true;
+	else
+		cf.enable_circleplc.checked = false;
+
+}
+
+function check_circle(cf)
+{
+	if( cf.enable_circleplc.checked == true )
+	{
+		if(opendns == "1"){
+			alert("Please disable Standard Parental Control first.");
+			return false;
+		} else {
+			cf.hidden_enable_circle.value="1";
+		}
+	}
+	else
+	{
+		cf.hidden_enable_circle.value="0";
+	}
+	cf.submit();
+}
+</script>
+</HTML>

@@ -1,5 +1,10 @@
 <% http_header("style/form.min.css", "/funcs_min.js", "/AccessControl.js") %>
 <% body_header("","Orbi_edit_dev.htm","orbi_edit_dev") %>
+<style>
+#device_table tr.even_line td.device_td,
+#satellite_table tr.even_line td.device_td
+{border-left:none;border-bottom:none; border-top: 1px solid #ccc;}
+</style>
 <script>
 var ts='<% cfg_get("orbi_edit_dev") %>';
 var enable_block_device="<% cfg_get("enable_block_device") %>";
@@ -10,10 +15,14 @@ function goto_url()
 
 var dev_info = new Array();
 var itime;
+var init_flag=1;
+var is_changed=1;
 function update_device_info(json)
 {
 	eval(json)
 	dev_info=[];
+	is_changed = device_changed;
+	
 	for(var i=0, len = device.length; i<len;i++)
 	{
 		var obj = {};
@@ -22,6 +31,11 @@ function update_device_info(json)
 		obj['mac']=device[i]['mac'];
 		obj['contype']=device[i]['contype'];
 		obj['attachtype']=device[i]['attachtype'];
+		obj['devtype']=device[i]['devtype'];
+		if(device[i]['model'] == "Unknown")
+			obj['model']="---";
+		else
+			obj['model']=device[i]['model'];
 		if(device[i]['name'] == "Unknown")
 			obj['name']="---";
 		else
@@ -36,7 +50,9 @@ function edit_dev(num)
 	var cf = document.forms[0];
 	cf.hid_mac.value = dev_info[num]['mac'];
 	cf.hid_ip.value = dev_info[num]['ip'];
-	cf.hid_name.value = dev_info[num]['name'];
+	cf.hid_name.value = dev_info[num]['name'].replace(/&#92;/g, "\\").replace(/&lt;/g,"<").replace(/&gt;/g,">").replace(/&#40;/g,"(").replace(/&#41;/g,")").replace(/&#34;/g,'\"').replace(/&#39;/g,"'").replace(/&#35;/g,"#").replace(/&#38;/g,"&");
+	cf.hid_model.value = dev_info[num]['model'];
+	cf.hid_devtype.value = dev_info[num]['devtype'];
 	
 	cf.submit_flag.value="orbi_edit_dev";
 	cf.action="/apply.cgi?/Orbi_edit_dev.htm timestamp="+ts;
@@ -76,6 +92,8 @@ function getDevices()
 		if ( xmlhttp.readyState == 4 && xmlhttp.status == 200 )
 		{
 			update_device_info(xmlhttp.responseText);
+			if(init_flag == 1 || is_changed == 1)
+			{
 			var s_num=0,d_num=0;
 			for(var i=0, len=dev_info.length; i<len; i++)
 			{
@@ -106,13 +124,21 @@ function getDevices()
 					msg2 += '<td align=center><a class=linktype style="cursor:pointer" onclick="edit_dev('+i+')">'+dev_info[i]['name'].replace(/\s/g, '&nbsp;').replace(/&#92;/g, "\\").replace(/&#38;/g,"&")+'</a></td>';
 					msg2 += '<td align=center>'+dev_info[i]['ip']+'</td>';
 					msg2 += '<td align=center>'+dev_info[i]['mac']+'</td>';
-					msg2 += '<td align=center>'+dev_info[i]['contype']+'</td></tr>';
+					if(dev_info[i]['contype'] == "wireless")
+						msg2 += '<td align=center>$wireless</td></tr>';
+					else if(dev_info[i]['contype'] == "wired")
+						msg2 += '<td align=center>$acc_wired</td></tr>';
+					else
+						msg2 += '<td align=center>'+dev_info[i]['contype']+'</td></tr>';
 					d_num++;
 				}
 			}
 			msg += '</table>';
 			document.getElementById("satellites").innerHTML=msg;
 			document.getElementById("devices").innerHTML=msg2;
+			if(init_flag == 1)//first enter this page
+				init_flag =0;
+			}
 		}
 	};
 	xmlhttp.open("GET", "DEV_device_info.htm?ts=" + new Date().getTime(), true);
@@ -125,12 +151,26 @@ function loadvalue()
 	getDevices();
 }
 
+function click_edit()
+{
+	var cf = document.forms[0];
+	if(cf.hid_mac.value == "0")
+		return false;
+	else
+	{
+		cf.submit();
+		return true;
+	}
+}
+
 </script>
 <div class="page_title">$attach_device</div>
 <div id="main" class="main">
 <input type="hidden" name="hid_mac" value="0"/>
 <input type="hidden" name="hid_name" value="0"/>
 <input type="hidden" name="hid_ip" value="0"/>
+<input type="hidden" name="hid_model" value="0"/>
+<input type="hidden" name="hid_devtype" value="0"/>
 <% table_header() %> 
 <TR><td colspan=3><hr class=blueBar /></td></TR>
 <TR id="acc_line" style="display:none">
@@ -140,7 +180,7 @@ function loadvalue()
 	</TD>
 </TR>
 <TR>
-	<TD width="40%" >&nbsp;</TD>
+	<TD width="40%" ><!--input type="button" class="common_bt" name="edit" value="$edit_mark" onclick="return click_edit();"/--></TD>
 	<TD>
 	<script>
 		var new_device_statue_by_default="<% cfg_get("new_device_statue_by_default") %>";

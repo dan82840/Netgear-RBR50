@@ -4,6 +4,15 @@
 <div class="fix_button">
 <TABLE width=100% border=0 cellpadding=0 cellspacing=2>
 <script>
+//vlan config
+var have_vlan_sb = top.vlan_sb_flag;
+var main_wireless_vlan_group = "<% cfg_get("vlan_sb_base_group_0") %>";
+var byod_wireless_vlan_group = "<% cfg_get("vlan_sb_base_group_1") %>";
+var guest_wireless_vlan_group = "<% cfg_get("vlan_sb_base_group_2") %>";
+var vlan_mode_endis = "<% cfg_get("vlan_group_mode") %>";
+var wl_type = "";
+var other_ipdata = [{"type":"Guest Portal", "ip": "<% cfg_get("guest_lan_ipaddr") %>", "mask":"<% cfg_get("guest_lan_netmask") %>"}, {"type":"BYOD Network", "ip":"<% cfg_get("byod_lan_ipaddr") %>", "mask":"<% cfg_get("byod_lan_netmask") %>"}];
+
 if(top.document.getElementById('setup_sub').style.display == "none")
 	top.open_or_close_sub('setup');
 top.menu_color_change('lan');
@@ -108,6 +117,19 @@ function loadvalue()
 	}
 
 	showWps_alert();
+	
+	if(have_vlan_sb == 1)
+	{
+		document.getElementById("main_vlan_cnf1").style.display = "";
+		document.getElementById("main_vlan_cnf2").style.display = "";
+		var vlan_enable = vlan_mode_endis;
+		var vlan_id = main_wireless_vlan_group.split(" ")[2];
+		if(vlan_enable == "1")
+			form.vlan_enable.value = "enable";
+		else
+			form.vlan_enable.value = "disable";
+		form.vlan_id.value = vlan_id;
+	}
 }
 </script>
 <input type="hidden" name="select_edit">
@@ -158,6 +180,26 @@ function loadvalue()
 	</TD>
 </TR>
 $bluebar
+<tr id="main_vlan_cnf1" style="display:none">
+	<input type="hidden" name="hid_vlan_enable" value="1" />
+	<td nowrap><b>VLAN</b></td>
+	<td nowrap align=right>
+		<select name="vlan_enable">
+			<option value="enable">$r_enable</option>
+			<option value="disable">$r_disable</option>
+		</select>
+	</td>
+</tr>
+<tr id="main_vlan_cnf2" style="display:none">
+	<td nowrap><b>$vlan_id</b></td>
+	<td nowrap align=right>
+		<input type="text" name="vlan_id" value="" size=5>
+	</td>
+</tr>
+<script>
+if(have_vlan_sb == 1)
+	document.write("$bluebar");
+</script>
 <TR>
 	<TD nowrap colspan=2>
 	<A tabindex=-1 href="javascript:loadhelp('_lan','tcp')"><B>$lan_mark_ip_head</B></A>

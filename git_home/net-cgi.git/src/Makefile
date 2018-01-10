@@ -19,7 +19,7 @@ FILES += internet_setup_apply.o wlan_apply.o wan_setup_apply.o block_service_asp
 FILES += home_apply.o wps_apply.o wladv_apply.o forwarding_asp.o triggering_asp.o
 FILES += lan_apply.o top_apply.o upnp_apply.o hidden_page_apply.o hidden_page_asp.o
 FILES += wlan_asp.o home_asp.o internet_setup_asp.o cfg_asp.o lan_asp.o qos_asp.o
-FILES += detfirmware.o schedule_apply.o email_apply.o dns_asp.o dns_apply.o
+FILES += schedule_apply.o email_apply.o dns_asp.o dns_apply.o
 FILES += logs_apply.o logs_asp.o remote_apply.o attached_devices_asp.o passwd_apply.o
 FILES += static_route_apply.o static_route_asp.o upnp_asp.o wireless_repeating_asp.o
 FILES += wladv_asp.o wps_asp.o top_asp.o upgrade_asp.o lang_upgrade.o email_asp.o ssid_passph_to_sec.o
@@ -28,7 +28,8 @@ FILES += rae_apply.o rae_asp.o
 FILES += vpn_apply.o vpn_asp.o
 FILES += wless_schedule_apply.o wless_schedule_asp.o wless_schedule_action.o
 FILES += devmode_apply.o
-FILES += reboot_factory_apply.o
+FILES += reboot_factory_apply.o wireless_common_config.o
+FILES += cgi_util.o local_upgrade.o lang_apply.o
 FILES += device_asp.o
 
 CFLAGS += -DHOST_NAME=$(HOST_NAME)
@@ -39,6 +40,7 @@ CFLAGS += -DWLAN5_IFNAME=$(WLAN5_IFNAME)
 CFLAGS += -DWLAN24Gus1_IFNAME=$(WLAN24Gus1_IFNAME)
 CFLAGS += -DWLAN5Gus1_IFNAME=$(WLAN5Gus1_IFNAME)
 CFLAGS += -DWLANBH_IFNAME=$(WLANBH_IFNAME)
+CFLAGS += -DWLANFRONT_IFNAME=$(WLANFRONT_IFNAME)
 CFLAGS += -DLAN_WIRED_IFNAME=$(LAN_WIRED_IFNAME)
 CFLAGS += -DIPv6_LAN_IFNAME=$(IPv6_LAN_IFNAME)
 CFLAGS += -DCTL_MOD=$(CTL_MOD)
@@ -81,7 +83,18 @@ CFLAGS += -DHAVE_VPN_SMARTPHONE=$(HAVE_VPN_SMARTPHONE)
 CFLAGS += -DHAVE_BT_IGMP=$(HAVE_BT_IGMP)
 CFLAGS += -DENABLE_VLAN_PPPOE_SUPPORT=$(ENABLE_VLAN_PPPOE_SUPPORT)
 CFLAGS += -DDFS_RADAR_DETECT=$(DFS_RADAR_DETECT)
+CFLAGS += -DSATELLITE_MODULE_NAME=$(SATELLITE_MODULE_NAME)
+CFLAGS += -DBASE_MODULE_NAME=$(BASE_MODULE_NAME)
 
+ifeq ($(ORBI_MINI), 1)
+CFLAGS += -DORBI_MINI
+endif
+ifeq ($(FTP_DOWNLOAD), 1)
+CFLAGS += -DFTP_DOWNLOAD
+endif
+ifeq ($(HTTP_DOWNLOAD), 1)
+CFLAGS += -DHTTP_DOWNLOAD
+endif
 ifeq ($(SINGLE_FIRMWARE), 0)
 CFLAGS += -DSINGLE_FIRMWARE=0
 else
@@ -154,6 +167,10 @@ endif
 endif
 ifeq ($(READYSHARE_PRINT), 1)
 CFLAGS += -DREADYSHARE_PRINT
+READY_SHARE_SUPPORTED_LEVEL:=$(shell expr $(READY_SHARE_SUPPORTED_LEVEL) + 4)
+endif
+ifeq ($(ORBI_READYSHARE_PRINTER), 1)
+CFLAGS += -DORBI_READYSHARE_PRINTER
 READY_SHARE_SUPPORTED_LEVEL:=$(shell expr $(READY_SHARE_SUPPORTED_LEVEL) + 4)
 endif
 ifeq ($(HAVE_VAULT), 1)
@@ -304,6 +321,12 @@ endif
 
 ifeq ($(DNI_PARENTAL_CTL), 1)
 CFLAGS += -DDNI_PARENTAL_CTL
+endif
+ifeq ($(HAVE_CIRCLE_PLC), 1)
+CFLAGS += -DHAVE_CIRCLE_PLC
+endif
+ifeq ($(HAVE_FORCESHIELD), 1)
+CFLAGS += -DHAVE_FORCESHIELD
 endif
 ifeq ($(DNS_ORAY), 1)
 CFLAGS += -DDNS_ORAY
@@ -456,6 +479,31 @@ ifeq ($(APP_SYSTEM), 1)
 FILES += sw_app.o
 endif
 
+ifeq ($(BUSINESS_AP_DETECT), 1)
+CFLAGS += -DBUSINESS_AP_DETECT
+endif
+ifeq ($(AP_GUEST_PORTAL), 1)
+CFLAGS += -DAP_GUEST_PORTAL
+endif
+ifeq ($(HAVE_BYOD_NETWORK), 1)
+CFLAGS += -DHAVE_BYOD_NETWORK
+endif
+ifeq ($(HAVE_VLAN_SB), 1)
+CFLAGS += -DHAVE_VLAN_SB
+FILES += vlan_sb.o
+endif
+ifeq ($(HAVE_WIRELESS_COMBINE), 1)
+CFLAGS += -DHAVE_WIRELESS_COMBINE
+endif
+ifeq ($(HAVE_SPEEDTEST_MENU), 1)
+CFLAGS += -DHAVE_SPEEDTEST_MENU
+endif
+ifeq ($(HAVE_DUAL_IMAGE), 1)
+CFLAGS += -DHAVE_DUAL_IMAGE
+CFLAGS += -DIMAGE_MTD2=$(IMAGE_MTD2)
+endif
+
+
 CFLAGS += -DUSE_MTD_UTIL=$(USE_MTD_UTIL)
 CFLAGS += -DADV_COEXISTENCE=$(ADV_COEXISTENCE)
 CFLAGS += -DBASIC_COEXISTENCE=$(BASIC_COEXISTENCE)
@@ -470,23 +518,26 @@ CFLAGS += -Wall -Wunused -g -O2
 LDFLAGS += -L$(STAGING_DIR)/usr/lib/libiconv/lib
 
 .PHONY: all install clean
-all : net-cgi usb_cfg inetd detplc remote_smb_conf remote_user_conf remote_share_conf readycloud_unregister
+all : net-cgi usb_cfg inetd detplc remote_smb_conf remote_user_conf remote_share_conf readycloud_unregister fw-upgrade
 
 net-cgi : $(FILES)
 	$(CC) $(CFLAGS) $^ -o $@ $(EXTRA_LDFLAGS) $(LDFLAGS) -lconfig -lpthread -liconv -lm -lcurl
 	@echo "make $@ finished on `date`"
 
-usb_cfg : usbdisk.o usb_cfg.o print.o
+usb_cfg : usbdisk.o usb_cfg.o print.o dni_system.o
 	$(CC) $(CFLAGS) $^ -o $@ $(EXTRA_LDFLAGS) $(LDFLAGS) -lconfig -liconv	
 
-inetd : http_scan.o
+inetd : http_scan.o dni_system.o
 	$(CC) $(CFLAGS) $^ -o $@ $(EXTRA_LDFLAGS) $(LDFLAGS)
 
-remote_smb_conf remote_user_conf remote_share_conf readycloud_unregister: usbdisk.o remote_smb_conf.o print.o
+remote_smb_conf remote_user_conf remote_share_conf readycloud_unregister: usbdisk.o remote_smb_conf.o print.o dni_system.o
 	$(CC) $(CFLAGS) $^ -o $@ $(EXTRA_LDFLAGS) $(LDFLAGS) -lconfig -liconv
 
-detplc: plc_devs_detect.o
+detplc: plc_devs_detect.o dni_system.o
 	$(CC) $(CFLAGS) $^ -o $@ $(EXTRA_LDFLAGS) $(LDFLAGS) -lconfig
+
+fw-upgrade: fw_upgrade.o print.o dni_system.o curl.o lg_upgrade.o auto_upgrade.o cgi_util.o unicode.o cJSON.o upgrade.o ftp.o resolv.o lang_apply.o lang.o
+	$(CC) $(CFLAGS) $^ -o $@ $(EXTRA_LDFLAGS) $(LDFLAGS) -lconfig -lpthread -liconv -lm -lcurl
 
 %.o : %.c
 	$(CC) $(CFLAGS) -c $<
@@ -507,7 +558,8 @@ ifeq ($(GENIECLOUD),1)
 	$(INSTALL_BIN)	remote_share_conf	$(INS_BIN_DIR)
 	$(INSTALL_BIN)	readycloud_unregister	$(INS_BIN_DIR)
 endif
+	$(INSTALL_BIN)	fw-upgrade	$(INS_BIN_DIR)
 
 clean:
 	rm -f *.o 
-	rm -f net-cgi usb_cfg inetd detplc remote_smb_conf remote_user_conf remote_share_conf readycloud_unregister
+	rm -f net-cgi usb_cfg inetd detplc remote_smb_conf remote_user_conf remote_share_conf readycloud_unregister fw-upgrade

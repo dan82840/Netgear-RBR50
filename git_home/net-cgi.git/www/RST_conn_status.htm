@@ -83,13 +83,13 @@ function change_time_type(time)
 </TABLE>
 <script>
 	if(info_get_wanproto == "dhcp")
-		document.write('<TABLE border=1 name="dhcp_statusTable" id="dhcp_connect" cellpadding=2 cellspacing=0 width=100%>');
+		document.write('<TABLE border=1 name="dhcp_statusTable" id="dhcp_connect" cellpadding=2 cellspacing=0 width=100% x-ms-format-detection="none">');
 	else if(info_get_wanproto == "pppoe" || info_get_wanproto == "pppoa")
-		document.write('<TABLE border=1 name="pppoe_statusTable" id="ppp_connect" cellpadding=2 cellspacing=0 width=100%>');
+		document.write('<TABLE border=1 name="pppoe_statusTable" id="ppp_connect" cellpadding=2 cellspacing=0 width=100% x-ms-format-detection="none">');
 	else if(info_get_wanproto == "pptp" || info_get_wanproto == "l2tp")
-		document.write('<TABLE border=1 name="pptp_statusTable" id="pptp_connect" cellpadding=2 cellspacing=0 width=100%>');
+		document.write('<TABLE border=1 name="pptp_statusTable" id="pptp_connect" cellpadding=2 cellspacing=0 width=100% x-ms-format-detection="none">');
 	else
-		document.write('<TABLE border=1 cellpadding=2 cellspacing=0 width=100%>');
+		document.write('<TABLE border=1 cellpadding=2 cellspacing=0 width=100% x-ms-format-detection="none">');
 
 </script>
 <script>

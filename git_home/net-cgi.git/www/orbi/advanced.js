@@ -389,6 +389,16 @@ function click_adv_action(id)
 			goto_formframe("WLG_wireless_guest1.htm");
 			menu_color_change('guest');
                 }
+                else if( id == "byod" )
+                {
+			goto_formframe("WLG_byod_network.html");
+			menu_color_change('wireless');
+                }
+		else if( id == "guest_portal")
+		{
+			goto_formframe("guest_portal.html");
+			menu_color_change("guest_portal");
+		}
                 else if( id == "wan" )
                 {
 			goto_formframe("WAN_wan.htm");
@@ -449,6 +459,11 @@ function click_adv_action(id)
 			open_window('parental_ctrl.htm');
 			menu_color_change('parental');
                 }
+		else if( id == "circle_parental" )
+                {
+                        goto_formframe('plc_circle.htm');
+			menu_color_change('circle_parental');
+		}
                 else if( id == "block_site" )
                 {
 			goto_formframe("BKS_keyword.htm");

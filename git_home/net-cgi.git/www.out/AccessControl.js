@@ -182,6 +182,7 @@ function set_allow_block(cf, flag)
 		
 		cf.hidden_change_list.value = sel_list;
 		cf.hidden_change_num.value = sel_num;
+		cf.action="/apply.cgi?/access_control_plsWait.htm timestamp="+ts;
 		cf.submit();
 	}
 	else

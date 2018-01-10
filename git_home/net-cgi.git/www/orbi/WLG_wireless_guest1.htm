@@ -43,7 +43,7 @@ var wep_128_key2 = "<% cfg_sed("wlg1_wep_128_key2") %>";
 var wep_128_key3 = "<% cfg_sed("wlg1_wep_128_key3") %>";
 var wep_128_key4 = "<% cfg_sed("wlg1_wep_128_key4") %>";
 
-var wl_simple_mode_an="<% cfg_get("wla_simple_mode") %>";
+//var wl_simple_mode_an="<% cfg_get("wla_simple_mode") %>";
 var wl_key1_an = "<% cfg_sed("wla1_key1") %>";
 var wl_key2_an = "<% cfg_sed("wla1_key2") %>";
 var wl_key3_an = "<% cfg_sed("wla1_key3") %>";
@@ -78,28 +78,10 @@ var str_wpa2_an="";
 var str_wpas_an="";
 var str_wpae_an="";
 var wds_endis_fun="<% cfg_get("wds_endis_fun") %>";
-var old_sectype="<% cfg_get("wlg1_sectype") %>";
-var old_sectype_an="<% cfg_get("wla1_sectype") %>";
-
-var get_wpae_mode="<% cfg_get("wlg1_wpae_mode") %>";
-var get_radiusSerIp="<% cfg_get("wlg1_radiusSerIp") %>";
-var get_radiusPort="<% cfg_get("wlg1_radiusPort") %>";
-var get_endis_guestNet="<% cfg_get("wlg1_endis_guestNet") %>";
-var get_endis_guestSSIDbro="<% cfg_get("wlg1_endis_guestSSIDbro") %>";
-var get_endis_allow_see_and_access="<% cfg_get("wlg1_endis_allow_see_and_access") %>";
-//bug 23999:combine b/g/n and a/n page 
-var get_wpae_mode_an="<% cfg_get("wla1_wpae_mode") %>";
-var get_radiusSerIp_an="<% cfg_get("wla1_radiusSerIp") %>";
-var get_radiusPort_an="<% cfg_get("wla1_radiusPort") %>";
-var get_endis_guestNet_an="<% cfg_get("wla1_endis_guestNet") %>";
-var get_endis_guestSSIDbro_an="<% cfg_get("wla1_endis_guestSSIDbro") %>";
-var get_enable_video_value_an="<% cfg_get("wla1_enable_video_value") %>";
-var get_endis_allow_see_and_access_an="<% cfg_get("wla1_endis_allow_see_and_access") %>";
-
+<% show_guest_wlan_variable()%>
 var StartChannel = new Array(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,1); 
 var FinishChannel = new Array(11,13,13,13,11,13,13,13,13,11,13,13,11); 
 
-var wl_simple_mode="<% cfg_get("wl_simple_mode") %>";
 var enable_ap_flag="<% cfg_get("ap_mode") %>"; //for bug 30286 here is to grey comething
 var enable_extender_flag="<% cfg_get("extender_mode") %>";
 var wps_progress_status="<% wps_process_status() %>";
@@ -140,7 +122,7 @@ var wps_alert="<% cfg_get("wps_alert") %>";
 
 <input type="hidden" name="hidden_enable_guestNet_an">
 <input type="hidden" name="hidden_enable_ssidbro_an">
-<input type="hidden" name="hidden_enable_video_an" value="<% cfg_get("wla1_enable_video_value") %>">
+<input type="hidden" name="hidden_enable_video_an" value="">
 <input type="hidden" name="hidden_allow_see_and_access_an">
 <input type="hidden" name="radiusServerIP_a">
 <input type="hidden" name="s_gssid_an">
@@ -265,20 +247,15 @@ $bluebar
 </FORM>
 <script>
 
-var wl_sectype="<% cfg_get("wlg1_sectype") %>";
-var wds_endis_fun="<% cfg_get("wds_endis_fun") %>";
 var endis_wl_radio="<% enable_ap_orNot("bgn") %>";
 var wl_get_keyno="<% cfg_get("wlg1_key") %>";
 var wl_get_keylength="<% cfg_get("wlg1_key_length") %>";
 
-var wl_sectype_an="<% cfg_get("wla1_sectype") %>";
-var wla_wds_endis_fun_an="<% cfg_get("wla_wds_endis_fun") %>";
 var endis_wla_radio_an="<% enable_ap_orNot("an") %>";
 var wl_get_keyno_an="<% cfg_get("wla1_key") %>";
 var wl_get_keylength_an="<% cfg_get("wla1_key_length") %>";
 var wps_status="<% cfg_get("wps_status") %>";
-var wla_sectype="<% cfg_get("wla_sectype") %>";
-var wireless_sectype="<% cfg_get("wl_sectype") %>";//if wireless_sectype==2 WEP security type
+//var wireless_sectype="<% cfg_get("wl_sectype") %>";//if wireless_sectype==2 WEP security type
 
 function setSecurity(num)
 {
@@ -327,7 +304,7 @@ function loadvalue()
 
 	//if(enable_ap_flag == 1 ||  fbwifi_enable == '1' || enable_extender_flag == '1')
 	//	setDisabled(true, form.allow_access);
-		
+	form.hidden_enable_video_an.value = get_enable_video_value_an;	
 
 	//Bug 38628
 	str_none=getObj("none").innerHTML;

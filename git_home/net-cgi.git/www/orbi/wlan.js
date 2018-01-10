@@ -328,6 +328,15 @@ function check_wlan()
 		alert("$ssid_not_allowed_same");
 		return false;
 	}
+	if(have_byod_network == 1)
+	{
+		var wlg2_ssid=document.forms[0].wlg2ssid.value;
+		if(ssid_bgn == wlg2_ssid)
+		{
+			alert("$ssid_not_allowed_same");
+			return false;			
+		}		
+	}
 	
 	for(i=0;i<ssid_bgn.length;i++)
 	{
@@ -369,6 +378,11 @@ function check_wlan()
 			return false;
 		cf.wl_hidden_sec_type.value=5;
 		cf.wl_hidden_wpa_psk.value = cf.passphrase.value;
+		if(wl_simple_mode != "1")
+		{
+			if(confirm("$wlan_tkip_aes_300_150") == false)
+				return false;
+		}
 	}	
 	else
 		cf.wl_hidden_sec_type.value=1;

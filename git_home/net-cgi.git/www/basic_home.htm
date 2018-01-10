@@ -1,4 +1,5 @@
-<% http_header("style/basic_home.css", "funcs_min.js", "basic.js", "jquery-1.7.2.min.js") %>
+<% refresh_netscan() %>
+<% http_header("style/basic_home.min.css", "funcs_min.js", "basic.js", "jquery-1.7.2.min.js") %>
 
 <% func_header("_Wizard_setup", "BRS_03A_detcInetType.html", "wizard_detwan") %>
 <style>
@@ -6,6 +7,16 @@
 #passwd {width:auto; margin:0 auto; white-space: nowrap; overflow:hidden;}
 #pwd_div #pwd_begin, #pwd_div #pwd_end {display: inline;}
 #pwd_label {float:left; padding-right:3px;}
+#byod{ background:rgba(0, 0, 0, 0) url("../image/basic_homes.gif") no-repeat scroll -192px 0; position: relative }
+#guest_portal { background: rgba(0, 0, 0, 0) url("../image/guest.png") no-repeat scroll 0 0; position: relative; }
+.icon_img
+{
+    overflow: hidden;
+    position: absolute;
+    text-align: center;
+    top: 20px;
+    width: 192px;
+}
 </style>
 <script language="javascript" type="text/javascript">
 var portstatus = "<% cat_file("/tmp/port_status")  %>";
@@ -94,11 +105,47 @@ function HtoS(s)
 }
 
 var isSynchronous=0;
+var s_num=0;
+var d_num=0;
+
+function show_device_num()
+{
+	var xmlhttp, xmlDoc;
+
+	if ( window.XMLHttpRequest)
+		xmlhttp = new XMLHttpRequest();
+	else
+		xmlhttp = new ActiveXObject("Microsoft.XMLHTTP");
+	xmlhttp.onreadystatechange = function()
+	{
+		if ( xmlhttp.readyState == 4 && xmlhttp.status == 200 )
+		{
+			eval(xmlhttp.responseText);
+			s_num=0;
+			d_num=0;
+			for(var i=0, len = device.length; i<len; i++)
+			{
+				if(device[i]['attachtype'] == "2")//satellte
+					s_num++;
+			}
+			d_num = len - s_num;
+		}
+		document.getElementById("satellite_num").innerHTML=s_num;
+		document.getElementById("dev_num").innerHTML=d_num;
+	};
+	xmlhttp.open("GET", "DEV_device_info.htm?ts=" + new Date().getTime(), true);
+	xmlhttp.send();
+	setTimeout("show_device_num()", 5000);
+}
 
 $$(document).ready(function(){
 	please_wait(false);
-	scrollPassword();
-	setIconClass("internet_stat","wlan_stat","attached_stat","parant_control_stat","readyshare_stat","guestNetwork_stat");
+	if(parental_ctrl_flag == 1)
+		document.getElementById("parental").style.display = "";
+	if(endis_wl_radio == 1 || endis_wla_radio == 1)
+		scrollPassword();
+	show_device_num();
+	setIconClass("internet_stat","wlan_stat","parant_control_stat","readyshare_stat","guestNetwork_stat","byodNetwork_stat","guestPortal_stat");
 
 	//$$(".scroll").css("font-family", "Courier, MonoSpace");
 	bs = $$("div.scroll");
@@ -204,6 +251,8 @@ function scrollPassword() {
 	var scroll_div = document.getElementById("passwd");
 	var content_div = document.getElementById("pwd_div");
 	var label = document.getElementById("pwd_label");
+	if(!scroll_begin || !scroll_end || !scroll_div || !content_div || !label)
+		return;
 
 	var len = label.offsetWidth + scroll_begin.offsetWidth;
 	if(len < 176)
@@ -232,17 +281,23 @@ function scrollPassword() {
 <div id="form_content">
 	<% basic_internet() %>
 	<% basic_wireless() %>
+	<% basic_byod() %>
+	<% basic_guest_portal() %>
 	<div id="attached" class="basic_icon">
 		<div class="icon_click" onclick="click_action('attached');"></div>
-		<script>
-		if(gui_region == "Polish")
-			document.write('<div class="icon1_name" onclick="click_action(\'attached\');">$attach_device</div>');
-		else
-			document.write('<div class="icon_name" onclick="click_action(\'attached\');">$attach_device</div>');
-		</script>
-		<div id="attached_stat" class="icon_status"><span><div onclick="click_action('attached');">$num_devs:<b><% basic_device_num() %></b></div></span></div>
+		<div class="icon_name" onclick="click_action(\'attached\');">$attach_device</div>
+		<div id="attached_stat" class="icon_long_status">
+		<span>
+			<div onclick="click_action('attached');" style="white-space:nowrap;" >$ORT_018
+				<b id="satellite_num"></b>
+			</div>
+			<div onclick="click_action('attached');" style="white-space:nowrap;">$num_devs:
+				<b id="dev_num"></b>
+			</div>
+		</span>
+		</div>
 	</div>
-	<div id="parental" class="basic_icon" onclick="click_action('parental');">
+	<div id="parental" class="basic_icon" onclick="click_action('parental');" style="display:none;">
 		<div class="icon_name">$parental_control</div>
 		<div id="parant_control_stat" class="icon_status"><span>$status_mark <b><% basic_parental_state() %></b></span></div>
 	</div>
@@ -251,5 +306,44 @@ function scrollPassword() {
 </div><!-- form_content -->
 </div><!-- form -->
 </form>
+<script>
+var model_name = "<% get_base_model_name() %>";
+var use_images = {//mean id and its icon
+	"internet": "world_wide_web.svg", "wireless": "wifi1.svg", "byod": "wifi2.svg", "guest_portal": "wifi3.svg",
+	"attached": "devices.svg"
+};
+function change_icon_image()
+{
+	var icons_dir = "images/svg/"
+	for(var k in use_images)
+	{
+		var obj = document.getElementById(k);
+		if(obj)
+		{
+			obj.style.backgroundImage = "url()";
+			var img_div = '<div class="icon_img"><img src="'+ icons_dir + use_images[k] +'" height="60px"></div>';
+			$$(obj).prepend(img_div);
+		}
+	}
+}
+function ajust_icons_position()
+{
+	var blank_icon = '<div class="basic_icon" style="visibility:hidden;"></div>';
+	var attach_icon = document.getElementById("attached");
+	$$("#internet").after($(attach_icon));
+	$$("#attached").after(blank_icon);
+}
+
+if(model_name == "SRR60")
+{
+	change_icon_image();
+	ajust_icons_position();
+}
+
+if(gui_region == "French" || gui_region == "Russian" || gui_region == "Spanish")
+{
+	$$("#attached  #attached_stat").css("font-size","13px");;
+}
+</script>
 </body>
 </html>
