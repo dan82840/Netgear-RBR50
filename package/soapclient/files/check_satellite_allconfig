@@ -1,0 +1,11 @@
+#!/bin/sh
+mac=$1
+[ "$mac" = "" ] && return
+str1=`cat /tmp/hyt_result |grep $mac`
+ip=`echo $str1|awk  -F ',' '{print $2}'` 
+[ "$ip" = "" ] && return
+sleep 3
+have_pid=`ps -w|grep soapclient |grep $mac |grep -v grep`
+[ "$have_pid" != "" ] && return
+echo "check $mac $ip AllConfig" > /dev/console
+/usr/sbin/soapclient -a $ip -p 80 -m $mac -s AllConfig >> /var/log/soapclient/$mac 2>&1 &
