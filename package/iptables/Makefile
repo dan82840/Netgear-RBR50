@@ -305,6 +305,19 @@ U32 iptables extensions.
 
 endef
 
+define Package/iptables-mod-XHTTP
+$(call Package/iptables/Module, +kmod-ipt-XHTTP)
+  TITLE:=XHTTP iptables extensions
+endef
+
+define Package/iptables-mod-XHTTP/description
+XHTTP iptables extensions.
+
+ Matches:
+  - XHTTP 
+
+endef
+
 define Package/ip6tables
 $(call Package/iptables/Default)
   DEPENDS:=@IPV6 +kmod-ip6tables +iptables
@@ -471,6 +484,7 @@ $(eval $(call BuildPlugin,iptables-mod-tproxy,$(IPT_TPROXY-m)))
 $(eval $(call BuildPlugin,iptables-mod-tee,$(IPT_TEE-m)))
 $(eval $(call BuildPlugin,iptables-mod-u32,$(IPT_U32-m)))
 $(eval $(call BuildPlugin,iptables-mod-DNATP2P,ipt_DNATP2P))
+$(eval $(call BuildPlugin,iptables-mod-XHTTP,ipt_XHTTP))
 $(eval $(call BuildPackage,ip6tables))
 $(eval $(call BuildPlugin,ip6tables-mod-nat,$(IPT_NAT6-m)))
 $(eval $(call BuildPackage,libiptc))
