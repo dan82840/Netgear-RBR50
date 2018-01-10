@@ -47,17 +47,6 @@
 #include "ssdk_plat.h"
 #include "ref_vlan.h"
 
-extern void
-qca_ar8327_phy_disable();
-extern void
-qca_ar8327_phy_enable(struct qca_phy_priv *priv);
-#ifndef BOARD_AR71XX
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,14,0))
-extern void
-qca_ar8327_port_init(struct qca_phy_priv *priv, a_uint32_t port);
-#endif
-#endif
-
 int
 qca_ar8327_sw_set_max_frame_size(struct switch_dev *dev,
 										const struct switch_attr *attr,
@@ -65,9 +54,6 @@ qca_ar8327_sw_set_max_frame_size(struct switch_dev *dev,
 {
 	a_uint32_t size = val->value.i;
 	a_uint32_t ret;
-
-	/* be compatible with old implementations. */
-	size = size + 8 + 2;
 
 	ret = fal_frame_max_size_set(0, size);
 	if (ret){
@@ -99,7 +85,6 @@ int
 qca_ar8327_sw_reset_switch(struct switch_dev *dev)
 {
 	struct qca_phy_priv *priv = qca_phy_priv_get(dev);
-	int i;
 	int rv = 0;
 	a_uint32_t mac_mode;
 

@@ -6,6 +6,9 @@ ifeq ($(KVER),$(filter 3.14%,$(KVER)))
 OS_VER=3_14
 endif
 
+ifeq ($(KVER),$(filter 4.4%,$(KVER)))
+OS_VER=4_4
+endif
 ifeq ($(KVER), 3.4.0)
 OS_VER=3_4
 endif
@@ -56,13 +59,13 @@ endif
   #pb45
   #TOOL_PATH=/disk/pb45/sw/build/gcc-3.4.4-2.16.1/build_mips_nofpu/bin
   #SYS_PATH=/disk/pb45/sw/linux/kernels/mips-linux-2.6.15
-	
+
   #ap81
 # compatiable with OpenWRT
-ifndef  TOOL_PATH 
+ifndef  TOOL_PATH
 TOOL_PATH=/disk/ap81fus/sw/build/gcc-3.4.4-2.16.1/build_mips/bin
 endif
-ifndef SYS_PATH 
+ifndef SYS_PATH
 SYS_PATH=/disk/ap81fus/sw/linux/kernels/mips-linux-2.6.15
 endif
 ifeq ($(ARCH), mips)
@@ -89,13 +92,20 @@ endif
 ifeq ($(KVER), 3.18.21)
   CPU_CFLAG=-D__LINUX_ARM_ARCH__=7  -DMODULE -fno-common -DCONFIG_MMU -D$(BOARD_NAME)
 endif
+ifeq ($(KVER),$(filter 4.4%,$(KVER)))
+  CPU_CFLAG=-D__LINUX_ARM_ARCH__=7  -DMODULE -fno-common -DCONFIG_MMU -D$(BOARD_NAME)
+endif
 
 ifeq ($(KVER),$(filter 3.14%,$(KVER)))
-  CPU_CFLAG= -DMODULE -nostdinc -D$(BOARD_NAME) -mlittle-endian -Wundef -Wstrict-prototypes -Wno-trigraphs -fno-strict-aliasing -fno-common -Wno-format-security -fno-delete-null-pointer-checks -O2 -fno-dwarf2-cfi-asm -mabi=aapcs-linux -mno-thumb-interwork -mfpu=vfp -funwind-tables -marm -D__LINUX_ARM_ARCH__=7 -march=armv7-a -msoft-float -Uarm -Wframe-larger-than=1024 -fno-stack-protector -Wno-unused-but-set-variable -fomit-frame-pointer -g -Wdeclaration-after-statement -Wno-pointer-sign -fno-strict-overflow -fconserve-stack -Werror=implicit-int -DCC_HAVE_ASM_GOTO    -D"KBUILD_STR(s)=\#s" -D"KBUILD_BASENAME=KBUILD_STR(mem)"  -D"KBUILD_MODNAME=KBUILD_STR(mem)"
+  CPU_CFLAG= -DMODULE -nostdinc -D$(BOARD_NAME) -mlittle-endian -Wundef -Wstrict-prototypes -Wno-trigraphs -fno-strict-aliasing -fno-common -Wno-format-security -fno-delete-null-pointer-checks -O2 -fno-dwarf2-cfi-asm -mabi=aapcs-linux -mno-thumb-interwork -mfpu=vfp -funwind-tables -marm -D__LINUX_ARM_ARCH__=7 -march=armv7-a -msoft-float -Uarm -Wframe-larger-than=1024 -fno-stack-protector -Wno-unused-but-set-variable -fomit-frame-pointer -g -Wdeclaration-after-statement -Wno-pointer-sign -fno-strict-overflow -fconserve-stack -DCC_HAVE_ASM_GOTO    -D"KBUILD_STR(s)=\#s" -D"KBUILD_BASENAME=KBUILD_STR(mem)"
+endif
+
+ifeq ($(KVER),$(filter 4.4%,$(KVER)))
+  CPU_CFLAG= -DMODULE -nostdinc -D$(BOARD_NAME) -mlittle-endian -Wundef -Wstrict-prototypes -Wno-trigraphs -fno-strict-aliasing -fno-common -Wno-format-security -fno-delete-null-pointer-checks -O2 -fno-dwarf2-cfi-asm -mabi=aapcs-linux -mno-thumb-interwork -mfpu=vfp -funwind-tables -marm -D__LINUX_ARM_ARCH__=7 -march=armv7-a -msoft-float -Uarm -Wframe-larger-than=1024 -fno-stack-protector -Wno-unused-but-set-variable -fomit-frame-pointer -g -Wdeclaration-after-statement -Wno-pointer-sign -fno-strict-overflow -fconserve-stack -DCC_HAVE_ASM_GOTO    -D"KBUILD_STR(s)=\#s" -D"KBUILD_BASENAME=KBUILD_STR(mem)"  -D"KBUILD_MODNAME=KBUILD_STR(mem)"
 endif
 
 ifeq ($(KVER),$(filter 3.18%,$(KVER)))
-  CPU_CFLAG= -DMODULE -nostdinc -D$(BOARD_NAME) -mlittle-endian -Wundef -Wstrict-prototypes -Wno-trigraphs -fno-strict-aliasing -fno-common -Wno-format-security -fno-delete-null-pointer-checks -O2 -fno-dwarf2-cfi-asm -mabi=aapcs-linux -mno-thumb-interwork -mfpu=vfp -funwind-tables -marm -D__LINUX_ARM_ARCH__=7 -march=armv7-a -msoft-float -Uarm -Wframe-larger-than=1024 -fno-stack-protector -Wno-unused-but-set-variable -fomit-frame-pointer -g -Wdeclaration-after-statement -Wno-pointer-sign -fno-strict-overflow -fconserve-stack -Werror=implicit-int -DCC_HAVE_ASM_GOTO    -D"KBUILD_STR(s)=\#s" -D"KBUILD_BASENAME=KBUILD_STR(mem)"  -D"KBUILD_MODNAME=KBUILD_STR(mem)"
+  CPU_CFLAG= -DMODULE -nostdinc -D$(BOARD_NAME) -mlittle-endian -Wundef -Wstrict-prototypes -Wno-trigraphs -fno-strict-aliasing -fno-common -Wno-format-security -fno-delete-null-pointer-checks -O2 -fno-dwarf2-cfi-asm -mabi=aapcs-linux -mno-thumb-interwork -mfpu=vfp -funwind-tables -marm -D__LINUX_ARM_ARCH__=7 -march=armv7-a -msoft-float -Uarm -Wframe-larger-than=1024 -fno-stack-protector -Wno-unused-but-set-variable -fomit-frame-pointer -g -Wdeclaration-after-statement -Wno-pointer-sign -fno-strict-overflow -fconserve-stack -DCC_HAVE_ASM_GOTO    -D"KBUILD_STR(s)=\#s" -D"KBUILD_BASENAME=KBUILD_STR(mem)"
 endif
 endif
 
@@ -183,3 +193,8 @@ endif
 IN_INTERFACECONTROL=TRUE
 IN_MACBLOCK=FALSE
 IN_MALIBU_PHY=TRUE
+ifeq ($(SFE_FEATURE), enable)
+IN_SFE=TRUE
+else
+IN_SFE=FALSE
+endif

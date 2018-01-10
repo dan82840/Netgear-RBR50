@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012, 2016, The Linux Foundation. All rights reserved.
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
  * above copyright notice and this permission notice appear in all copies.
@@ -60,7 +60,7 @@ _isisc_trunk_group_set(a_uint32_t dev_id, a_uint32_t trunk_id,
                       a_bool_t enable, fal_pbmp_t member)
 {
     sw_error_t rv;
-    a_uint32_t i, reg, cnt = 0, data0 = 0, data1 = 0;
+    a_uint32_t i, reg = 0, cnt = 0, data0 = 0, data1 = 0;
 
     if (ISISC_MAX_TRUNK_ID < trunk_id)
     {
@@ -136,7 +136,7 @@ _isisc_trunk_group_get(a_uint32_t dev_id, a_uint32_t trunk_id,
                       a_bool_t * enable, fal_pbmp_t * member)
 {
     sw_error_t rv;
-    a_uint32_t data, reg;
+    a_uint32_t data, reg = 0;
 
     if (ISISC_MAX_TRUNK_ID < trunk_id)
     {
@@ -162,11 +162,11 @@ _isisc_trunk_group_get(a_uint32_t dev_id, a_uint32_t trunk_id,
     return SW_OK;
 }
 
+#if 0
 static sw_error_t
 _isisc_trunk_group_sw_get(a_uint32_t dev_id, a_uint32_t trunk_id,
                           a_bool_t * enable, fal_pbmp_t * member)
 {
-    sw_error_t rv;
     a_uint32_t data, reg;
 
     if (ISISC_MAX_TRUNK_ID < trunk_id)
@@ -190,6 +190,7 @@ _isisc_trunk_group_sw_get(a_uint32_t dev_id, a_uint32_t trunk_id,
 
     return SW_OK;
 }
+#endif
 
 static sw_error_t
 _isisc_trunk_hash_mode_set(a_uint32_t dev_id, a_uint32_t hash_mode)
@@ -230,7 +231,7 @@ static sw_error_t
 _isisc_trunk_hash_mode_get(a_uint32_t dev_id, a_uint32_t * hash_mode)
 {
     sw_error_t rv;
-    a_uint32_t reg, data = 0;
+    a_uint32_t reg = 0, data = 0;
 
     HSL_REG_ENTRY_GET(rv, dev_id, TRUNK_HASH_MODE, 0,
                       (a_uint8_t *) (&reg), sizeof (a_uint32_t));
@@ -289,10 +290,10 @@ _isisc_trunk_manipulate_sa_get(a_uint32_t dev_id, fal_mac_addr_t * addr)
     return SW_OK;
 }
 
+#if 0
 static sw_error_t
 _isisc_trunk_hash_mode_sw_get(a_uint32_t dev_id, a_uint32_t * hash_mode)
 {
-    sw_error_t rv;
     a_uint32_t reg, data = 0;
 
     reg = isisc_trunk_regs[ISISC_TRUNK_HASH_EN];
@@ -525,7 +526,7 @@ _isisc_trunk_manipulate_dp(a_uint32_t dev_id, a_uint8_t * header,
 
     return rv;
 }
-
+#endif
 
 /**
  * @brief Set particular trunk group information on particular device.
@@ -638,6 +639,7 @@ isisc_trunk_manipulate_sa_get(a_uint32_t dev_id, fal_mac_addr_t * addr)
     return rv;
 }
 
+#if 0
 /**
  * @brief manipulate destination port within a trunk group
  * @details Comments:
@@ -660,7 +662,7 @@ isisc_trunk_manipulate_dp(a_uint32_t dev_id, a_uint8_t * header,
     HSL_API_UNLOCK;
     return rv;
 }
-
+#endif
 
 sw_error_t
 isisc_trunk_init(a_uint32_t dev_id)

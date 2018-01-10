@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2015, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012, 2015-2016, The Linux Foundation. All rights reserved.
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
  * above copyright notice and this permission notice appear in all copies.
@@ -338,7 +338,7 @@ _shiva_port_hdr_status_get(a_uint32_t dev_id, fal_port_t port_id,
                            a_bool_t * enable)
 {
     sw_error_t rv;
-    a_uint32_t val;
+    a_uint32_t val = 0;
 
     HSL_DEV_ID_CHECK(dev_id);
 
@@ -367,7 +367,7 @@ static sw_error_t
 _shiva_port_flowctrl_set(a_uint32_t dev_id, fal_port_t port_id, a_bool_t enable)
 {
     sw_error_t rv;
-    a_uint32_t val, force, reg, tmp;
+    a_uint32_t val, force, reg = 0, tmp;
 
     if (A_TRUE != hsl_port_prop_check(dev_id, port_id, HSL_PP_INCL_CPU))
     {
@@ -415,7 +415,7 @@ _shiva_port_flowctrl_get(a_uint32_t dev_id, fal_port_t port_id,
                          a_bool_t * enable)
 {
     sw_error_t rv;
-    a_uint32_t tx, rx, reg;
+    a_uint32_t rx, reg = 0;
 
     if (A_TRUE != hsl_port_prop_check(dev_id, port_id, HSL_PP_INCL_CPU))
     {
@@ -427,7 +427,6 @@ _shiva_port_flowctrl_get(a_uint32_t dev_id, fal_port_t port_id,
     SW_RTN_ON_ERROR(rv);
 
     SW_GET_FIELD_BY_REG(PORT_STATUS, RX_FLOW_EN, rx, reg);
-    SW_GET_FIELD_BY_REG(PORT_STATUS, TX_FLOW_EN, tx, reg);
 
     if (1 == rx)
     {
@@ -438,7 +437,7 @@ _shiva_port_flowctrl_get(a_uint32_t dev_id, fal_port_t port_id,
         *enable = A_FALSE;
     }
 
-    return SW_OK;
+    return rv;
 }
 
 static sw_error_t

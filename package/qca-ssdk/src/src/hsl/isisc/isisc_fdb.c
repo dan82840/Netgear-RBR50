@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012, 2016, The Linux Foundation. All rights reserved.
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
  * above copyright notice and this permission notice appear in all copies.
@@ -25,11 +25,12 @@
 #include "isisc_reg.h"
 #include "isisc_fdb_prv.h"
 
+#ifndef IN_FDB_MINI
 static sw_error_t
 _isisc_wl_feature_check(a_uint32_t dev_id)
 {
     sw_error_t rv;
-    a_uint32_t entry;
+    a_uint32_t entry = 0;
 
     HSL_REG_FIELD_GET(rv, dev_id, MASK_CTL, 0, DEVICE_ID,
                       (a_uint8_t *) (&entry), sizeof (a_uint32_t));
@@ -44,6 +45,7 @@ _isisc_wl_feature_check(a_uint32_t dev_id)
         return SW_NOT_SUPPORTED;
     }
 }
+#endif
 
 static a_bool_t
 _isisc_fdb_is_zeroaddr(fal_mac_addr_t addr)
@@ -75,6 +77,7 @@ _isisc_fdb_fill_addr(fal_mac_addr_t addr, a_uint32_t * reg0, a_uint32_t * reg1)
     return;
 }
 
+#ifndef IN_FDB_MINI
 static sw_error_t
 _isisc_atu_sw_to_hw(a_uint32_t dev_id, const fal_fdb_entry_t * entry,
                    a_uint32_t reg[])
@@ -195,6 +198,7 @@ _isisc_atu_sw_to_hw(a_uint32_t dev_id, const fal_fdb_entry_t * entry,
     _isisc_fdb_fill_addr(entry->addr, &reg[0], &reg[1]);
     return SW_OK;
 }
+#endif
 
 static void
 _isisc_atu_hw_to_sw(const a_uint32_t reg[], fal_fdb_entry_t * entry)
@@ -346,7 +350,7 @@ _isisc_fdb_commit(a_uint32_t dev_id, a_uint32_t op)
     a_uint32_t busy = 1;
     a_uint32_t full_vio;
     a_uint32_t i = 2000;
-    a_uint32_t entry;
+    a_uint32_t entry = 0;
     a_uint32_t hwop = op;
 
     while (busy && --i)
@@ -541,6 +545,7 @@ _isisc_fdb_get(a_uint32_t dev_id, fal_fdb_op_t * option, fal_fdb_entry_t * entry
     return SW_OK;
 }
 
+#ifndef IN_FDB_MINI
 static sw_error_t
 _isisc_fdb_add(a_uint32_t dev_id, const fal_fdb_entry_t * entry)
 {
@@ -558,6 +563,7 @@ _isisc_fdb_add(a_uint32_t dev_id, const fal_fdb_entry_t * entry)
     rv = _isisc_fdb_commit(dev_id, ARL_LOAD_ENTRY);
     return rv;
 }
+#endif
 
 static sw_error_t
 _isisc_fdb_del_all(a_uint32_t dev_id, a_uint32_t flag)
@@ -763,7 +769,7 @@ static sw_error_t
 _isisc_fdb_port_learn_get(a_uint32_t dev_id, fal_port_t port_id,
                          a_bool_t * enable)
 {
-    a_uint32_t data;
+    a_uint32_t data = 0;
     sw_error_t rv;
 
     HSL_DEV_ID_CHECK(dev_id);
@@ -833,7 +839,7 @@ _isisc_fdb_vlan_ivl_svl_set(a_uint32_t dev_id, fal_fdb_smode smode)
 static sw_error_t
 _isisc_fdb_vlan_ivl_svl_get(a_uint32_t dev_id, fal_fdb_smode* smode)
 {
-    a_uint32_t data;
+    a_uint32_t data = 0;
     sw_error_t rv;
 
     HSL_DEV_ID_CHECK(dev_id);
@@ -851,7 +857,7 @@ _isisc_fdb_vlan_ivl_svl_get(a_uint32_t dev_id, fal_fdb_smode* smode)
 static sw_error_t
 _isisc_fdb_age_ctrl_get(a_uint32_t dev_id, a_bool_t * enable)
 {
-    a_uint32_t data;
+    a_uint32_t data = 0;
     sw_error_t rv;
 
     HSL_DEV_ID_CHECK(dev_id);
@@ -894,7 +900,7 @@ _isisc_fdb_age_time_set(a_uint32_t dev_id, a_uint32_t * time)
 static sw_error_t
 _isisc_fdb_age_time_get(a_uint32_t dev_id, a_uint32_t * time)
 {
-    a_uint32_t data;
+    a_uint32_t data = 0;
     sw_error_t rv;
 
     HSL_DEV_ID_CHECK(dev_id);
@@ -912,7 +918,7 @@ _isisc_port_fdb_learn_limit_set(a_uint32_t dev_id, fal_port_t port_id,
                                a_bool_t enable, a_uint32_t cnt)
 {
     sw_error_t rv;
-    a_uint32_t reg;
+    a_uint32_t reg = 0;
 
     HSL_DEV_ID_CHECK(dev_id);
 
@@ -954,7 +960,7 @@ _isisc_port_fdb_learn_limit_get(a_uint32_t dev_id, fal_port_t port_id,
                                a_bool_t * enable, a_uint32_t * cnt)
 {
     sw_error_t rv;
-    a_uint32_t data, reg;
+    a_uint32_t data, reg = 0;
 
     HSL_DEV_ID_CHECK(dev_id);
 
@@ -1051,7 +1057,7 @@ static sw_error_t
 _isisc_fdb_learn_limit_set(a_uint32_t dev_id, a_bool_t enable, a_uint32_t cnt)
 {
     sw_error_t rv;
-    a_uint32_t reg;
+    a_uint32_t reg = 0;
 
     HSL_REG_ENTRY_GET(rv, dev_id, GLOBAL_LEARN_LIMIT_CTL, 0,
                       (a_uint8_t *) (&reg), sizeof (a_uint32_t));
@@ -1088,7 +1094,7 @@ _isisc_fdb_learn_limit_get(a_uint32_t dev_id, a_bool_t * enable,
                           a_uint32_t * cnt)
 {
     sw_error_t rv;
-    a_uint32_t data, reg;
+    a_uint32_t data, reg = 0;
 
     HSL_REG_ENTRY_GET(rv, dev_id, GLOBAL_LEARN_LIMIT_CTL, 0,
                       (a_uint8_t *) (&reg), sizeof (a_uint32_t));
@@ -1535,7 +1541,7 @@ static sw_error_t
 _isisc_fdb_port_learn_static_get(a_uint32_t dev_id, fal_port_t port_id,
                                 a_bool_t * enable)
 {
-    a_uint32_t data;
+    a_uint32_t data = 0;
     sw_error_t rv;
 
     HSL_DEV_ID_CHECK(dev_id);

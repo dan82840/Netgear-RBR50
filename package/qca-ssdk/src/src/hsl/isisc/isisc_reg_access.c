@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012, 2016, The Linux Foundation. All rights reserved.
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
  * above copyright notice and this permission notice appear in all copies.
@@ -44,15 +44,14 @@ static aos_lock_t mdio_lock;
 static a_uint32_t mdio_base_addr = 0xffffffff;
 #endif
 
+extern a_uint32_t qca_ar8216_mii_read(a_uint32_t reg);
+extern void qca_ar8216_mii_write(a_uint32_t reg, a_uint32_t val);
+
 static sw_error_t
 _isisc_mdio_reg_get(a_uint32_t dev_id, a_uint32_t reg_addr,
                    a_uint8_t value[], a_uint32_t value_len)
 {
-    a_uint32_t reg_word_addr;
-    a_uint32_t phy_addr, reg_val;
-    a_uint16_t phy_val, tmp_val;
-    a_uint8_t phy_reg;
-    sw_error_t rv;
+    a_uint32_t reg_val;
 
     if (value_len != sizeof (a_uint32_t))
         return SW_BAD_LEN;
@@ -108,11 +107,7 @@ static sw_error_t
 _isisc_mdio_reg_set(a_uint32_t dev_id, a_uint32_t reg_addr, a_uint8_t value[],
                    a_uint32_t value_len)
 {
-    a_uint32_t reg_word_addr;
-    a_uint32_t phy_addr, reg_val;
-    a_uint16_t phy_val;
-    a_uint8_t phy_reg;
-    sw_error_t rv;
+    a_uint32_t reg_val = 0;
 
     if (value_len != sizeof (a_uint32_t))
         return SW_BAD_LEN;
@@ -194,7 +189,6 @@ isisc_reg_get(a_uint32_t dev_id, a_uint32_t reg_addr, a_uint8_t value[],
              a_uint32_t value_len)
 {
     sw_error_t rv;
-    unsigned long flags;
 
     MDIO_LOCKER_LOCK;
     if (HSL_MDIO == reg_mode)
@@ -297,7 +291,7 @@ isisc_reg_field_set(a_uint32_t dev_id, a_uint32_t reg_addr,
                    a_uint32_t bit_offset, a_uint32_t field_len,
                    const a_uint8_t value[], a_uint32_t value_len)
 {
-    a_uint32_t reg_val;
+    a_uint32_t reg_val = 0;
     a_uint32_t field_val = *((a_uint32_t *) value);
 
     if ((bit_offset >= 32 || (field_len > 32)) || (field_len == 0))
@@ -328,7 +322,6 @@ static sw_error_t
 _isisc_regsiter_dump(a_uint32_t dev_id,a_uint32_t register_idx, fal_reg_dump_t * reg_dump)
 {
     sw_error_t rv = SW_OK;
-    a_uint32_t reg;
 	typedef struct {
 		a_uint32_t reg_base;
 		a_uint32_t reg_end;
@@ -347,7 +340,7 @@ _isisc_regsiter_dump(a_uint32_t dev_id,a_uint32_t register_idx, fal_reg_dump_t *
 		{0x820, 0x820, "7.QM debug registers"}
 	};
 
-	a_uint32_t dump_addr, reg_count, reg_val;
+	a_uint32_t dump_addr, reg_count, reg_val = 0;
 	switch (register_idx)
 	{
 		case 0:
@@ -367,7 +360,7 @@ _isisc_regsiter_dump(a_uint32_t dev_id,a_uint32_t register_idx, fal_reg_dump_t *
 			reg_dump->reg_count = reg_count;
 			reg_dump->reg_base = reg_dumps[register_idx].reg_base;
 			reg_dump->reg_end = reg_dumps[register_idx].reg_end;
-			snprintf(reg_dump->reg_name,sizeof(reg_dump->reg_name),"%s",reg_dumps[register_idx].name);
+			snprintf((char *)reg_dump->reg_name,sizeof(reg_dump->reg_name),"%s",reg_dumps[register_idx].name);
 			break;
 		default:
 			return SW_BAD_PARAM;
@@ -379,9 +372,9 @@ _isisc_regsiter_dump(a_uint32_t dev_id,a_uint32_t register_idx, fal_reg_dump_t *
 static sw_error_t
 _isisc_debug_regsiter_dump(a_uint32_t dev_id,fal_debug_reg_dump_t * dbg_reg_dump)
 {
-    sw_error_t rv;
+    sw_error_t rv = SW_OK;
     a_uint32_t reg;
-	a_uint32_t  reg_count, reg_val;
+	a_uint32_t  reg_count, reg_val = 0;
 
 	reg_count = 0;
 
@@ -395,7 +388,7 @@ _isisc_debug_regsiter_dump(a_uint32_t dev_id,fal_debug_reg_dump_t * dbg_reg_dump
 	}
 	dbg_reg_dump->reg_count = reg_count;
 
-	snprintf(dbg_reg_dump->reg_name,sizeof(dbg_reg_dump->reg_name),"QM debug registers");
+	snprintf((char *)dbg_reg_dump->reg_name,sizeof(dbg_reg_dump->reg_name),"QM debug registers");
 
     return rv;
 }
@@ -408,10 +401,10 @@ _isisc_debug_regsiter_dump(a_uint32_t dev_id,fal_debug_reg_dump_t * dbg_reg_dump
  * @param[out] reg_dump register dump result
  * @return SW_OK or error code
  */
-HSL_LOCAL sw_error_t
+sw_error_t
 isisc_regsiter_dump(a_uint32_t dev_id,a_uint32_t register_idx, fal_reg_dump_t * reg_dump)
 {
-    sw_error_t rv;
+    sw_error_t rv = SW_OK;
 
     FAL_API_LOCK;
     rv = _isisc_regsiter_dump(dev_id,register_idx,reg_dump);
@@ -425,10 +418,10 @@ isisc_regsiter_dump(a_uint32_t dev_id,a_uint32_t register_idx, fal_reg_dump_t * 
  * @param[out] reg_dump debug register dump
  * @return SW_OK or error code
  */
-HSL_LOCAL sw_error_t
+sw_error_t
 isisc_debug_regsiter_dump(a_uint32_t dev_id, fal_debug_reg_dump_t * dbg_reg_dump)
 {
-    sw_error_t rv;
+    sw_error_t rv = SW_OK;
 
     FAL_API_LOCK;
     rv = _isisc_debug_regsiter_dump(dev_id,dbg_reg_dump);

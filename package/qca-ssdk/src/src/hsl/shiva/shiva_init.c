@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012, 2016, The Linux Foundation. All rights reserved.
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
  * above copyright notice and this permission notice appear in all copies.
@@ -136,7 +136,7 @@ shiva_hw_init(a_uint32_t dev_id, ssdk_init_cfg *cfg)
 {
     hsl_dev_t *pdev = NULL;
     a_uint32_t port_id;
-    a_uint32_t data;
+    a_uint32_t data = 0;
     sw_error_t rv;
 
     pdev = hsl_dev_ptr_get(dev_id);
@@ -166,10 +166,11 @@ shiva_hw_init(a_uint32_t dev_id, ssdk_init_cfg *cfg)
     return SW_OK;
 }
 
+#if 0
 static sw_error_t
 shiva_bist_test(a_uint32_t dev_id)
 {
-    a_uint32_t entry, data, i;
+    a_uint32_t entry = 0, data, i;
     sw_error_t rv;
 
     data = 1;
@@ -272,6 +273,7 @@ shiva_bist_test(a_uint32_t dev_id)
     return SW_OK;
 }
 #endif
+#endif
 
 static sw_error_t
 shiva_dev_init(a_uint32_t dev_id, hsl_init_mode cpu_mode)
@@ -358,6 +360,7 @@ shiva_reset(a_uint32_t dev_id)
 sw_error_t
 shiva_init(a_uint32_t dev_id, ssdk_init_cfg *cfg)
 {
+    sw_error_t rv;
     HSL_DEV_ID_CHECK(dev_id);
 
     if (NULL == shiva_cfg[dev_id])
@@ -378,8 +381,6 @@ shiva_init(a_uint32_t dev_id, ssdk_init_cfg *cfg)
 
 #if !(defined(KERNEL_MODULE) && defined(USER_MODE))
     {
-        a_uint32_t i, entry;
-        sw_error_t rv;
 /*
         if(HSL_MDIO == cfg->reg_mode)
         {

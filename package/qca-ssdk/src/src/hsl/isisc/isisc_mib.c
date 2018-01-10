@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012, 2016 The Linux Foundation. All rights reserved.
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
  * above copyright notice and this permission notice appear in all copies.
@@ -76,7 +76,7 @@ static sw_error_t
 _isisc_get_mib_info(a_uint32_t dev_id, fal_port_t port_id,
                    fal_mib_info_t * mib_info)
 {
-    a_uint32_t val;
+    a_uint32_t val = 0;
     sw_error_t rv;
 
     HSL_DEV_ID_CHECK(dev_id);
@@ -315,7 +315,7 @@ static sw_error_t
 _isisc_get_rx_mib_info(a_uint32_t dev_id, fal_port_t port_id,
                    fal_mib_info_t * mib_info)
 {
-    a_uint32_t val;
+    a_uint32_t val = 0;
     sw_error_t rv;
 
     HSL_DEV_ID_CHECK(dev_id);
@@ -443,7 +443,7 @@ static sw_error_t
 _isisc_get_tx_mib_info(a_uint32_t dev_id, fal_port_t port_id,
                    fal_mib_info_t * mib_info)
 {
-    a_uint32_t val;
+    a_uint32_t val = 0;
     sw_error_t rv;
 
     HSL_DEV_ID_CHECK(dev_id);
@@ -597,7 +597,7 @@ static sw_error_t
 _isisc_mib_status_get(a_uint32_t dev_id, a_bool_t * enable)
 {
     sw_error_t rv;
-    a_uint32_t val;
+    a_uint32_t val = 0;
 
     HSL_DEV_ID_CHECK(dev_id);
 
@@ -649,7 +649,7 @@ static sw_error_t
 _isisc_mib_cpukeep_get(a_uint32_t dev_id, a_bool_t * enable)
 {
     sw_error_t rv;
-    a_uint32_t val;
+    a_uint32_t val = 0;
 
     HSL_DEV_ID_CHECK(dev_id);
 
@@ -833,11 +833,12 @@ isisc_mib_cpukeep_get(a_uint32_t dev_id, a_bool_t * enable)
 sw_error_t
 isisc_mib_init(a_uint32_t dev_id)
 {
+#ifndef HSL_STANDALONG
+    hsl_api_t *p_api;
+#endif
     HSL_DEV_ID_CHECK(dev_id);
 
 #ifndef HSL_STANDALONG
-    hsl_api_t *p_api;
-
     SW_RTN_ON_NULL(p_api = hsl_api_ptr_get(dev_id));
 
     p_api->get_mib_info   = isisc_get_mib_info;
