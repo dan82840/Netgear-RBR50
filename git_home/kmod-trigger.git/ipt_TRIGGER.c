@@ -25,6 +25,7 @@
 #include <linux/netdevice.h>
 #include <linux/if.h>
 #include <linux/inetdevice.h>
+#include <linux/seq_file.h>
 #include <net/protocol.h>
 #include <net/checksum.h>
 
@@ -167,6 +168,56 @@ static void trigger_timer_refresh(struct ipt_trigger *trig)
 #else
 	write_unlock_bh(&ip_conntrack_lock);
 #endif
+}
+
+static int del_flag = 0;
+static int trigger_del_flag_proc_show(struct seq_file *m, void *v)
+{
+	seq_printf(m, "%d\n", del_flag);
+	return 0;
+}
+
+static trigger_del_flag_proc_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, trigger_del_flag_proc_show, NULL);
+}
+
+static ssize_t trigger_del_flag_write(struct file *filp, const char __user *buff, size_t count, loff_t *f_ops )
+{
+	unsigned char tmp = 0;
+	int value = 0;
+
+	get_user(tmp, buff);
+	value = simple_strtol(&tmp, NULL, 10);
+	printk(KERN_ERR "Got user info: %d...\n", value);
+
+	del_flag = value;
+
+	return count;
+}
+
+static const struct file_operations trigger_del_flag_fops = {
+	.open	= trigger_del_flag_proc_open,
+	.read	= seq_read,
+	.write	= trigger_del_flag_write,
+	.llseek	= seq_lseek,
+	.release	= single_release,
+};
+
+static struct proc_dir_entry* trigger_del_flag_proc_entry = NULL;
+
+void create_trigger_del_flag_proc(void)
+{
+	if (!trigger_del_flag_proc_entry)
+	{
+		trigger_del_flag_proc_entry = proc_create("trigger_del_flag", 0, NULL, &trigger_del_flag_fops);
+	}
+}
+
+void delete_trigger_del_flag_proc(void)
+{
+	if(trigger_del_flag_proc_entry)
+		proc_remove(trigger_del_flag_proc_entry);
 }
 
 static void __del_trigger(struct ipt_trigger *trig)
@@ -625,13 +676,17 @@ static int ipt_trigger_check(const char *tablename,
 	}
 
 	/* empty the 'trigger_list' */
-	list_for_each_safe(pos, n, &trigger_list) {
+	DEBUGP("Trigger del_flag show: %d\n", del_flag);
+	if ( del_flag ){
+		del_flag = 0;
+		list_for_each_safe(pos, n, &trigger_list) {
 		struct ipt_trigger *trig = list_entry(pos, struct ipt_trigger, list);
 
 		DEBUGP("removing trigger_list: %p.\n", trig);
 		del_timer(&trig->timeout);
 		ip_ct_iterate_cleanup(ip_ct_kill_triggered, trig);
 		__del_trigger(trig);
+	}
 	}
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,35)
@@ -658,11 +713,13 @@ static struct ipt_target ipt_trigger_reg = {
 
 static int __init init(void)
 {
+	create_trigger_del_flag_proc();
 	return ipt_register_target(&ipt_trigger_reg);
 }
 
 static void __exit fini(void)
 {
+	delete_trigger_del_flag_proc();
 	ipt_unregister_target(&ipt_trigger_reg);
 }
 
