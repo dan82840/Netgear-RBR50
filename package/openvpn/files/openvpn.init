@@ -4,7 +4,7 @@ START=60
 CONFIG=/bin/config
 PROG=/usr/sbin/openvpn
 #mtdn=`grep cert /proc/mtd | awk -F ':' '{print $1}' | awk -F 'd' '{print $2}'`
-partion=/dev/mmcblk0p23
+partion=/dev/mmcblk0p26
 OPENVPN_CONF_DIR=/tmp/openvpn/
 EASY_RSA_DIR=/tmp/etc/easy-rsa
 
@@ -158,6 +158,16 @@ regenerate_cert_file() {
 }
 
 boot() {
+	dd if=/dev/mmcblk0p21 of=/tmp/openvpn_keys_old.tar.gz skip=71168 bs=512 count=128
+	mkdir /tmp/openvpn_old
+	tar -xzvf /tmp/openvpn_keys_old.tar.gz -C /tmp/openvpn_old
+	TAR_STATUS_OLD=$?
+	rm /tmp/openvpn_keys_old.tar.gz
+	if [ "$TAR_STATUS_OLD" = "0" ]; then
+		dd if=/dev/mmcblk0p21 of=/dev/mmcblk0p26 skip=71168 bs=512 count=128
+		dd if=/dev/urandom of=/dev/mmcblk0p21 seek=71168 bs=512 count=128
+		rm -rf /tmp/openvpn_old
+	fi
 	extract_cert_file || {
 		echo "extract vpn cert file fail, can not start vpn server" >/dev/console
 		exit 1
