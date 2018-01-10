@@ -28,6 +28,24 @@ start() {
 		exit 0
 	fi
 
+	num=1
+	while [ 1 ]; do
+		ACCESS_CONTROL=$($CONFIG get access_control$num)
+		type_value=`echo $ACCESS_CONTROL | cut -f 1 -d ' '`
+		mac=`echo $ACCESS_CONTROL | cut -f 2 -d ' '`
+		res=`echo $mac | grep ":"`
+		if [ "x$res" = "x" ];then
+			$CONFIG unset access_control$num
+		fi
+		if [ "x$mac" = "x" ]; then
+			break
+		fi
+		num=$(($num + 1))
+		if [ $num == 256 ];then
+			break
+		fi
+	done
+
 	if [ "x$($CONFIG get new_device_statue_by_default)" = "xAllow" ]; then
 		aclctl type allow
 		num=1
@@ -66,6 +84,7 @@ boot() {
 	acld
 	aclhijackdns &
 	start
+	[ "x$($CONFIG get enable_block_device)" = "x1" ] && [ "x$(cat /module_name)" = "xRBR50" ] && /usr/sbin/acl_group
 }
 
 stop() {
