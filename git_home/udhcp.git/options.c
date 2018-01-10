@@ -59,7 +59,6 @@ struct dhcp_option options[] = {
 	{"message",	OPTION_STRING,				0x38},
 	{"tftp",	OPTION_STRING,				0x42},
 	{"bootfile",	OPTION_STRING,				0x43},
-	{"ip6rd",	OPTION_6RD,				0xd4},
 	{"",		0x00,				0x00}
 };
 
@@ -76,8 +75,7 @@ int option_lengths[] = {
 	[OPTION_U16] =		2,
 	[OPTION_S16] =		2,
 	[OPTION_U32] =		4,
-	[OPTION_S32] =		4,
-	[OPTION_6RD] =    	22/* ignored by udhcp_str2optset */
+	[OPTION_S32] =		4
 };
 
 
