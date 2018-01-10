@@ -3,6 +3,11 @@
 CONFIG=/bin/config
 KILLALL=/usr/bin/killall
 NUM=0
+PS0=`ps |grep $0 |grep -v grep | wc -l`
+
+if [ $PS0 -gt 2 ];then
+	exit
+fi
 
 if [ "x$($CONFIG get soap_setting)" = "xAttachDevice" ]; then
 	$KILLALL -SIGUSR1 soap_agent
