@@ -264,7 +264,7 @@ out:
 }
 
 /*
- * nss_probe()
+ * nss_hal_probe()
  *	HLOS device probe callback
  */
 int nss_hal_probe(struct platform_device *nss_dev)
@@ -524,15 +524,6 @@ int nss_hal_probe(struct platform_device *nss_dev)
 		nss_oam_register_handler();
 	}
 
-	/*
-	 * Mark data plane enabled so when nss core init done we call register to nss-gmac
-	 */
-	for (i = 0 ; i < NSS_MAX_PHYSICAL_INTERFACES ; i++) {
-		if (npd->gmac_enabled[i] == NSS_FEATURE_ENABLED) {
-			nss_data_plane_set_enabled(i);
-		}
-	}
-
 #if (NSS_PM_SUPPORT == 1)
 	nss_freq_register_handler();
 #endif
@@ -660,9 +651,9 @@ int nss_hal_remove(struct platform_device *nss_dev)
 	 * nss-drv is exiting, remove from nss-gmac
 	 */
 	for (i = 0 ; i < NSS_MAX_PHYSICAL_INTERFACES ; i++) {
-		if (nss_top->subsys_dp_register[i].ndev) {
+		if (nss_ctx->subsys_dp_register[i].ndev) {
 			nss_data_plane_unregister_from_nss_gmac(i);
-			nss_top->subsys_dp_register[i].ndev = NULL;
+			nss_ctx->subsys_dp_register[i].ndev = NULL;
 		}
 	}
 

@@ -26,6 +26,19 @@
 #include "nss_tx_rx_common.h"
 
 /*
+ * nss_cmn_response_str
+ *	Common response structure string
+ */
+int8_t *nss_cmn_response_str[NSS_CMN_RESPONSE_LAST] = {
+	"Message Acknowledge without errors",
+	"Common message version not supported",
+	"Unknown Interface",
+	"Length Error",
+	"Message Error",
+	"FW Notification Message",
+};
+
+/*
  * nss_cmn_msg_init()
  *	Initialize the common message structure.
  */
@@ -61,7 +74,7 @@ int32_t nss_cmn_get_interface_number(struct nss_ctx_instance *nss_ctx, struct ne
 	 * Check physical interface table
 	 */
 	for (i = 0; i < NSS_MAX_NET_INTERFACES; i++) {
-		if (dev == ((struct nss_ctx_instance *)nss_ctx)->nss_top->subsys_dp_register[i].ndev) {
+		if (dev == nss_ctx->subsys_dp_register[i].ndev) {
 			return i;
 		}
 	}
@@ -90,7 +103,7 @@ struct net_device *nss_cmn_get_interface_dev(struct nss_ctx_instance *ctx, uint3
 		return NULL;
 	}
 
-	return nss_ctx->nss_top->subsys_dp_register[if_num].ndev;
+	return nss_ctx->subsys_dp_register[if_num].ndev;
 }
 
 /*
@@ -101,16 +114,18 @@ struct net_device *nss_cmn_get_interface_dev(struct nss_ctx_instance *ctx, uint3
  */
 int32_t nss_cmn_get_interface_number_by_dev(struct net_device *dev)
 {
-	int i;
+	int i, core;
 
 	nss_assert(dev != 0);
 
 	/*
-	 * Check physical interface table
+	 * Check physical interface table on both cores
 	 */
-	for (i = 0; i < NSS_MAX_NET_INTERFACES; i++) {
-		if (dev == nss_top_main.subsys_dp_register[i].ndev) {
-			return i;
+	for (core = 0; core < NSS_MAX_CORES; core++) {
+		for (i = 0; i < NSS_MAX_NET_INTERFACES; i++) {
+			if (dev == nss_top_main.nss[core].subsys_dp_register[i].ndev) {
+				return i;
+			}
 		}
 	}
 

@@ -205,8 +205,8 @@
 #define NSSTCM_FREQ		400000000	/* NSS TCM Frequency in Hz */
 
 /* NSS Clock names */
-#define NSS_TCM_SRC_CLK		"nss_tcm_src"
-#define NSS_TCM_CLK		"nss_tcm_clk"
+#define NSS_TCM_SRC_CLK		"nss-tcm-src"
+#define NSS_TCM_CLK		"nss-tcm-clk"
 #define NSS_FABRIC0_CLK		"nss-fab0-clk"
 #define NSS_FABRIC1_CLK		"nss-fab1-clk"
 
@@ -615,7 +615,7 @@ enum nss_stats_map_t_instance {
 	NSS_STATS_MAP_T_V4_TO_V6_PBUF_EXCEPTION,
 	NSS_STATS_MAP_T_V4_TO_V6_PBUF_NO_MATCHING_RULE,
 	NSS_STATS_MAP_T_V4_TO_V6_PBUF_NOT_TCP_OR_UDP,
-	NSS_STATS_MAP_T_V4_TO_V6_RULE_ERR_LOCAL_PSID_MISMATCH,
+	NSS_STATS_MAP_T_V4_TO_V6_RULE_ERR_LOCAL_PSID,
 	NSS_STATS_MAP_T_V4_TO_V6_RULE_ERR_LOCAL_IPV6,
 	NSS_STATS_MAP_T_V4_TO_V6_RULE_ERR_REMOTE_PSID,
 	NSS_STATS_MAP_T_V4_TO_V6_RULE_ERR_REMOTE_EA_BITS,
@@ -626,6 +626,19 @@ enum nss_stats_map_t_instance {
 	NSS_STATS_MAP_T_V6_TO_V4_RULE_ERR_LOCAL_IPV4,
 	NSS_STATS_MAP_T_V6_TO_V4_RULE_ERR_REMOTE_IPV4,
 	NSS_STATS_MAP_T_MAX
+};
+
+/*
+ * Trustsec TX statistics
+ */
+enum nss_stats_trustsec_tx {
+	NSS_STATS_TRUSTSEC_TX_INVALID_SRC,
+					/* Number of packets with invalid src if */
+	NSS_STATS_TRUSTSEC_TX_UNCONFIGURED_SRC,
+					/* Number of packets with unconfigured src if */
+	NSS_STATS_IRUSTSEC_TX_HEADROOM_NOT_ENOUGH,
+					/* Number of packets with not enough headroom */
+	NSS_STATS_TRUSTSEC_TX_MAX
 };
 
 /*
@@ -721,6 +734,22 @@ struct nss_shaper_bounce_registrant {
 };
 
 /*
+ * NSS core <-> subsystem data plane registration related paramaters.
+ *	This struct is filled with if_register/data_plane register APIs and
+ *	retrieved when handling a data packet/skb destined to that subsystem.
+ */
+struct nss_subsystem_dataplane_register {
+	nss_phys_if_rx_callback_t cb;	/* callback to be invoked */
+	nss_phys_if_rx_ext_data_callback_t ext_cb;
+					/* Extended data plane callback to be invoked.
+					This is needed if driver needs extended handling of data packet
+					before giving to stack */
+	void *app_data;			/* additional info passed during callback(for future use) */
+	struct net_device *ndev;	/* Netdevice associated with the interface */
+	uint32_t features;		/* skb types supported by this subsystem */
+};
+
+/*
  * NSS context instance (one per NSS core)
  */
 struct nss_ctx_instance {
@@ -753,72 +782,62 @@ struct nss_ctx_instance {
 					/* Current MTU value of physical interface */
 	uint64_t stats_n2h[NSS_STATS_N2H_MAX];
 					/* N2H node stats: includes node, n2h, pbuf in this order */
+	struct nss_subsystem_dataplane_register subsys_dp_register[NSS_MAX_NET_INTERFACES];
+					/* Subsystem registration data */
 	uint32_t magic;
 					/* Magic protection */
-};
-
-/*
- * NSS core <-> subsystem data plane registration related paramaters.
- * This struct is filled in if_register/data_plane register APIs & retrieved
- * when handling a data packet/skb destined to that subsystem interface.
- */
-struct nss_subsystem_dataplane_register {
-	nss_phys_if_rx_callback_t cb;	/* callback to be invoked */
-	nss_phys_if_rx_ext_data_callback_t ext_cb;
-					/* Extended data plane callback to be invoked.
-					This is needed if driver needs extended handling of data packet
-					before giving to stack */
-	void *app_data;			/* additional info passed during callback(for future use) */
-	struct net_device *ndev;	/* Netdevice associated with the interface */
-	uint32_t features;		/* skb types supported by this subsystem */
 };
 
 /*
  * Main NSS context structure (singleton)
  */
 struct nss_top_instance {
-	uint8_t num_nss;		/* Number of NSS cores supported */
-	uint8_t num_phys_ports;		/* Number of physical ports supported */
-	uint32_t clk_src;		/* Clock source: default/alternate */
-	spinlock_t lock;		/* Big lock for NSS driver */
-	spinlock_t stats_lock;		/* Statistics lock */
-	struct dentry *top_dentry;	/* Top dentry for nss */
-	struct dentry *stats_dentry;	/* Top dentry for nss stats */
-	struct dentry *ipv4_dentry;	/* IPv4 stats dentry */
+	uint8_t num_nss;			/* Number of NSS cores supported */
+	uint8_t num_phys_ports;			/* Number of physical ports supported */
+	uint32_t clk_src;			/* Clock source: default/alternate */
+	spinlock_t lock;			/* Big lock for NSS driver */
+	spinlock_t stats_lock;			/* Statistics lock */
+	struct mutex wq_lock;			/* Lock for Frequency Worker */
+	struct dentry *top_dentry;		/* Top dentry for nss */
+	struct dentry *stats_dentry;		/* Top dentry for nss stats */
+	struct dentry *ipv4_dentry;		/* IPv4 stats dentry */
 	struct dentry *ipv4_reasm_dentry;
-					/* IPv4 reassembly stats dentry */
-	struct dentry *ipv6_dentry;	/* IPv6 stats dentry */
+						/* IPv4 reassembly stats dentry */
+	struct dentry *ipv6_dentry;		/* IPv6 stats dentry */
 	struct dentry *ipv6_reasm_dentry;
-					/* IPv6 reassembly stats dentry */
-	struct dentry *eth_rx_dentry;	/* ETH_RX stats dentry */
-	struct dentry *n2h_dentry;	/* N2H stats dentry */
-	struct dentry *lso_rx_dentry;	/* LSO_RX stats dentry */
-	struct dentry *drv_dentry;	/* HLOS driver stats dentry */
-	struct dentry *pppoe_dentry;	/* PPPOE stats dentry */
-	struct dentry *pptp_dentry;	/* PPTP  stats dentry */
-	struct dentry *l2tpv2_dentry;	/* L2TPV2  stats dentry */
-	struct dentry *dtls_dentry;     /* DTLS stats dentry */
-	struct dentry *map_t_dentry;	/* MAP-T stats dentry */
-	struct dentry *gmac_dentry;	/* GMAC ethnode stats dentry */
-	struct dentry *capwap_decap_dentry;     /* CAPWAP decap ethnode stats dentry */
-	struct dentry *capwap_encap_dentry;     /* CAPWAP encap ethnode stats dentry */
+						/* IPv6 reassembly stats dentry */
+	struct dentry *eth_rx_dentry;		/* ETH_RX stats dentry */
+	struct dentry *n2h_dentry;		/* N2H stats dentry */
+	struct dentry *lso_rx_dentry;		/* LSO_RX stats dentry */
+	struct dentry *drv_dentry;		/* HLOS driver stats dentry */
+	struct dentry *pppoe_dentry;		/* PPPOE stats dentry */
+	struct dentry *pptp_dentry;		/* PPTP  stats dentry */
+	struct dentry *l2tpv2_dentry;		/* L2TPV2  stats dentry */
+	struct dentry *dtls_dentry;		/* DTLS stats dentry */
+	struct dentry *gre_tunnel_dentry;	/* GRE Tunnel stats dentry */
+	struct dentry *map_t_dentry;		/* MAP-T stats dentry */
+	struct dentry *gmac_dentry;		/* GMAC ethnode stats dentry */
+	struct dentry *capwap_decap_dentry;	/* CAPWAP decap ethnode stats dentry */
+	struct dentry *capwap_encap_dentry;	/* CAPWAP encap ethnode stats dentry */
 	struct dentry *gre_redir_dentry;	/* gre_redir ethnode stats dentry */
 	struct dentry *sjack_dentry;		/* sjack stats dentry */
+	struct dentry *trustsec_tx_dentry;	/* trustsec tx stats dentry */
 	struct dentry *portid_dentry;		/* portid stats dentry */
 	struct dentry *wifi_dentry;		/* wifi stats dentry */
-	struct dentry *logs_dentry;	/* NSS FW logs directory */
-	struct dentry *core_log_dentry;	/* NSS Core's FW log file */
+	struct dentry *logs_dentry;		/* NSS FW logs directory */
+	struct dentry *core_log_dentry;		/* NSS Core's FW log file */
 	struct dentry *wifi_if_dentry;		/* wifi_if stats dentry */
-	struct dentry *virt_if_dentry;	/* virt_if stats dentry */
-	struct dentry *tx_rx_virt_if_dentry; /* tx_rx_virt_if stats dentry. Will be deprecated soon */
+	struct dentry *virt_if_dentry;		/* virt_if stats dentry */
+	struct dentry *tx_rx_virt_if_dentry;	/* tx_rx_virt_if stats dentry. Will be deprecated soon */
 	struct nss_ctx_instance nss[NSS_MAX_CORES];
-					/* NSS contexts */
+						/* NSS contexts */
 	/*
 	 * Network processing handler core ids (CORE0/CORE1) for various interfaces
 	 */
 	uint8_t phys_if_handler_id[NSS_MAX_PHYSICAL_INTERFACES];
 	uint8_t virt_if_handler_id[NSS_MAX_VIRTUAL_INTERFACES];
 	uint8_t gre_redir_handler_id;
+	uint8_t gre_tunnel_handler_id;
 	uint8_t shaping_handler_id;
 	uint8_t ipv4_handler_id;
 	uint8_t ipv4_reasm_handler_id;
@@ -840,9 +859,7 @@ struct nss_top_instance {
 	uint8_t tstamp_handler_id;
 	uint8_t portid_handler_id;
 	uint8_t oam_handler_id;
-
-	/* subsystem registration data */
-	struct nss_subsystem_dataplane_register subsys_dp_register[NSS_MAX_NET_INTERFACES];
+	uint8_t trustsec_tx_handler_id;
 
 	/*
 	 * Data/Message callbacks for various interfaces
@@ -862,6 +879,7 @@ struct nss_top_instance {
 					/* IPsec event callback function */
 	nss_crypto_msg_callback_t crypto_msg_callback;
 	nss_crypto_buf_callback_t crypto_buf_callback;
+	nss_crypto_pm_event_callback_t crypto_pm_callback;
 					/* crypto interface callback functions */
 	nss_profiler_callback_t profiler_callback[NSS_MAX_CORES];
 					/* Profiler interface callback function */
@@ -872,6 +890,8 @@ struct nss_top_instance {
 	nss_l2tpv2_msg_callback_t l2tpv2_msg_callback;
 					/* l2tP tunnel interface event callback function */
 	nss_dtls_msg_callback_t dtls_msg_callback; /* dtls interface event callback */
+
+	nss_gre_tunnel_msg_callback_t gre_tunnel_msg_callback; /* gre tunnel interface event callback */
 
 	nss_map_t_msg_callback_t map_t_msg_callback;
 					/* map-t interface event callback function */
@@ -895,6 +915,7 @@ struct nss_top_instance {
 	void *ipv4_ctx;			/* IPv4 connection manager context */
 	void *ipv6_ctx;			/* IPv6 connection manager context */
 	void *crypto_ctx;		/* Crypto interface context */
+	void *crypto_pm_ctx;		/* Crypto PM context */
 	void *profiler_ctx[NSS_MAX_CORES];
 					/* Profiler interface context */
 
@@ -937,6 +958,8 @@ struct nss_top_instance {
 					/* PPPoE exception events for per session on per interface. Interface and session indexes start with 1. */
 	uint64_t stats_portid[NSS_STATS_PORTID_MAX];
 					/* PortID statistics */
+	uint64_t stats_trustsec_tx[NSS_STATS_TRUSTSEC_TX_MAX];
+					/* Trustsec TX stats */
 #if (NSS_DT_SUPPORT == 1)
 	void *nss_fpb_base;			/* Virtual address of FPB base */
 	bool nss_hal_common_init_done;
@@ -994,12 +1017,12 @@ struct nss_cmd_buffer {
 /*
  * The scales for NSS
  */
-enum nss_scales {
+typedef enum nss_freq_scales {
 	NSS_FREQ_LOW_SCALE = 0,
 	NSS_FREQ_MID_SCALE = 1,
 	NSS_FREQ_HIGH_SCALE = 2,
 	NSS_FREQ_MAX_SCALE = 3,
-};
+} nss_freq_scales_t;
 
 /*
  * NSS Core Statistics and Frequencies
@@ -1030,7 +1053,7 @@ struct nss_scale_info {
  */
 struct nss_runtime_sampling {
 	struct nss_scale_info freq_scale[NSS_FREQ_MAX_SCALE];	/* NSS Max Scale Per Freq */
-	uint32_t freq_scale_index;				/* Current Freq Index */
+	nss_freq_scales_t freq_scale_index;				/* Current Freq Index */
 	uint32_t freq_scale_ready;				/* Allow Freq Scaling */
 	uint32_t freq_scale_rate_limit_up;			/* Scaling Change Rate Limit */
 	uint32_t freq_scale_rate_limit_down;			/* Scaling Change Rate Limit */
@@ -1054,7 +1077,7 @@ enum nss_feature_enabled {
 
 /*
  * nss_platform_data
- *      Platform data per core
+ *	Platform data per core
  */
 struct nss_platform_data {
 	uint32_t id;					/* NSS core ID */
@@ -1064,7 +1087,6 @@ struct nss_platform_data {
 	uint32_t vmap;					/* Virtual address of NSS virtual register map */
 	uint32_t nphys;					/* Physical address of NSS CSM space */
 	uint32_t vphys;					/* Physical address of NSS virtual register map */
-	uint32_t rst_addr;				/* Reset address of NSS core */
 	uint32_t load_addr;				/* Load address of NSS firmware */
 	enum nss_feature_enabled turbo_frequency;	/* Does this core support turbo frequencies */
 	enum nss_feature_enabled ipv4_enabled;		/* Does this core handle IPv4? */
@@ -1082,6 +1104,7 @@ struct nss_platform_data {
 	enum nss_feature_enabled map_t_enabled;		/* Does this core handle map-t */
 	enum nss_feature_enabled tunipip6_enabled;	/* Does this core handle ipip6 Tunnel ? */
 	enum nss_feature_enabled gre_redir_enabled;	/* Does this core handle gre_redir Tunnel ? */
+	enum nss_feature_enabled gre_tunnel_enabled;	/* Does this core handle gre_tunnel Tunnel ? */
 	enum nss_feature_enabled shaping_enabled;	/* Does this core handle shaping ? */
 	enum nss_feature_enabled gmac_enabled[4];	/* Does this core handle GMACs? */
 	enum nss_feature_enabled wifioffload_enabled;   /* Does this core handle WIFI OFFLOAD? */
@@ -1174,4 +1197,10 @@ extern int nss_core_get_paged_mode(void);
 extern void nss_coredump_notify_register(void);
 extern void nss_fw_coredump_notify(struct nss_ctx_instance *nss_own, int intr);
 extern int nss_coredump_init_delay_work(void);
+
+/*
+ * APIs provided by nss_freq.c
+ */
+extern void nss_freq_sched_change(nss_freq_scales_t index, bool auto_scale);
+
 #endif /* __NSS_CORE_H */

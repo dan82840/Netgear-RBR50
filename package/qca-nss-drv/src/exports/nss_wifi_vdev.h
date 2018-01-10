@@ -25,6 +25,7 @@
 #define NSS_WIFI_VDEV_PER_PACKET_METADATA_OFFSET 4
 #define NSS_WIFI_VDEV_DSCP_MAP_LEN 64
 #define NSS_WIFI_IPV6_ADDR_LENGTH 16
+#define NSS_WIFI_MAX_SRCS 4
 
 /**
  * WIFI VDEV messages
@@ -97,6 +98,7 @@ enum nss_wifi_vdev_ext_data_pkt_type {
 	NSS_WIFI_VDEV_EXT_DATA_PKT_TYPE_EXTAP_TX = 8,	/**< extap tx meta data */
 	NSS_WIFI_VDEV_EXT_DATA_PKT_TYPE_EXTAP_RX = 9,	/**< extap rx meta data */
 	NSS_WIFI_VDEV_EXT_DATA_PKT_TYPE_WNM_TFS = 10,	/**< wnm tfs related meta data */
+	NSS_WIFI_VDEV_EXT_TX_COMPL_PKT_TYPE = 11,	/**< tx completion */
 	NSS_WIFI_VDEV_EXT_DATA_PKT_TYPE_MAX
 };
 
@@ -117,6 +119,7 @@ enum nss_wifi_vdev_cmd {
 	NSS_WIFI_VDEV_CFG_DSCP_OVERRIDE_CMD,	/**< command to set dscp override */
 	NSS_WIFI_VDEV_CFG_WNM_CAP_CMD,		/**< command to set wnm capability */
 	NSS_WIFI_VDEV_CFG_WNM_TFS_CMD,		/**< command to set wnm tfs */
+	NSS_WIFI_VDEV_CFG_WDS_EXT_ENABLE_CMD,	/**< command to enable wds vendor extension */
 	NSS_WIFI_VDEV_MAX_CMD
 };
 
@@ -190,7 +193,6 @@ struct nss_wifi_vdev_snooplist_grp_list_delete_msg {
  * wifi snooplist add grp_member
  */
 struct nss_wifi_vdev_snooplist_grp_member_add_msg {
-	uint32_t src_ip_addr;					/**< source ip address */
 	uint32_t ether_type;					/**< multicast group ether_type */
 	union {
 		uint32_t grpaddr_ip4;				/**< ipv4 address */
@@ -200,6 +202,8 @@ struct nss_wifi_vdev_snooplist_grp_member_add_msg {
 	uint8_t grp_addr[ETH_ALEN];				/**< multicast group mac address */
 	uint8_t grp_member_addr[ETH_ALEN];			/**< multicast group member mac address */
 	uint8_t mode;						/**< mode */
+	uint8_t nsrcs;						/**< no of src ip addresses in case of SSM */
+	uint8_t src_ip_addr[NSS_WIFI_IPV6_ADDR_LENGTH * NSS_WIFI_MAX_SRCS];	/**< source ip address */
 };
 
 /**
@@ -219,7 +223,6 @@ struct nss_wifi_vdev_snooplist_grp_member_remove_msg {
  * Wifi snooplist update grp_member.
  */
 struct nss_wifi_vdev_snooplist_grp_member_update_msg {
-	uint32_t src_ip_addr;					/**< source ip address */
 	uint32_t ether_type;					/**< multicast group ether_type */
 	union {
 		uint32_t grpaddr_ip4;				/**< ipv4 address */
@@ -228,6 +231,8 @@ struct nss_wifi_vdev_snooplist_grp_member_update_msg {
 	uint8_t grp_addr[ETH_ALEN];				/**< multicast group mac address */
 	uint8_t grp_member_addr[ETH_ALEN];			/**< multicast group member mac address */
 	uint8_t mode;						/**< mode */
+	uint8_t nsrcs;						/**< no of src ip addresses in case of SSM */
+	uint8_t src_ip_addr[NSS_WIFI_IPV6_ADDR_LENGTH * NSS_WIFI_MAX_SRCS];	/**< source ip address */
 };
 
 /**
@@ -304,6 +309,15 @@ struct nss_wifi_vdev_txinfo_per_packet_metadata {
 	uint32_t ppdu_duration;			/**< ppdu estimated air time */
 	uint8_t ppdu_retries;			/**< number of times ppdu is retried */
 	uint8_t ppdu_is_aggregate;		/**< flag to chack if ppdu is aggregate or not */
+	uint16_t start_seq_num;
+	uint16_t version;
+	uint32_t ppdu_ack_timestamp;
+	uint32_t ppdu_bmap_enqueued_lo;	/**< Bitmap of packets enqueued to HW (LSB) */
+	uint32_t ppdu_bmap_enqueued_hi;	/**< Bitmap of packets enqueued to HW (MSB) */
+	uint32_t ppdu_bmap_tried_lo;	/**< Bitmap of packets sent OTA (LSB) */
+	uint32_t ppdu_bmap_tried_hi;	/**< Bitmap of packets sent OTA (MSB) */
+	uint32_t ppdu_bmap_failed_lo;	/**< Bitmap of packets failed to get acked (LSB) */
+	uint32_t ppdu_bmap_failed_hi;	/**< Bitmap of packets failed to get acked (MSB) */
 };
 
 /**
@@ -359,6 +373,17 @@ struct nss_wifi_vdev_extap_per_packet_metadata {
 	uint8_t res[2];		/**< res */
 };
 
+
+/**
+ * Wifi Tx Compl per packet metadata.
+ */
+struct nss_wifi_vdev_tx_compl_metadata {
+	uint8_t ta[ETH_ALEN];	/**< transmitter mac address */
+	uint8_t ra[ETH_ALEN];	/**< receiver mac address */
+	uint16_t ppdu_id;	/**< ppdu id */
+	uint16_t peer_id;	/**< peer id */
+};
+
 /**
  * wifi per packet metadata content
  */
@@ -371,15 +396,24 @@ struct nss_wifi_vdev_per_packet_metadata {
 		struct nss_wifi_vdev_mpsta_per_packet_tx_metadata mpsta_tx_metadata;
 		struct nss_wifi_vdev_mpsta_per_packet_rx_metadata mpsta_rx_metadata;
 		struct nss_wifi_vdev_rx_err_per_packet_metadata rx_err_metadata;
+		struct nss_wifi_vdev_tx_compl_metadata tx_compl_metadata;
 	} metadata;
+};
+
+/**
+ * wifi receive meta data for meshmode rx
+ */
+struct nss_wifi_vdev_meshmode_rx_metadata {
+	uint16_t vdev_id;	/**< vdev_id */
+	uint16_t peer_id;	/**< peer_id */
 };
 
 /**
  * wifi receive meta data for rawmode rx
  */
 struct nss_wifi_vdev_rawmode_rx_metadata {
-	uint16_t vdev_id;               /**< vdev_id */
-	uint16_t peer_id;               /**< peer_id */
+	uint16_t vdev_id;	/**< vdev_id */
+	uint16_t peer_id;	/**< peer_id */
 };
 
 /**

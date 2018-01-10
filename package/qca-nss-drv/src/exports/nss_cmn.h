@@ -97,6 +97,11 @@ enum nss_cmn_response {
 };
 
 /**
+ * Common response structure string
+ */
+extern int8_t *nss_cmn_response_str[NSS_CMN_RESPONSE_LAST];
+
+/**
  * Common structures
  */
 
@@ -230,6 +235,15 @@ extern nss_cb_register_status_t nss_cmn_register_queue_decongestion(struct nss_c
  *
  */
 extern nss_cb_unregister_status_t nss_cmn_unregister_queue_decongestion(struct nss_ctx_instance *nss_ctx, nss_cmn_queue_decongestion_callback_t event_callback);
+
+/**
+ * @brief Check if NSS mode is supported on platform
+ *
+ *
+ * @return boolean true if NSS supported, else false
+ *
+ */
+extern bool nss_cmn_get_nss_enabled(void);
 
 #endif /* __KERNEL__ */
 #endif /* __NSS_CMN_MSG_H */

@@ -297,6 +297,26 @@ void nss_crypto_data_unregister(struct nss_ctx_instance *nss_ctx)
 }
 
 /*
+ * nss_crypto_pm_notify_register()
+ * 	register a PM notify callback routine
+ */
+void nss_crypto_pm_notify_register(nss_crypto_pm_event_callback_t cb, void *app_data)
+{
+	nss_top_main.crypto_pm_ctx = app_data;
+	nss_top_main.crypto_pm_callback = cb;
+}
+
+/*
+ * nss_crypto_pm_notify_unregister()
+ * 	unregister a PM notify callback routine
+ */
+void nss_crypto_pm_notify_unregister(void)
+{
+	nss_top_main.crypto_pm_ctx = NULL;
+	nss_top_main.crypto_pm_callback = NULL;
+}
+
+/*
  * nss_crypto_register_handler()
  */
 void nss_crypto_register_handler()
@@ -318,6 +338,8 @@ EXPORT_SYMBOL(nss_crypto_notify_register);
 EXPORT_SYMBOL(nss_crypto_notify_unregister);
 EXPORT_SYMBOL(nss_crypto_data_register);
 EXPORT_SYMBOL(nss_crypto_data_unregister);
+EXPORT_SYMBOL(nss_crypto_pm_notify_register);
+EXPORT_SYMBOL(nss_crypto_pm_notify_unregister);
 EXPORT_SYMBOL(nss_crypto_tx_msg);
 EXPORT_SYMBOL(nss_crypto_tx_buf);
 EXPORT_SYMBOL(nss_crypto_msg_init);

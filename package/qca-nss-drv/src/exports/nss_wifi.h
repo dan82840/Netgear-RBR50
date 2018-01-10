@@ -27,7 +27,10 @@
 #define NSS_WIFI_RAWDATA_MAX_LEN  64
 #define NSS_WIFI_RX_EXT_INV_PEER_TYPE 0
 #define NSS_WIFI_RX_EXT_PKTLOG_TYPE 1
+#define NSS_WIFI_RX_EXT_CBF_REMOTE 2
 #define NSS_WIFI_TX_NUM_TOS_TIDS 8
+#define NSS_WIFI_PEER_STATS_DATA_LEN 232
+#define NSS_WIFI_IPV6_ADDR_LEN 16
 
 /**
  * max no of wifi peers per radio is the sum of max no of station peers (513),
@@ -72,6 +75,11 @@ enum nss_wifi_metadata_types {
 	NSS_WIFI_STORE_OTHER_PDEV_STAVAP_MSG,
 	NSS_WIFI_STA_KICKOUT_MSG,
 	NSS_WIFI_WNM_PEER_RX_ACTIVITY_MSG,
+	NSS_WIFI_PEER_STATS_MSG,
+	NSS_WIFI_ME_SYNC_MSG,
+	NSS_WIFI_WDS_VENDOR_MSG,
+	NSS_WIFI_TX_CAPTURE_SET_MSG,
+	NSS_WIFI_ALWAYS_PRIMARY_SET_MSG,
 	NSS_WIFI_MAX_MSG
 };
 
@@ -133,7 +141,7 @@ struct nss_wifi_init_msg {
 	uint32_t radio_id ;			/**< Radio index */
 	uint32_t pci_mem;			/**< PCI memory  address */
 	uint32_t target_type;			/**< WiFi Target type */
-	uint32_t mu_mimo_enhancement_en;        /**< enable mu mimo enhancement */
+	uint32_t mu_mimo_enhancement_en;	/**< enable mu mimo enhancement */
 	struct nss_wifi_ce_state_msg ce_tx_state;
 						/**< Transmit CE info */
 	struct nss_wifi_ce_state_msg ce_rx_state;
@@ -231,6 +239,13 @@ struct nss_wifi_wds_peer_msg {
 };
 
 /**
+ *  wifi tx capture enable/disable message structure
+ */
+struct nss_wifi_tx_capture_msg {
+	uint32_t tx_capture_enable;		/**< Tx Data Capture enable/disable */
+};
+
+/**
  * wifi reset message
  */
 struct nss_wifi_reset_msg {
@@ -280,6 +295,19 @@ struct nss_wifi_dbdc_process_enable_msg {
  */
 struct nss_wifi_primary_radio_set_msg {
 	uint32_t flag;				/**< flag to set pdev as primary radio */
+};
+
+/**
+ * Primary radio is set by the user in config using msg wifi_primary_radio_set_msg.
+ * When always primary flag(nss_wifi_always_primary_set_msg) is set by user:
+ * TX: Don't drop ucast pkts on secondary sta vap, instead give that pkt to
+ *     primary sta vap for tx.
+ * RX: Don't drop received ucast pkt on secondary sta vap, instead give that
+ *     pkt to bridge by changing skb dev as primary sta vap.
+ * Primary usage of this feature is to avoid loopback.
+ */
+struct nss_wifi_always_primary_set_msg {
+	uint32_t flag;				/**< always use primary radio for tx/rx in dbdc repeater*/
 };
 
 /**
@@ -383,7 +411,7 @@ struct nss_wifi_rx_reorder_array_freelist_append_msg {
 	uint32_t num_rra;			/**< max number of rx_reorder array entries supported in pool */
 };
 
-/*
+/**
  *  wifi_bs_peer_inactivity
  *   peer state related info to denote active state of peer
  */
@@ -406,7 +434,7 @@ struct nss_wifi_rx_vow_extstats_set_msg {
 	uint32_t vow_extstats_en;                       /**< vow ext stats */
 };
 
-/*
+/**
  * nss_wifi_igmp_mld_override_tos_msg
  */
 struct nss_wifi_igmp_mld_override_tos_msg {
@@ -419,17 +447,22 @@ struct nss_wifi_igmp_mld_override_tos_msg {
  * nss_wifi_peer_ol_stats
  */
 struct nss_wifi_peer_ol_stats {
-	uint32_t peer_id;            /**< peer id */
-	uint32_t seq_num;            /**< sequence number of ppdu */
-	uint32_t tx_unaggr;          /**< count of unaggregated pkts txed */
-	uint32_t tx_aggr;            /**< count of aggregated pkts txed */
-	uint32_t tx_mcast;           /**< no of mcast pkts sent */
-	uint32_t tx_ucast;           /**< no of ucat pkts sent */
-	uint32_t tx_data;            /**< no of data pkts sent */
-	uint32_t tx_bytes;           /**< no of bytes sent */
-	uint32_t tx_fail;            /**< no of failed tx pkts */
-	uint32_t thrup_bytes;        /**< trhuput bytes */
-	uint32_t tx_bcast_pkts;      /**< no of bcast pkts sent */
+	uint32_t peer_id;		/**< peer id */
+	uint32_t seq_num;		/**< sequence number of ppdu */
+	uint32_t tx_unaggr;		/**< count of unaggregated pkts txed */
+	uint32_t tx_aggr;		/**< count of aggregated pkts txed */
+	uint32_t tx_mcast;		/**< no of mcast pkts sent */
+	uint32_t tx_ucast;		/**< no of ucat pkts sent */
+	uint32_t tx_data;		/**< no of data pkts sent */
+	uint32_t tx_bytes;		/**< no of bytes sent */
+	uint32_t tx_fail;		/**< no of failed tx pkts */
+	uint32_t thrup_bytes;		/**< trhuput bytes */
+	uint32_t tx_bcast_pkts;		/**< no of bcast pkts sent */
+	uint32_t tx_mgmt;		/**< no of tx mgmt frames */
+	uint32_t tx_wme[4];		/**< data frames transmitted per AC */
+	uint32_t rx_wme[4];		/**< data frames received per AC */
+	uint32_t ppdu_retries;		/**< retries */
+	uint32_t rssi_chains[4];
 };
 
 /**
@@ -449,7 +482,7 @@ struct nss_wifi_sta_kickout_msg {
 	uint32_t peer_id;	/**< peer id */
 };
 
-/*
+/**
  * wifi_wnm_peer_rx_activity
  *
  * peer state related info to denote rx activity for peer
@@ -457,6 +490,57 @@ struct nss_wifi_sta_kickout_msg {
 struct nss_wifi_wnm_peer_rx_activity_msg {
 	uint16_t nentries;			/**< number of entries */
 	uint16_t peer_id[NSS_WIFI_MAX_PEER];	/**< array to hold the peer_id's for which the activity is reported */
+};
+
+/**
+ * wifi peer statistics
+ */
+struct nss_wifi_peer_stats_msg {
+	uint32_t peer_id;					/**< Peer ID */
+	uint32_t tidq_byte_cnt[NSS_WIFI_TX_NUM_TOS_TIDS];	/**< Number of bytes in each TIDQ */
+	uint32_t tidq_queue_max[NSS_WIFI_TX_NUM_TOS_TIDS];	/**< Maximum depth for TID queue */
+	uint32_t tidq_enqueue_cnt[NSS_WIFI_TX_NUM_TOS_TIDS];	/**< Number of packets enqueued to  TIDQ */
+	uint32_t tidq_dequeue_cnt[NSS_WIFI_TX_NUM_TOS_TIDS];	/**< Number of packets dequeued from  TIDQ */
+	uint32_t tidq_ttl_expire_cnt[NSS_WIFI_TX_NUM_TOS_TIDS];	/**< Number of packets expired from  TIDQ */
+	uint32_t tidq_dequeue_req_cnt[NSS_WIFI_TX_NUM_TOS_TIDS];	/**< Dequeue request count from wifi fw */
+	uint32_t tidq_full_cnt[NSS_WIFI_TX_NUM_TOS_TIDS];	/**< Total number of packets dropped due to TID queue full condition */
+};
+
+/**
+ * wifi_wds_extn_peer_cfg
+ *
+ * wds peer state info when wds extn enabled
+ */
+struct nss_wifi_wds_extn_peer_cfg_msg {
+	uint8_t mac_addr[ETH_ALEN];	/* Mac address of peer */
+	uint8_t wds_flags;	/* wds flags populated from host */
+	uint8_t reserved;	/* Aligment padding */
+	uint16_t peer_id;	/* peer id */
+};
+
+/**
+ * ME Group Entry information for host sync
+ */
+struct nss_wifi_tx_me_host_sync_grp_entry {
+	uint8_t group_addr[ETH_ALEN];		/**< group address for this list */
+	uint8_t grp_member_addr[ETH_ALEN];	/**< multicast group member mac address */
+	union {
+		uint32_t grpaddr_ip4;		/**< Group ip address ipv4 */
+		uint8_t  grpaddr_ip6[NSS_WIFI_IPV6_ADDR_LEN]; /**< Group ip address ipv6 */
+	} u;
+	uint32_t src_ip_addr;			/**< source ip address */
+};
+
+/**
+ * wifi_tx_me_host_sync_msg
+ *
+ * ME Group table host Sync message
+ */
+struct nss_wifi_tx_me_host_sync_msg {
+	uint16_t vdev_id;		/**< vdev_id to which the group entries belong to  */
+	uint8_t  nentries;		/**< number of valid group entries */
+	uint8_t  reserved;
+	struct nss_wifi_tx_me_host_sync_grp_entry grp_entry[32]; /**< multicast group entry */
 };
 
 /**
@@ -494,6 +578,11 @@ struct nss_wifi_msg {
 		struct nss_wifi_store_other_pdev_stavap_msg wsops_msg;
 		struct nss_wifi_sta_kickout_msg sta_kickout_msg;
 		struct nss_wifi_wnm_peer_rx_activity_msg wprm;
+		struct nss_wifi_peer_stats_msg peer_stats_msg;
+		struct nss_wifi_tx_me_host_sync_msg wmehsync;
+		struct nss_wifi_wds_extn_peer_cfg_msg wpeercfg;
+		struct nss_wifi_tx_capture_msg tx_capture_msg;
+		struct nss_wifi_always_primary_set_msg waps_msg;
 	} msg;
 };
 
@@ -538,7 +627,7 @@ typedef void (*nss_wifi_callback_t)(struct net_device *netdev, struct sk_buff *s
  * @return nss_ctx_instance* NSS context
  */
 struct nss_ctx_instance *nss_register_wifi_if(uint32_t if_num, nss_wifi_callback_t wifi_callback,
-			nss_wifi_callback_t wifi_ext_callback, nss_wifi_msg_callback_t event_callback, struct net_device *netdev, uint32_t features);
+					      nss_wifi_callback_t wifi_ext_callback, nss_wifi_msg_callback_t event_callback, struct net_device *netdev, uint32_t features);
 
 /**
  * @brief Unregister wifi interface with NSS

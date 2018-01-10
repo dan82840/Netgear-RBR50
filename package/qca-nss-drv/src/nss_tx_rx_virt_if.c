@@ -63,7 +63,7 @@ static void nss_tx_rx_virt_if_stats_sync(struct nss_tx_rx_virt_if_handle *handle
  */
 static void nss_tx_rx_virt_if_msg_handler(struct nss_ctx_instance *nss_ctx,
 					struct nss_cmn_msg *ncm,
-					__attribute__((unused))void *app_data)
+					__maybe_unused void *app_data)
 {
 	struct nss_tx_rx_virt_if_msg *nvim = (struct nss_tx_rx_virt_if_msg *)ncm;
 	int32_t if_num;
@@ -120,7 +120,7 @@ static void nss_tx_rx_virt_if_msg_handler(struct nss_ctx_instance *nss_ctx,
 	 */
 	if (ncm->response == NSS_CMM_RESPONSE_NOTIFY) {
 		ncm->cb = (uint32_t)nss_ctx->nss_top->if_rx_msg_callback[ncm->interface];
-		ncm->app_data = (uint32_t)nss_ctx->nss_top->subsys_dp_register[ncm->interface].ndev;
+		ncm->app_data = (uint32_t)nss_ctx->subsys_dp_register[ncm->interface].ndev;
 	}
 
 	/*
@@ -145,6 +145,12 @@ static void nss_tx_rx_virt_if_callback(void *app_data, struct nss_cmn_msg *ncm)
 {
 	struct nss_tx_rx_virt_if_handle *handle = (struct nss_tx_rx_virt_if_handle *)app_data;
 	struct nss_tx_rx_virt_if_pvt *nvip = handle->pvt;
+	int32_t if_num = NSS_TX_RX_VIRT_IF_GET_INDEX(ncm->interface);
+
+	if (!nss_tx_rx_virt_if_handles[if_num]) {
+		nss_warning("%p: redir_if Handle does not exist\n", handle->nss_ctx);
+		return;
+	}
 
 	if (ncm->response != NSS_CMN_RESPONSE_ACK) {
 		nss_warning("%p: redir_if Error response %d\n", handle->nss_ctx, ncm->response);
@@ -165,7 +171,7 @@ void *nss_register_virt_if(void *ctx,
 				struct net_device *netdev)
 {
 	struct nss_tx_rx_virt_if_handle *handle = (struct nss_tx_rx_virt_if_handle *)ctx;
-
+	struct nss_ctx_instance *nss_ctx;
 	int32_t if_num;
 
 	if (!handle) {
@@ -173,12 +179,13 @@ void *nss_register_virt_if(void *ctx,
 		return NULL;
 	}
 
+	nss_ctx = handle->nss_ctx;
 	if_num = handle->if_num;
 
-	nss_top_main.subsys_dp_register[if_num].ndev = netdev;
-	nss_top_main.subsys_dp_register[if_num].cb = rx_callback;
-	nss_top_main.subsys_dp_register[if_num].app_data = NULL;
-	nss_top_main.subsys_dp_register[if_num].features = (uint32_t)netdev->features;
+	nss_ctx->subsys_dp_register[if_num].ndev = netdev;
+	nss_ctx->subsys_dp_register[if_num].cb = rx_callback;
+	nss_ctx->subsys_dp_register[if_num].app_data = NULL;
+	nss_ctx->subsys_dp_register[if_num].features = (uint32_t)netdev->features;
 
 	nss_top_main.if_rx_msg_callback[if_num] = NULL;
 
@@ -191,6 +198,7 @@ void *nss_register_virt_if(void *ctx,
 void nss_unregister_virt_if(void *ctx)
 {
 	struct nss_tx_rx_virt_if_handle *handle = (struct nss_tx_rx_virt_if_handle *)ctx;
+	struct nss_ctx_instance *nss_ctx;
 	int32_t if_num;
 
 	if (!handle) {
@@ -198,12 +206,13 @@ void nss_unregister_virt_if(void *ctx)
 		return;
 	}
 
+	nss_ctx = handle->nss_ctx;
 	if_num = handle->if_num;
 
-	nss_top_main.subsys_dp_register[if_num].ndev = NULL;
-	nss_top_main.subsys_dp_register[if_num].cb = NULL;
-	nss_top_main.subsys_dp_register[if_num].app_data = NULL;
-	nss_top_main.subsys_dp_register[if_num].features = 0;
+	nss_ctx->subsys_dp_register[if_num].ndev = NULL;
+	nss_ctx->subsys_dp_register[if_num].cb = NULL;
+	nss_ctx->subsys_dp_register[if_num].app_data = NULL;
+	nss_ctx->subsys_dp_register[if_num].features = 0;
 
 	nss_top_main.if_rx_msg_callback[if_num] = NULL;
 }
@@ -234,12 +243,6 @@ nss_tx_status_t nss_tx_virt_if_recvbuf(void *ctx, struct sk_buff *skb, uint32_t 
 	/*
 	 * Get the NSS context that will handle this packet and check that it is initialised and ready
 	 */
-
-	if (unlikely(!nss_ctx)) {
-		printk_once("%p: virt if nss ctx is null for if %d - packet cannot be given to NSS\n", handle, if_num);
-		return NSS_TX_FAILURE_NOT_READY;
-	}
-
 	NSS_VERIFY_CTX_MAGIC(nss_ctx);
 	if (unlikely(nss_ctx->state != NSS_CORE_STATE_INITIALIZED)) {
 		nss_warning("%p: Virtual Rx packet dropped as core not ready", nss_ctx);
@@ -527,7 +530,7 @@ static int nss_tx_rx_virt_if_handle_destroy(struct nss_tx_rx_virt_if_handle *han
 	nss_tx_status_t status;
 	int32_t if_num = handle->if_num;
 	int32_t index = NSS_TX_RX_VIRT_IF_GET_INDEX(if_num);
-	struct nss_ctx_instance *nss_ctx = handle->nss_ctx;
+	struct nss_ctx_instance *nss_ctx __maybe_unused = handle->nss_ctx;
 
 	status = nss_dynamic_interface_dealloc_node(if_num, NSS_DYNAMIC_INTERFACE_TYPE_VIRTIF_DEPRECATED);
 	if (status != NSS_TX_SUCCESS) {
@@ -597,8 +600,8 @@ void *nss_create_virt_if(struct net_device *netdev)
 	}
 
 	spin_lock_bh(&nss_top_main.lock);
-	if (!nss_top_main.subsys_dp_register[handle->if_num].ndev) {
-		nss_top_main.subsys_dp_register[handle->if_num].ndev = netdev;
+	if (!nss_ctx->subsys_dp_register[handle->if_num].ndev) {
+		nss_ctx->subsys_dp_register[handle->if_num].ndev = netdev;
 	}
 	spin_unlock_bh(&nss_top_main.lock);
 
@@ -640,25 +643,20 @@ nss_tx_status_t nss_destroy_virt_if(void *ctx)
 	if_num = handle->if_num;
 	nss_ctx = handle->nss_ctx;
 
-	if (!nss_ctx) {
-		printk("%p: virt if nss ctx is null for if %d\n", handle, if_num);
-		return NSS_TX_FAILURE_BAD_PARAM;
-	}
-
 	if (unlikely(nss_ctx->state != NSS_CORE_STATE_INITIALIZED)) {
 		nss_warning("%p: Interface could not be destroyed as core not ready\n", nss_ctx);
 		return NSS_TX_FAILURE_NOT_READY;
 	}
 
 	spin_lock_bh(&nss_top_main.lock);
-	if (!nss_top_main.subsys_dp_register[if_num].ndev) {
+	if (!nss_ctx->subsys_dp_register[if_num].ndev) {
 		spin_unlock_bh(&nss_top_main.lock);
 		nss_warning("%p: Unregister redir interface %d: no context\n", nss_ctx, if_num);
 		return NSS_TX_FAILURE_BAD_PARAM;
 	}
 
-	dev = nss_top_main.subsys_dp_register[if_num].ndev;
-	nss_top_main.subsys_dp_register[if_num].ndev = NULL;
+	dev = nss_ctx->subsys_dp_register[if_num].ndev;
+	nss_unregister_virt_if(handle);
 	spin_unlock_bh(&nss_top_main.lock);
 	dev_put(dev);
 
@@ -753,4 +751,3 @@ EXPORT_SYMBOL(nss_tx_virt_if_rx_nwifibuf);
 EXPORT_SYMBOL(nss_create_virt_if);
 EXPORT_SYMBOL(nss_destroy_virt_if);
 EXPORT_SYMBOL(nss_register_virt_if);
-EXPORT_SYMBOL(nss_unregister_virt_if);
