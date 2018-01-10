@@ -35,6 +35,7 @@ cd /tmp
 # (3) router config file
 # (4) LAN/WAN packet capture
 # (5) thermal log
+# (6) debug here log of hyt 
 
 #Disable the capture
 killall tcpdump
@@ -43,7 +44,7 @@ killall basic_log.sh
 killall console_log.sh 
 killall wireless_log.sh  
 killall thermal_log.sh  
-killall hyt_dbglog.sh
+killall debug_here_log.sh
 
 #AS long as user click "Save logs" form debug page, the current HYCTL log should be generated and captured
 if [ -f /tmp/wireless-log1.txt ]; then
@@ -87,16 +88,18 @@ dd if=/dev/mmcblk0p22 of=/tmp/panic_log.txt bs=131072 count=2
 [ -e /tmp/radardetect.log ] && RADARLOG=radardetect.log
 [ -f /tmp/thermal-log1.txt ] && unix2dos /tmp/thermal-log1.txt
 [ -f /tmp/thermal-log2.txt ] && unix2dos /tmp/thermal-log2.txt
-[ -f /tmp/HYT-dbg-log1.txt ] && unix2dos /tmp/HYT-dbg-log1.txt
-[ -f /tmp/HYT-dbg-log2.txt ] && unix2dos /tmp/HYT-dbg-log2.txt
+
+[ -f /tmp/debug_here_log_1.txt ] && unix2dos /tmp/debug_here_log_1.txt
+[ -f /tmp/debug_here_log_2.txt ] && unix2dos /tmp/debug_here_log_2.txt
+
 
 if [ "x$collect_log" = "x1" ];then
-	zip debug-log.zip  NETGEAR_$module_name.cfg panic_log.txt /firmware_version Console-log1.txt Console-log2.txt  thermal-log1.txt thermal-log2.txt basic_debug_log.txt wireless-log1.txt wireless-log2.txt lan.pcap wan.pcap soapclient/* /var/log/soapclient/* /var/log/soapapp hyt_result satellite_status hyd-restart.log wsplcd-restart.log $RADARLOG HYT-dbg-log1.txt HYT-dbg-log2.txt
+	zip debug-log.zip  NETGEAR_$module_name.cfg panic_log.txt /firmware_version Console-log1.txt Console-log2.txt  thermal-log1.txt thermal-log2.txt basic_debug_log.txt wireless-log1.txt wireless-log2.txt lan.pcap wan.pcap soapclient/* /var/log/soapclient/* /var/log/soapapp hyt_result satellite_status hyd-restart.log wsplcd-restart.log debug_here_log_1.txt debug_here_log_2.txt $RADARLOG
 else
-	zip debug-log.zip NETGEAR_$module_name.cfg  panic_log.txt /firmware_version Console-log1.txt Console-log2.txt thermal-log1.txt thermal-log2.txt wireless-log1.txt wireless-log2.txt basic_debug_log.txt lan.pcap wan.pcap soapclient /var/log/soapclient/* /var/log/soapapp hyt_result satellite_status hyd-restart.log wsplcd-restart.log $RADARLOG HYT-dbg-log1.txt HYT-dbg-log2.txt
+	zip debug-log.zip NETGEAR_$module_name.cfg  panic_log.txt /firmware_version Console-log1.txt Console-log2.txt thermal-log1.txt thermal-log2.txt wireless-log1.txt wireless-log2.txt basic_debug_log.txt lan.pcap wan.pcap soapclient /var/log/soapclient/* /var/log/soapapp hyt_result satellite_status hyd-restart.log wsplcd-restart.log debug_here_log_1.txt debug_here_log_2.txt $RADARLOG
 fi
 
 cd /tmp
-rm -rf debug-usb debug_cpu debug_flash debug_mem debug_mirror_on debug_session NETGEAR_$module_name.cfg panic_log.txt Console-log1.txt Console-log2.txt thermal-log1.txt thermal-log2.txt basic_debug_log.txt lan.pcap wan.pcap wireless-log1.txt wireless-log2.txt /var/log/soapapp HYT-dbg-log1.txt HYT-dbg-log2.txt
+rm -rf debug-usb debug_cpu debug_flash debug_mem debug_mirror_on debug_session NETGEAR_$module_name.cfg panic_log.txt Console-log1.txt Console-log2.txt thermal-log1.txt thermal-log2.txt basic_debug_log.txt lan.pcap wan.pcap wireless-log1.txt wireless-log2.txt /var/log/soapapp debug_here_log_1.txt debug_here_log_2.txt
 
 echo 0 > /tmp/collect_debug

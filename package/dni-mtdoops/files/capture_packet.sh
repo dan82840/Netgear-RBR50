@@ -37,11 +37,19 @@ if [ "X$wanlan_capture" = "X1" ]; then
 	if [ "X$store_locate" = "X1" -a "X$dist_path" != "X" ]; then
 		echo "Save capture lan/wan packet in usb storage"
 		mkdir $dist_path/Capture
-		tcpdump -i br0 -s 0 -W 1 -w $dist_path/Capture/lan.pcap -C 100 &
-		tcpdump -i brwan -s 0 -W 1 -w $dist_path/Capture/wan.pcap -C 100 &
+		if [ "$(cat /module_name)" = "RBS50" ]; then
+			tcpdump -i eth1 -s 0 -W 1 -w $dist_path/Capture/lan.pcap -C 6000 &
+		else
+			tcpdump -i br0 -s 0 -W 1 -w $dist_path/Capture/lan.pcap -C 6000 &
+		fi
+		tcpdump -i brwan -s 0 -W 1 -w $dist_path/Capture/wan.pcap -C 6000 &
 	else
 		echo "Save capture lan/wan packet in SDRAM tmp dir"
-		tcpdump -i br0 -s 0 -W 1 -w /tmp/lan.pcap -C 5 &
+		if [ "$(cat /module_name)" = "RBS50" ]; then
+			tcpdump -i eth1 -s 0 -W 1 -w /tmp/lan.pcap -C 5 &
+		else
+			tcpdump -i br0 -s 0 -W 1 -w /tmp/lan.pcap -C 5 &
+		fi
 		tcpdump -i brwan  -s 0 -W 1 -w /tmp/wan.pcap -C 5 &
 	fi
 fi

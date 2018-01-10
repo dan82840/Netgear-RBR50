@@ -33,6 +33,25 @@ echo "--------------------------wlanconfig athX list--------------------------" 
 	wlanconfig ath2 list >>/tmp/wireless-log$file_num.txt
 	echo "wlanconfig ath01 list:" >>/tmp/wireless-log$file_num.txt
 	wlanconfig ath01 list >>/tmp/wireless-log$file_num.txt
+
+echo "------------------------------dump WDS table----------------------------------" >> /tmp/wireless-log$file_num.txt
+        wl5g_BACKHAUL_AP=$(/bin/config get wl5g_BACKHAUL_AP)
+        wl2g_BACKHAUL_AP=$(/bin/config get wl2g_BACKHAUL_AP)
+        wl5g_BACKHAUL_STA=$(/bin/config get wl5g_BACKHAUL_STA)
+        wl2g_BACKHAUL_STA=$(/bin/config get wl2g_BACKHAUL_STA)
+
+	echo "Dump 5G backhaul AP WDS table:" >>/tmp/wireless-log$file_num.txt
+        wlanconfig $wl5g_BACKHAUL_AP hmwds dump-wdstable >>/tmp/wireless-log$file_num.txt
+
+	echo "Dump 2G backhaul AP WDS table:" >>/tmp/wireless-log$file_num.txt
+        wlanconfig $wl2g_BACKHAUL_AP hmwds dump-wdstable >>/tmp/wireless-log$file_num.txt
+
+	echo "Dump 5G backhaul STA WDS table:" >>/tmp/wireless-log$file_num.txt
+        wlanconfig $wl5g_BACKHAUL_STA hmwds dump-wdstable >>/tmp/wireless-log$file_num.txt
+
+	echo "Dump 2G backhaul STA WDS table:" >>/tmp/wireless-log$file_num.txt
+        wlanconfig $wl2g_BACKHAUL_STA hmwds dump-wdstable >>/tmp/wireless-log$file_num.txt
+
 echo "------------------------------athstats----------------------------------" >> /tmp/wireless-log$file_num.txt
 	athstats >>/tmp/wireless-log$file_num.txt
 echo "-------------current topology information via Wi-Fi SON-----------------" >> /tmp/wireless-log$file_num.txt
