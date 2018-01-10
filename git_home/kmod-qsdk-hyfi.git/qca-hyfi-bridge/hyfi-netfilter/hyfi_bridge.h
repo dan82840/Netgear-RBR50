@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2014, 2016 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -23,21 +23,12 @@
 #include "hyfi_seamless.h"
 #include "hyfi_osdep.h"
 
-#define HY_BRIDGE_DEBUG
-
-#ifdef HY_BRIDGE_DEBUG
-extern u_int32_t psw_debug;
-#define DPRINTK( __fmt, ... )  do { if(unlikely(psw_debug)) printk( __fmt, ##__VA_ARGS__ ); } while(0)
-#else
-#define DPRINTK(...)
-#endif
-
 #ifndef IPPROTO_ETHERIP
 #define IPPROTO_ETHERIP (97)
 #endif
 
 #define HYFI_AGGR_REORD_FLUSH_QUOTA 2
-#define HYFI_BRIDGE_ME				(NULL)
+#define HYFI_BRIDGE_MAX 2 /* max number of hyfi bridges supported */
 
 struct hyfi_net_bridge {
 	spinlock_t lock;
@@ -49,6 +40,9 @@ struct hyfi_net_bridge {
 	struct hlist_head hash_hd[HD_HASH_SIZE];
 
 	u_int32_t flags;
+
+	// Maximum age of a H-Active entry before it should be aged out
+	// (in jiffies)
 	u_int32_t hatbl_aging_time;
 	struct timer_list hatbl_timer;
 	u_int32_t ha_entry_cnt;
@@ -60,6 +54,7 @@ struct hyfi_net_bridge {
 	struct list_head port_list;
 
 	struct net_device *dev;
+	char linux_bridge[IFNAMSIZ]; /* Linux bridge name */
 };
 
 struct hyfi_net_bridge_port {
@@ -75,8 +70,20 @@ struct hyfi_net_bridge_port {
 
 struct hyfi_net_bridge *hyfi_bridge_get(const struct net_bridge *br);
 struct hyfi_net_bridge *hyfi_bridge_get_by_dev(const struct net_device *dev);
-struct hyfi_net_bridge_port * hyfi_bridge_get_port(const struct net_bridge_port *p);
+struct hyfi_net_bridge *hyfi_bridge_get_by_port(const struct net_bridge_port *port);
+struct hyfi_net_bridge_port *hyfi_bridge_get_port(const struct net_bridge_port *p);
 struct hyfi_net_bridge_port * hyfi_bridge_get_port_by_dev(const struct net_device *dev);
+
+/**
+ * @brief Get the Hy-Fi bridge device.  This protects us during
+ *        operations where Hy-Fi may be detached asynchronously.
+ *
+ * @pre Must be called with rcu_read_lock
+ *
+ * @return Pointer to hyfi_br.dev if bridge is attached, NULL
+ *         otherwise
+ */
+struct net_device *hyfi_bridge_dev_get_rcu(const struct hyfi_net_bridge *br);
 
 static inline bool hyfi_brmode_relay_override(
 		const struct hyfi_net_bridge *hyfi_br)
@@ -123,17 +130,74 @@ static inline int hyfi_bridge_should_flood(const struct hyfi_net_bridge_port *hy
 	return 0;
 }
 
-int hyfi_bridge_dev_event(unsigned long event, struct net_device *dev);
-int hyfi_bridge_set_bridge_name(const char *br_name);
-int hyfi_bridge_init_port(struct net_bridge_port *p);
-int hyfi_bridge_delete_port(struct net_bridge_port *p);
+int hyfi_bridge_dev_event(struct hyfi_net_bridge *hyfi_br, unsigned long event,
+		struct net_device *dev);
+int hyfi_bridge_set_bridge_name(struct hyfi_net_bridge *hyfi_br, const char *br_name);
+int hyfi_bridge_init_port(struct hyfi_net_bridge *hyfi_br, struct net_bridge_port *p);
+int hyfi_bridge_delete_port(struct hyfi_net_bridge *hyfi_br, struct net_bridge_port *p);
 int hyfi_bridge_should_deliver(const struct hyfi_net_bridge_port *src,
 		const struct hyfi_net_bridge_port *dst, const struct sk_buff *skb);
 struct net_bridge_port *hyfi_bridge_get_dst(const struct net_bridge_port *src,
 		struct sk_buff **skb);
+struct hyfi_net_bridge * hyfi_bridge_get_hyfi_bridge(const char *br_name);
+struct hyfi_net_bridge * hyfi_bridge_alloc_hyfi_bridge(const char *br_name);
 
 int hyfi_bridge_init(void);
 
 void hyfi_bridge_fini(void);
+
+/*
+ * The following are debug macros used throughout the Hy-Fi bridge.
+ * Each file that #includes this file MUST have a:
+ *
+ * #define DEBUG_LEVEL X
+ *
+ * before the inclusion of this file.
+ * X is:
+ * 0 = OFF
+ * 1 = ASSERTS / ERRORS
+ * 2 = 1 + WARN
+ * 3 = 2 + INFO
+ * 4 = 3 + TRACE
+ * NOTE: But X is usually provided by a -D preprocessor defined in the Makefile
+ */
+#if (DEBUG_LEVEL < 1)
+#define DEBUG_ASSERT(s, ...)
+#define DEBUG_ERROR(s, ...)
+#else
+#define DEBUG_ASSERT(c, s, ...) if (!(c)) { pr_emerg("ASSERT: %s:%d:" s, __FUNCTION__, __LINE__, ##__VA_ARGS__); BUG(); }
+#define DEBUG_ERROR(s, ...) pr_err("%s:%d:" s, __FUNCTION__, __LINE__, ##__VA_ARGS__)
+#endif
+
+#if defined(CONFIG_DYNAMIC_DEBUG)
+/*
+ * Compile messages for dynamic enable/disable
+ */
+#define DEBUG_WARN(s, ...) pr_debug("%s[%d]:" s, __FUNCTION__, __LINE__, ##__VA_ARGS__)
+#define DEBUG_INFO(s, ...) pr_debug("%s[%d]:" s, __FUNCTION__, __LINE__, ##__VA_ARGS__)
+#define DEBUG_TRACE(s, ...) pr_debug("%s[%d]:" s, __FUNCTION__, __LINE__, ##__VA_ARGS__)
+#else
+
+/*
+ * Statically compile messages at different levels
+ */
+#if (DEBUG_LEVEL < 2)
+#define DEBUG_WARN(s, ...)
+#else
+#define DEBUG_WARN(s, ...) pr_warn("%s[%d]:" s, __FUNCTION__, __LINE__, ##__VA_ARGS__)
+#endif
+
+#if (DEBUG_LEVEL < 3)
+#define DEBUG_INFO(s, ...)
+#else
+#define DEBUG_INFO(s, ...) pr_notice("%s[%d]:" s, __FUNCTION__, __LINE__, ##__VA_ARGS__)
+#endif
+
+#if (DEBUG_LEVEL < 4)
+#define DEBUG_TRACE(s, ...)
+#else
+#define DEBUG_TRACE(s, ...) pr_info("%s[%d]:" s, __FUNCTION__, __LINE__, ##__VA_ARGS__)
+#endif
+#endif
 
 #endif /* HYFI_BRIDGE_H_ */

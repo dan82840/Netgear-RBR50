@@ -2,7 +2,7 @@
  *  H-Default table
  *  QCA HyFi Netfilter
  *
- * Copyright (c) 2012, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2014, 2016, The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -16,6 +16,8 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
+
+#define DEBUG_LEVEL HYFI_NF_DEBUG_LEVEL
 
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -185,7 +187,8 @@ struct net_hdtbl_entry *hyfi_hdtbl_find(struct hyfi_net_bridge *br,
 	return NULL;
 }
 
-static struct net_hdtbl_entry *hdtbl_create(struct hlist_head *head,
+static struct net_hdtbl_entry *hdtbl_create(struct hyfi_net_bridge * hyfi_br,
+		struct hlist_head *head,
 		struct net_bridge_port *dst_udp, struct net_bridge_port *dst_other,
 		const u_int8_t *addr, const u_int8_t *id, u_int32_t static_entry)
 {
@@ -199,6 +202,7 @@ static struct net_hdtbl_entry *hdtbl_create(struct hlist_head *head,
 		hd->dst_udp = dst_udp;
 		hd->dst_other = dst_other;
 		hd->flags = 0;
+		hd->hyfi_br = hyfi_br;
 		if (static_entry) {
 			hyfi_hd_set_flag(hd, HYFI_HDTBL_STATIC_ENTRY);
 		} else {
@@ -225,13 +229,14 @@ static int hdtbl_insert(struct hyfi_net_bridge *br,
 		hdtbl_delete(hd);
 	}
 
-	if (!hdtbl_create(head, dst_udp, dst_other, addr, id, static_entry))
+	if (!hdtbl_create(br, head, dst_udp, dst_other, addr, id, static_entry))
 		return -ENOMEM;
 
 	return 0;
 }
 
-int hyfi_hdtbl_insert(struct hyfi_net_bridge *br, struct __hdtbl_entry *hde)
+int hyfi_hdtbl_insert(struct hyfi_net_bridge *br, struct net_device *br_dev,
+	struct __hdtbl_entry *hde)
 {
 	int ret = -EINVAL;
 	struct net_device *dev_udp, *dev_other;
@@ -239,11 +244,11 @@ int hyfi_hdtbl_insert(struct hyfi_net_bridge *br, struct __hdtbl_entry *hde)
 	do {
 		struct net_bridge_port *br_port_u, *br_port_o;
 
-		dev_udp = dev_get_by_index(dev_net(br->dev), hde->udp_port);
+		dev_udp = dev_get_by_index(dev_net(br_dev), hde->udp_port);
 		if (dev_udp == NULL )
 			break;
 
-		dev_other = dev_get_by_index(dev_net(br->dev), hde->other_port);
+		dev_other = dev_get_by_index(dev_net(br_dev), hde->other_port);
 		if (dev_other == NULL ) {
 			dev_put(dev_udp);
 			break;
@@ -309,18 +314,22 @@ int hyfi_hdtbl_delete(struct hyfi_net_bridge *br, const u_int8_t *addr)
 	return 0;
 }
 
-int hyfi_hdtbl_update(struct hyfi_net_bridge *br, struct __hdtbl_entry *hde)
+int hyfi_hdtbl_update(struct hyfi_net_bridge *br, struct net_device *br_dev,
+	struct __hdtbl_entry *hde)
 {
 	struct hlist_head *head = &br->hash_hd[hdtbl_mac_hash(hde->mac_addr)];
 	struct net_hdtbl_entry *hd;
-	struct net_device *dev_udp = dev_get_by_index(dev_net(br->dev),
-			hde->udp_port);
-	struct net_device *dev_other = dev_get_by_index(dev_net(br->dev),
-			hde->other_port);
+	struct net_device *dev_udp, *dev_other;
 	struct net_bridge_port *br_port_u;
 	struct net_bridge_port *br_port_o;
 
-	if(!dev_udp || !dev_other) {
+	dev_udp = dev_get_by_index(dev_net(br_dev), hde->udp_port);
+	if(!dev_udp) {
+		return -EINVAL;
+	}
+	dev_other = dev_get_by_index(dev_net(br_dev), hde->other_port);
+	if(!dev_other) {
+		dev_put(dev_udp);
 		return -EINVAL;
 	}
 
@@ -328,6 +337,8 @@ int hyfi_hdtbl_update(struct hyfi_net_bridge *br, struct __hdtbl_entry *hde)
 	br_port_o = hyfi_br_port_get(dev_other);
 
 	if(!br_port_u || !br_port_o) {
+		dev_put(dev_udp);
+		dev_put(dev_other);
 		return -EINVAL;
 	}
 
@@ -344,7 +355,7 @@ int hyfi_hdtbl_update(struct hyfi_net_bridge *br, struct __hdtbl_entry *hde)
 		else
 			hyfi_hd_clear_flag(hd, HYFI_HDTBL_STATIC_ENTRY);
 	} else {
-		hd = hdtbl_create(head, br_port_u, br_port_o, hde->mac_addr, hde->id,
+		hd = hdtbl_create(br, head, br_port_u, br_port_o, hde->mac_addr, hde->id,
 				hde->static_entry);
 	}
 

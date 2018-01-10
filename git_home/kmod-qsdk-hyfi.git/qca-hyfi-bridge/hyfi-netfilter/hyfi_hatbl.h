@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2016, The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -31,11 +31,11 @@
 #define HYFI_HACTIVE_TBL_AGING_TIME  (1 << 14)  /* 16384 msec */
 
 #define HYFI_HACTIVE_TBL_STATIC_ENTRY                       (1 << 0)
-#define HYFI_HACTIVE_TBL_SEAMLESS_ENABLED                   (1 << 1)
 #define HYFI_HACTIVE_TBL_TRACKED_ENTRY                      (1 << 2)
 #define HYFI_HACTIVE_TBL_AGGR_RX_ENTRY                      (1 << 3)
 #define HYFI_HACTIVE_TBL_AGGR_TX_ENTRY                      (1 << 4)
-#define HYFI_HACTIVE_TBL_ACCL_ENTRY							(1 << 5)
+#define HYFI_HACTIVE_TBL_ACCL_ENTRY                         (1 << 5)
+#define HYFI_HACTIVE_TBL_SERIAL_VALID                       (1 << 6)
 
 #define HYFI_HACTIVE_TBL_PRIORITY_DSCP_VALID (1 << 31)
 #define HYFI_HACTIVE_TBL_PRIORITY_8021_VALID (1 << 30)
@@ -78,6 +78,7 @@ struct net_hatbl_entry {
 	struct hyfi_aggr_seq_data aggr_seq_data;
 
 	struct hyfi_aggr_rx_entry *aggr_rx_entry;
+	struct hyfi_net_bridge * hyfi_br;
 };
 
 #define HYFI_HACTIVE_TBL_RX_ENTRY \
@@ -125,7 +126,9 @@ struct net_hatbl_entry *hatbl_find(struct hyfi_net_bridge *br, u_int32_t hash,
 		const unsigned char *da, u_int32_t sub_class, u_int32_t priority);
 struct net_hatbl_entry *hatbl_find_ecm(struct hyfi_net_bridge *br, u_int32_t hash,
 		u_int32_t ecm_serial, const unsigned char *da);
-extern int hyfi_hatbl_init(struct hyfi_net_bridge *br);
+extern int hyfi_hatbl_init(void);
+extern int hyfi_hatbl_setup(struct hyfi_net_bridge *br);
+extern void hyfi_hatbl_free(void);
 extern void hyfi_hatbl_fini(struct hyfi_net_bridge *br);
 extern void hyfi_hatbl_flush(struct hyfi_net_bridge *br);
 extern void hyfi_hatbl_cleanup(unsigned long data);
@@ -144,7 +147,7 @@ extern struct net_hatbl_entry* hyfi_hatbl_insert_ecm_classifier(struct hyfi_net_
 		u_int32_t priority, const u_int8_t* sa, u_int32_t ecm_serial);
 
 extern int hyfi_hatbl_update(struct hyfi_net_bridge *br,
-		struct __hatbl_entry *hae, int update_local);
+		struct net_device *brdev, struct __hatbl_entry *hae, int update_local);
 
 extern int hyfi_hatbl_addentry(struct hyfi_net_bridge *br,
 		struct __hatbl_entry *hae);
@@ -175,6 +178,25 @@ struct net_hatbl_entry* hyfi_hatbl_insert_from_fdb(struct hyfi_net_bridge *br,
 
 void hyfi_hatbl_update_mcast_stats(struct net_bridge *br, struct sk_buff *skb,
 		struct net_bridge_port *dst);
+
+/**
+ * @brief Mark a H-Active entry as acclerated
+ *
+ * @pre Must be called with hash_ha_lock held
+ *
+ * @param [in] ha  H-Active entry to update
+ * @param [in] ecm_serial  serial number to set
+ */
+void hyfi_hatbl_mark_accelerated(struct net_hatbl_entry *ha, u_int32_t ecm_serial);
+
+/**
+ * @brief Mark a H-Active entry as decelerated
+ *
+ * @pre Must be called with hash_ha_lock held
+ *
+ * @param [in] ha  H-Active entry to update
+ */
+void hyfi_hatbl_mark_decelerated(struct net_hatbl_entry *ha);
 
 /**
  * @brief Calculate the elapsed time (handling overflow if
