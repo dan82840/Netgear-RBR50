@@ -31,7 +31,7 @@ enable_smp_affinity_wifi() {
 		board=$(ipq806x_board_name)
 		device="$1"
 		hwcaps=$(cat /sys/class/net/$device/hwcaps)
-		irq_affinity_num=`grep $device /proc/interrupts | cut -d ':' -f 1 | tr -d ' '`
+
 
 		case "${hwcaps}" in
 			*11an/ac)
@@ -43,13 +43,33 @@ enable_smp_affinity_wifi() {
 
 		case "$board" in
 			ap-dk0*)
-			if [ $device == "wifi2" ]; then
-				# Assign core 1 for wifi2. For ap-dkXX,wifi2 is always the third radio
-				smp_affinity=3
+
+			orbi_project=`cat /tmp/orbi_project`
+
+			if [ "$orbi_project" = "Orbimini" ]; then
+				if [ $device == "wifi2" ]; then
+					smp_affinity=8
+					irq_affinity_num=174
+				elif [ $device == "wifi0" ]; then
+					smp_affinity=4
+					irq_affinity_num=200
+				elif [ $device == "wifi1" ]; then
+					smp_affinity=3
+					irq_affinity_num=201
+				fi
 			else
-				# Assign Core 3 (or) 4 for Dakota based on hwcaps
-				smp_affinity=$(($smp_affinity << 2))
+				if [ $device == "wifi2" ]; then
+					smp_affinity=3
+					irq_affinity_num=174
+				elif [ $device == "wifi0" ]; then
+					smp_affinity=4
+					irq_affinity_num=200
+				elif [ $device == "wifi1" ]; then
+					smp_affinity=8
+					irq_affinity_num=201
+				fi
 			fi
+
 			;;
 		esac
 

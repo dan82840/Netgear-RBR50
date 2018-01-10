@@ -8,7 +8,7 @@ BOARDNAME:=Qualcomm Atheros IPQ806X
 FEATURES:=ubifs targz squashfs
 CPU_TYPE:=cortex-a7
 
-LINUX_VERSION:=3.14.43
+LINUX_VERSION:=3.14.77
 
 KERNELNAME="Image dtbs"
 
