@@ -29,7 +29,7 @@ define Package/dni-ntpclient/description
 endef
 
 define Build/Prepare
-       $(CP) $(GIT_HOME)/ntpclient.git/* $(PKG_BUILD_DIR)/
+	$(CP) $(GIT_HOME)/ntpclient.git/* $(PKG_BUILD_DIR)/
 endef
 
 define Package/dni-ntpclient/install
