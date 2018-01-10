@@ -47,6 +47,8 @@
 #define PCM_STOP_VAL		0
 
 #define PCM_MULT_FACTOR		4
+#define SET_DESC_OWN		1
+
 /*
  * Global Constant Definitions
  */
@@ -90,7 +92,8 @@ static irqreturn_t pcm_rx_irq_handler(int intrsrc, void *data)
 	uint32_t dma_at;
 	uint32_t rx_size;
 
-	rx_size = ipq40xx_mbox_get_played_offset(rx_dma_buffer->channel_id);
+	rx_size = ipq40xx_mbox_get_played_offset_set_own(
+			rx_dma_buffer->channel_id);
 
 	/* the buffer number calculated would actually point to the next
 	 * buffer to be played. We need to go to the previous buffer, keeping
@@ -294,8 +297,10 @@ int ipq_pcm_init(struct ipq_pcm_params *params)
 
 	ret = ipq40xx_mbox_form_ring(tx_dma_buffer->channel_id,
 			tx_dma_buffer->addr,
+			tx_dma_buffer->area,
 			single_buf_size,
-			tx_dma_buffer->size);
+			tx_dma_buffer->size,
+			SET_DESC_OWN);
 	if (ret) {
 		pr_err("\n%s: %d: Error dma form ring for playback, error %d\n",
 				__func__, __LINE__, ret);
@@ -322,8 +327,10 @@ int ipq_pcm_init(struct ipq_pcm_params *params)
 
 	ret = ipq40xx_mbox_form_ring(rx_dma_buffer->channel_id,
 			rx_dma_buffer->addr,
+			rx_dma_buffer->area,
 			single_buf_size,
-			rx_dma_buffer->size);
+			rx_dma_buffer->size,
+			SET_DESC_OWN);
 	if (ret) {
 		pr_err("\n %s: %d: Error dma form ring for capture, error: %d\n",
 				__func__, __LINE__, ret);
@@ -466,7 +473,6 @@ void ipq_pcm_deinit(void)
 
 		clk_disable_unprepare(pcm_clk);
 	}
-
 	if (tx_dma_buffer)
 		voice_free_dma_buffer(&pcm_pdev->dev, tx_dma_buffer);
 	if (rx_dma_buffer)
@@ -484,8 +490,16 @@ EXPORT_SYMBOL(ipq_pcm_deinit);
 static int voice_allocate_dma_buffer(struct device *dev,
 					struct voice_dma_buffer *dma_buffer)
 {
-	dma_buffer->area = dma_zalloc_coherent(dev, dma_buffer->size,
+	int size;
+	int ndescs;
+
+	ndescs = ipq40xx_get_mbox_descs_duplicate(NUM_BUFFERS);
+	size = (dma_buffer->size * NUM_BUFFERS) + (ndescs *
+				sizeof(struct ipq40xx_mbox_desc));
+
+	dma_buffer->area = dma_zalloc_coherent(dev, size,
 					&dma_buffer->addr, GFP_KERNEL);
+
 	if (!dma_buffer->area)
 		return -ENOMEM;
 
@@ -561,7 +575,19 @@ static int ipq40xx_pcm_driver_probe(struct platform_device *pdev)
 
 	/* Allocate memory for rx  and tx instance */
 	rx_dma_buffer = kzalloc(sizeof(struct voice_dma_buffer), GFP_KERNEL);
+	if (rx_dma_buffer == NULL) {
+		pr_err("%s: Error in allocating mem for rx_dma_buffer\n",
+				__func__);
+		return -ENOMEM;
+	}
+
 	tx_dma_buffer = kzalloc(sizeof(struct voice_dma_buffer), GFP_KERNEL);
+	if (tx_dma_buffer == NULL) {
+		pr_err("%s: Error in allocating mem for tx_dma_buffer\n",
+				__func__);
+		kfree(rx_dma_buffer);
+		return -ENOMEM;
+	}
 
 	rx_dma_buffer->channel_id = rx_channel;
 	tx_dma_buffer->channel_id = tx_channel;

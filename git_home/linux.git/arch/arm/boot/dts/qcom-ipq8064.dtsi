@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2014-2016, The Linux Foundation. All rights reserved.
+ *
+ * Permission to use, copy, modify, and/or distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
+
 /dts-v1/;
 
 #include "skeleton.dtsi"
@@ -221,16 +237,16 @@
 
 		nss0: nss@40000000 {
 			compatible = "qcom,nss0";
-			qcom,low_frequency = <110000000>;
-			qcom,mid_frequency = <550000000>;
-			qcom,max_frequency = <733000000>;
+			qcom,low-frequency = <110000000>;
+			qcom,mid-frequency = <550000000>;
+			qcom,max-frequency = <733000000>;
 		};
 
 		nss1: nss@40800000 {
 			compatible = "qcom,nss1";
-			qcom,low_frequency = <110000000>;
-			qcom,mid_frequency = <550000000>;
-			qcom,max_frequency = <733000000>;
+			qcom,low-frequency = <110000000>;
+			qcom,mid-frequency = <550000000>;
+			qcom,max-frequency = <733000000>;
 		};
 
 		imem: memory@700000 {
@@ -607,6 +623,7 @@
 
 			assigned-clocks = <&gcc SATA_RXOOB_CLK>, <&gcc SATA_PMALIVE_CLK>;
 			assigned-clock-rates = <100000000>, <100000000>;
+			portmap = <1>;
 
 			phys = <&sata_phy>;
 			phy-names = "sata-phy";
@@ -965,13 +982,14 @@
 				clocks          = <&gcc SDC1_CLK>, <&gcc SDC1_H_CLK>;
 				clock-names     = "mclk", "apb_pclk";
 				bus-width       = <8>;
-				max-frequency   = <48000000>;
+				max-frequency   = <96000000>;
 				non-removable;
 				cap-sd-highspeed;
 				cap-mmc-highspeed;
+				mmc-ddr-1_8v;
 				vmmc-supply = <&vsdcc_fixed>;
-				#dmas = <&sdcc1bam 2>, <&sdcc1bam 1>;
-				#dma-names = "tx", "rx";
+				dmas = <&sdcc1bam 2>, <&sdcc1bam 1>;
+				dma-names = "tx", "rx";
 			};
 
 			sdcc3: sdcc@12180000 {
@@ -991,9 +1009,13 @@
 				sd-uhs-sdr104;
 				sd-uhs-ddr50;
 				vqmmc-supply = <&vsdcc_fixed>;
-				#dmas = <&sdcc3bam 2>, <&sdcc3bam 1>;
-				#dma-names = "tx", "rx";
+				dmas = <&sdcc3bam 2>, <&sdcc3bam 1>;
+				dma-names = "tx", "rx";
 			};
 		};
+	};
+
+	chosen {
+		bootargs-append = " console=ttyMSM0,115200n8";
 	};
 };

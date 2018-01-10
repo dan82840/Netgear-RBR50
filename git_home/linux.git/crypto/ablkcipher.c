@@ -589,6 +589,11 @@ static int crypto_givcipher_default(struct crypto_alg *alg, u32 type, u32 mask)
 	if (IS_ERR(inst))
 		goto put_tmpl;
 
+	/*
+	 * copy flags from registered algorithm
+	 */
+	inst->alg.cra_flags |= (alg->cra_flags & CRYPTO_ALG_NOSUPP_SG);
+
 	if ((err = crypto_register_instance(tmpl, inst))) {
 		tmpl->free(inst);
 		goto put_tmpl;
@@ -695,7 +700,7 @@ struct crypto_ablkcipher *crypto_alloc_ablkcipher(const char *alg_name,
 err:
 		if (err != -EAGAIN)
 			break;
-		if (signal_pending(current)) {
+		if (fatal_signal_pending(current)) {
 			err = -EINTR;
 			break;
 		}

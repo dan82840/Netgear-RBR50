@@ -54,6 +54,10 @@ static int check_dns_hijack(const struct sk_buff *skb)
 		"routerlogin.com",
 		"routerlogin.net",
 		"readyshare.routerlogin.net",
+        "www.orbilogin.com",
+        "www.orbilogin.net",
+        "orbilogin.com",
+        "orbilogin.net",
         /* --- The End --- */
         NULL
 	};

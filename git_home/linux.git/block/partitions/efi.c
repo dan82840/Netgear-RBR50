@@ -110,6 +110,8 @@
  * the partition tables happens after init too.
  */
 static int force_gpt;
+static char saved_rootfs_name[64];
+
 static int __init
 force_gpt_fn(char *str)
 {
@@ -118,6 +120,12 @@ force_gpt_fn(char *str)
 }
 __setup("gpt", force_gpt_fn);
 
+static int __init rootfs_name_setup(char *line)
+{
+	strlcpy(saved_rootfs_name, line, sizeof(saved_rootfs_name));
+	return 1;
+}
+__setup("rootfsname=", rootfs_name_setup);
 
 /**
  * efi_crc32() - EFI version of crc32 function
@@ -698,11 +706,19 @@ struct dni_partition dni_custom_part[] = {
 {"pot_bak", 0x4222, 0x200},
 {"traffic_meter.bak", 0x4422, 0x200},
 {"kernel",  0x4622, 0x1E00},
-{"rootfs",  0x6422, 0xF600},
-{"firmware",0x4622, 0x11400},
-{"mtdoops", 0x15A22, 0x200},
-{"cert", 0x15C22, 0x080},
-{"reserved",0x15CA2, 0x2B70FF},
+{"rootfs",  0x6422, 0x17200},
+{"firmware",0x4622, 0x19000},
+{"mtdoops", 0x1D622, 0x200},
+{"kernel_bak",  0x1D822, 0x1E00},
+{"rootfs_bak",  0x1F622, 0x17200},
+{"firmware_bak",0x1D822, 0x19000},
+{"cert", 0x36822, 0x200},
+{"device_table", 0x36A22, 0x2800},
+{"circle", 0x39222, 0x18000},
+{"streamboost", 0x51222, 0x19000},
+{"forceshield", 0x6A222, 0xA000},
+{"arlo", 0x74222, 0x8000},
+{"reserved",0x7C222, 0x250AFF},
 };
 
 int efi_partition(struct parsed_partitions *state)
@@ -711,6 +727,9 @@ int efi_partition(struct parsed_partitions *state)
 	gpt_entry *ptes = NULL;
 	u32 i;
 	unsigned ssz = bdev_logical_block_size(state->bdev) / 512;
+
+	if (!saved_rootfs_name[0])
+		strlcpy(saved_rootfs_name, "rootfs", sizeof("rootfs"));
 
 	if (!find_valid_gpt(state, &gpt, &ptes) || !gpt || !ptes) {
 		kfree(gpt);
@@ -753,8 +772,8 @@ int efi_partition(struct parsed_partitions *state)
 		}
 
 		pr_notice("#: vol name is %s, start is 0x%llx, size is 0x%llx, ssz is 0x%x\n", info->volname, start, size, ssz);
-
-		if (ROOT_DEV == 0 && !strcmp(info->volname, "rootfs") &&
+		if (ROOT_DEV == 0 &&
+		    !strcmp(info->volname, saved_rootfs_name) &&
 		    config_enabled(CONFIG_MTD_ROOTFS_ROOT_DEV)) {
 			ROOT_DEV = MKDEV(MAJOR(state->bdev->bd_dev), i + 1);
 			pr_notice("GPT: device [%d:%d] (%s) set to be root filesystem\n",
@@ -778,7 +797,6 @@ int efi_partition(struct parsed_partitions *state)
 		strcpy(info_r.volname, dni_custom_part[j].name);
 
 		pr_notice("#: vol name is %s, start is 0x%llx, size is 0x%llx, ssz is 0x%x\n", info_r.volname, start_r, size_r, ssz);
-
 		if (ROOT_DEV == 0 && !strcmp(info_r.volname, "rootfs") &&
 			config_enabled(CONFIG_MTD_ROOTFS_ROOT_DEV)) {
 				ROOT_DEV = MKDEV(MAJOR(state->bdev->bd_dev), k + 1);

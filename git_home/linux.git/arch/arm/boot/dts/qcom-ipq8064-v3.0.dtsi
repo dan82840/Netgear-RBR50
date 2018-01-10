@@ -155,18 +155,22 @@
 			smb208_s2a: smb208-s2a {
 				regulator-max-microvolt = <1275000>;
 			};
+
+			smb208_s2b: smb208-s2b {
+				regulator-max-microvolt = <1275000>;
+			};
 		};
 
 		nss0: nss@40000000 {
-			qcom,low_frequency = <110000000>;
-			qcom,mid_frequency = <600000000>;
-			qcom,max_frequency = <800000000>;
+			qcom,low-frequency = <110000000>;
+			qcom,mid-frequency = <600000000>;
+			qcom,max-frequency = <800000000>;
 		};
 
 		nss1: nss@40800000 {
-			qcom,low_frequency = <110000000>;
-			qcom,mid_frequency = <600000000>;
-			qcom,max_frequency = <800000000>;
+			qcom,low-frequency = <110000000>;
+			qcom,mid-frequency = <600000000>;
+			qcom,max-frequency = <800000000>;
 		};
 	};
 };
